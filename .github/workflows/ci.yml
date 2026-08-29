@@ -30,13 +30,16 @@ jobs:
 
       - run: pnpm test
 
+      - name: Farb-Regressionstest der Bild-Pipeline
+        run: pnpm test:integration
+
       - run: pnpm typecheck
 
       - name: Bildvarianten erzeugen
         run: pnpm build-images --strict
 
       - name: Manifest auf Plausibilität prüfen
-        run: node scripts/check-manifest.ts --expect-mode demo --min-photos 3
+        run: pnpm check-manifest --expect-mode demo --min-photos 3
 
       - run: pnpm generate
 
