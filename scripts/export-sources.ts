@@ -62,6 +62,10 @@ const OPTIONS: OptionSpecs = {
     description: `JPEG-Qualität der Web-Quelle (Standard: ${EXPORT_QUALITY})`,
   },
   'dry-run': { type: 'boolean', description: 'Nichts schreiben, nur berichten' },
+  force: {
+    type: 'boolean',
+    description: 'Vorhandene Web-Quellen überschreiben (Standard: überspringen)',
+  },
   only: { type: 'string', placeholder: '<slug>', description: 'Nur diesen Slug exportieren' },
 }
 
@@ -134,6 +138,7 @@ async function main(): Promise<void> {
 
   const flags = parseFlags(OPTIONS)
   const dryRun = flags.bool('dry-run')
+  const force = flags.bool('force')
   const only = flags.str('only')
 
   const rawQuality = flags.str('quality')
@@ -185,6 +190,7 @@ async function main(): Promise<void> {
   let written = 0
   let metaCreated = 0
   let skipped = 0
+  let existing = 0
   let totalBytes = 0
 
   for (const file of files) {
@@ -223,14 +229,30 @@ async function main(): Promise<void> {
       reporter.warn(slug, `keine Zuordnung für ${file} — title: "TODO"`)
     }
 
-    let outWidth: number
-    let outHeight: number
-    let bytes = 0
+    // Ein EXIF-Orientierungsflag ab 5 dreht das Bild um 90°; `.autoOrient()`
+    // vertauscht dann Breite und Höhe. Die Vorschau muss dieselben Maße nennen
+    // wie der echte Lauf, sonst berichtet sie über ein anderes Bild.
+    const rotated = (metadata.orientation ?? 1) >= 5
+    const inputWidth = rotated ? metadata.height : metadata.width
+    const inputHeight = rotated ? metadata.width : metadata.height
 
-    if (dryRun) {
-      const scale = Math.min(1, EXPORT_WIDTH / Math.max(metadata.width, metadata.height))
-      outWidth = Math.round(metadata.width * scale)
-      outHeight = Math.round(metadata.height * scale)
+    // Die Web-Quelle ist die Vorlage aller Varianten und kann von Hand
+    // nachbearbeitet worden sein. Sie wird deshalb genauso geschützt wie die
+    // YAML-Datei: ein zweiter Lauf überschreibt sie nicht ungefragt.
+    const sourceExists = existsSync(outputFile)
+    const skipSource = sourceExists && !force
+
+    const scale = Math.min(1, EXPORT_WIDTH / Math.max(inputWidth, inputHeight))
+    let outWidth = Math.round(inputWidth * scale)
+    let outHeight = Math.round(inputHeight * scale)
+    let bytes = 0
+    let sourceNote: string
+
+    if (skipSource) {
+      sourceNote = 'übersprungen, existiert'
+      existing += 1
+    } else if (dryRun) {
+      sourceNote = sourceExists ? 'würde überschreiben' : 'würde schreiben'
     } else {
       const info = await input
         .autoOrient()
@@ -252,6 +274,7 @@ async function main(): Promise<void> {
       bytes = statSync(outputFile).size
       totalBytes += bytes
       written += 1
+      sourceNote = sourceExists ? 'überschrieben (--force)' : 'geschrieben'
     }
 
     let metaNote = 'YAML vorhanden'
@@ -274,9 +297,10 @@ async function main(): Promise<void> {
     }
 
     reporter.step(
-      dryRun ? 'würde' : 'export',
+      skipSource ? 'vorhanden' : dryRun ? 'würde' : 'export',
       slug,
-      `${outWidth}×${outHeight} · ${bytes > 0 ? formatBytes(bytes) : '—'} · ${metaNote} · ${file}`,
+      `${outWidth}×${outHeight} · ${bytes > 0 ? formatBytes(bytes) : '—'} · ` +
+        `${sourceNote} · ${metaNote} · ${file}`,
     )
   }
 
@@ -284,6 +308,7 @@ async function main(): Promise<void> {
   reporter.info('')
   reporter.info(
     `  ${files.length} Originale · ${written} Web-Quellen geschrieben · ${metaCreated} YAML angelegt` +
+      `${existing > 0 ? ` · ${existing} vorhanden` : ''}` +
       `${skipped > 0 ? ` · ${skipped} übersprungen` : ''}` +
       `${totalBytes > 0 ? ` · ${formatBytes(totalBytes)}` : ''} · ${formatDuration(duration)}`,
   )
