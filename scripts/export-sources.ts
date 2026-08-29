@@ -275,7 +275,7 @@ async function main(): Promise<void> {
 
     reporter.step(
       dryRun ? 'würde' : 'export',
-      slug.padEnd(28),
+      slug,
       `${outWidth}×${outHeight} · ${bytes > 0 ? formatBytes(bytes) : '—'} · ${metaNote} · ${file}`,
     )
   }
