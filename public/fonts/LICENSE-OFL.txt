@@ -1,0 +1,25 @@
+Schriften in diesem Verzeichnis
+==============================
+
+Beide Schriftfamilien stehen unter der SIL Open Font License, Version 1.1
+(OFL-1.1). Der vollständige Lizenztext ist unter
+https://openfontlicense.org/open-font-license-official-text/ abrufbar.
+
+Archivo
+  archivo-variable.woff2, archivo-italic-variable.woff2
+  Copyright (c) Omnibus-Type (https://www.omnibus-type.com)
+  https://github.com/Omnibus-Type/Archivo
+
+JetBrains Mono
+  jetbrains-mono-variable.woff2
+  Copyright (c) 2020 JetBrains s.r.o. (https://jetbrains.com)
+  https://github.com/JetBrains/JetBrainsMono
+
+Die Dateien sind die `latin`-Subsets, wie sie die Google-Fonts-API am
+2026-08-29 ausgeliefert hat, und werden hier selbst gehostet, damit beim
+Seitenaufruf kein Request an Dritte entsteht.
+
+Bedingungen der OFL-1.1 in Kürze: Die Schriften dürfen frei verwendet,
+eingebettet, verändert und weitergegeben werden, solange dies unter derselben
+Lizenz und nicht unter dem Namen des ursprünglichen Autors geschieht; sie
+dürfen nicht für sich allein verkauft werden.

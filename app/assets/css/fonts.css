@@ -1,0 +1,37 @@
+/* Selbst gehostete Schriften — kein Request an Dritte (Datenschutz, PLAN.md §9).
+   Quelle: Google Fonts API, 2026-08-29, nur das `latin`-Subset (U+0000–00FF u. a.,
+   deckt die deutschen Umlaute und ß ab). Lizenz beider Familien: SIL OFL 1.1,
+   siehe public/fonts/LICENSE-OFL.txt.
+
+   Hinweis: Google liefert für beide Familien Variable Fonts aus — pro Familie und
+   Stil genau eine Datei, die den ganzen Gewichtsbereich abdeckt. Statt fünf bzw.
+   zwei Einzelschnitten liegen deshalb drei Dateien in public/fonts/; die
+   @font-face-Regeln geben den Gewichtsbereich per `font-weight: 400 600` an.
+   Genutzte Gewichte: Archivo 400/500/600 normal, 400/500 kursiv (Theme
+   „Licht / Schatten"), JetBrains Mono 400/500. */
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/archivo-variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/archivo-italic-variable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-variable.woff2') format('woff2');
+}
