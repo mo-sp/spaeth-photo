@@ -23,7 +23,9 @@ logs
 .env.*
 !.env.example
 
-# Generierte Bild-Varianten und Manifest (siehe PLAN.md §9 — nie committen)
+# Generierte Bild-Varianten, Manifest, Client-Index und Build-Cache
+# (siehe PLAN.md §9 — nie committen)
 public/img/
 photos.manifest.json
+app/data/
 .image-cache/

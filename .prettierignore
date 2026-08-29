@@ -6,7 +6,13 @@ app/assets/css/tokens.css
 .output
 public/img
 photos.manifest.json
+app/data
+.image-cache
 pnpm-lock.yaml
+
+# Vom Export-Skript erzeugt; das Format der YAML-Dateien gibt content/CLAUDE.md
+# vor, nicht Prettier.
+demo-content/photos
 
 # Submodule und Planungsdokumente unverändert lassen
 content
