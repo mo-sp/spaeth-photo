@@ -1,0 +1,14 @@
+# Verbindlich aus dem Design-Handoff übernommen — nicht umformatieren.
+app/assets/css/tokens.css
+
+# Generiert
+.nuxt
+.output
+public/img
+photos.manifest.json
+pnpm-lock.yaml
+
+# Submodule und Planungsdokumente unverändert lassen
+content
+PLAN.md
+WORKPLAN.md

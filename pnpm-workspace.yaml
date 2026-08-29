@@ -1,0 +1,6 @@
+# Native Postinstall-Skripte, die pnpm sonst blockiert. Beide sind Bestandteil
+# der Nuxt-/ESLint-Toolchain und müssen ihre plattformspezifische Binärdatei
+# einrichten dürfen, sonst schlägt der Build fehl.
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
