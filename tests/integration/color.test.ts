@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { writeFile } from 'node:fs/promises'
 import sharp from 'sharp'
-import { afterAll, describe, expect, it } from 'vitest'
-import { renderPhoto } from '../../scripts/lib/variants.ts'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { renderPhoto, type RenderResult } from '../../scripts/lib/variants.ts'
 
 /**
  * Farb-Regressionstest.
@@ -32,6 +32,8 @@ const WIDTH = 1024
 const BAND = 256
 
 const dir = mkdtempSync(path.join(tmpdir(), 'spaeth-color-'))
+const sourceFile = path.join(dir, 'patches.jpg')
+const outDir = path.join(dir, 'out')
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 async function makeSource(file: string): Promise<void> {
@@ -65,19 +67,22 @@ async function sample(file: string, band: number): Promise<[number, number, numb
   return [data[0]!, data[1]!, data[2]!]
 }
 
+let result: RenderResult
+
+// Einmal rendern, dann beide Prüfungen darauf ansetzen: sonst hinge der zweite
+// Test daran, dass der erste vorher lief und seine Quelle liegen ließ.
+beforeAll(async () => {
+  await makeSource(sourceFile)
+  result = await renderPhoto({
+    sourceFile,
+    slug: 'farbprobe',
+    outDir,
+    write: (file, data) => writeFile(file, data),
+  })
+})
+
 describe('Farbmanagement der Varianten-Pipeline', () => {
   it('reicht sRGB-Werte unverändert durch alle Formate', async () => {
-    const sourceFile = path.join(dir, 'patches.jpg')
-    await makeSource(sourceFile)
-
-    const outDir = path.join(dir, 'out')
-    const result = await renderPhoto({
-      sourceFile,
-      slug: 'farbprobe',
-      outDir,
-      write: (file, data) => writeFile(file, data),
-    })
-
     expect(result.files.length).toBeGreaterThan(0)
 
     for (const file of result.files) {
@@ -95,20 +100,26 @@ describe('Farbmanagement der Varianten-Pipeline', () => {
   })
 
   it('schreibt keine Metadaten und kein Profil in die Ausgaben', async () => {
-    const sourceFile = path.join(dir, 'patches.jpg')
-    const outDir = path.join(dir, 'out')
-    const result = await renderPhoto({
-      sourceFile,
-      slug: 'farbprobe',
-      outDir,
-      write: (file, data) => writeFile(file, data),
-    })
-
     for (const file of [...result.files, result.ogFile]) {
       const metadata = await sharp(path.join(outDir, path.basename(file.path))).metadata()
       expect(metadata.exif, file.path).toBeUndefined()
       expect(metadata.icc, file.path).toBeUndefined()
       expect(metadata.xmp, file.path).toBeUndefined()
     }
+  })
+
+  it('liefert auch für eine Quelle unter 960 px ein JPEG aus', async () => {
+    // 800 px breit: keine der beiden JPEG-Regelstufen greift. Ohne Fallback
+    // hätte das <img> im Frontend kein src.
+    const schmal = path.join(dir, 'schmal.jpg')
+    await sharp(sourceFile).resize({ width: 800 }).jpeg({ quality: 90 }).toFile(schmal)
+    const klein = await renderPhoto({
+      sourceFile: schmal,
+      slug: 'schmal',
+      outDir: path.join(dir, 'out-schmal'),
+      write: (file, data) => writeFile(file, data),
+    })
+    expect(klein.variants.jpeg).toEqual([800])
+    expect(klein.variants.avif).toEqual([480, 800])
   })
 })

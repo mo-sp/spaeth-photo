@@ -90,7 +90,9 @@ export const JPEG_QUALITY = 82
  * denken muss.
  */
 export const RENDER = {
-  version: 1,
+  // 2: JPEG-Fallback auch für Quellen unter 960 px, Qualitäts-Clamp auf die
+  // Untergrenze, `.autoOrient()` vor dem Verkleinern.
+  version: 2,
   baseWidths: BASE_WIDTHS,
   jpegWidths: JPEG_WIDTHS,
   avifQuality: AVIF_QUALITY,
@@ -124,6 +126,20 @@ export function widthLadder(sourceWidth: number): number[] {
   if (sourceWidth - largest >= 32) widths.push(sourceWidth)
   if (widths.length === 0) widths.push(sourceWidth)
   return widths
+}
+
+/**
+ * Die Breiten, die als JPEG entstehen. Normalerweise die Regelstufen 960 und
+ * 1600 — greift davon keine, weil die Quelle schmaler als 960 px ist, springt
+ * die größte erzeugte Stufe bis 1600 px ein. Ohne diesen Fall bliebe
+ * `variants.jpeg` leer und das `<img>` im Frontend hätte kein `src`: für einen
+ * Browser ohne AVIF und WebP wäre das Foto schlicht nicht da.
+ */
+export function jpegWidthsFor(widths: readonly number[]): number[] {
+  const regular = widths.filter((width) => JPEG_WIDTHS.includes(width))
+  if (regular.length > 0) return regular
+  const fallback = widths.filter((width) => width <= 1600).at(-1)
+  return fallback === undefined ? [] : [fallback]
 }
 
 /** Regelstufe, deren Einstellungen für eine erzeugte Breite gelten. */
@@ -194,6 +210,7 @@ export async function averageColor(file: string): Promise<string> {
  */
 export async function makeLqip(file: string): Promise<string> {
   const buffer = await sharp(file)
+    .autoOrient()
     .resize({ width: LQIP_WIDTH, kernel: 'lanczos3' })
     .webp({ quality: LQIP_QUALITY, effort: 6 })
     .toBuffer()
@@ -208,7 +225,9 @@ interface EncodeAttempt {
 
 /**
  * Kodiert mit der Startqualität und senkt sie in Fünferschritten, solange das
- * Ergebnis über dem Budget liegt und die Untergrenze nicht erreicht ist.
+ * Ergebnis über dem Budget liegt. Der letzte Schritt wird auf die Untergrenze
+ * geklemmt statt abgebrochen: sonst wäre sie unerreichbar, weil sie auf keiner
+ * Fünferleiter der Startwerte liegt (60 → 40, dann Stopp; 38 nie).
  */
 async function encodeWithinBudget(
   encode: (quality: number) => Promise<Buffer>,
@@ -219,8 +238,8 @@ async function encodeWithinBudget(
   let quality = startQuality
   let buffer = await encode(quality)
   let encodes = 1
-  while (buffer.length > budget && quality - QUALITY_STEP >= minQuality) {
-    quality -= QUALITY_STEP
+  while (buffer.length > budget && quality > minQuality) {
+    quality = Math.max(minQuality, quality - QUALITY_STEP)
     buffer = await encode(quality)
     encodes += 1
   }
@@ -239,12 +258,17 @@ export async function renderPhoto(options: RenderOptions): Promise<RenderResult>
   const { sourceFile, slug, outDir, write } = options
 
   const metadata = await sharp(sourceFile, { failOn: 'error' }).metadata()
-  const sourceWidth = metadata.width
-  const sourceHeight = metadata.height
+  // Die Web-Quellen aus `export-sources` sind bereits gedreht und metadatenfrei;
+  // `.autoOrient()` ist dort ein No-op. Für alles andere — ein von Hand
+  // abgelegtes Bild, ein Test-Fixture — sind Maße und Pixel sonst über Kreuz.
+  const rotated = (metadata.orientation ?? 1) >= 5
+  const sourceWidth = rotated ? metadata.height : metadata.width
+  const sourceHeight = rotated ? metadata.width : metadata.height
   const sourceBytes = statSync(sourceFile).size
 
   const widths = widthLadder(sourceWidth)
   const largest = widths.at(-1) ?? sourceWidth
+  const jpegWidths = new Set(jpegWidthsFor(widths))
 
   mkdirSync(outDir, { recursive: true })
 
@@ -271,7 +295,7 @@ export async function renderPhoto(options: RenderOptions): Promise<RenderResult>
     // Einmal verkleinern, dann alle Formate aus demselben Rohbild kodieren:
     // die drei Encoder sehen garantiert identische Pixel, und die teure
     // Skalierung passiert nur einmal je Breite.
-    let pipeline = sharp(sourceFile, { failOn: 'error' }).resize({
+    let pipeline = sharp(sourceFile, { failOn: 'error' }).autoOrient().resize({
       width: targetWidth,
       fit: 'inside',
       withoutEnlargement: true,
@@ -311,7 +335,7 @@ export async function renderPhoto(options: RenderOptions): Promise<RenderResult>
     encodes += webp.encodes
     await record('webp', info.width, info.height, webp.buffer)
 
-    if (JPEG_WIDTHS.includes(targetWidth)) {
+    if (jpegWidths.has(targetWidth)) {
       const jpeg = await from()
         .jpeg({
           quality: JPEG_QUALITY,
@@ -326,6 +350,7 @@ export async function renderPhoto(options: RenderOptions): Promise<RenderResult>
   }
 
   const ogBuffer = await sharp(sourceFile, { failOn: 'error' })
+    .autoOrient()
     .resize(OG_WIDTH, OG_HEIGHT, {
       fit: 'cover',
       // Nicht mittig zuschneiden: `attention` sucht die Bildregion mit der

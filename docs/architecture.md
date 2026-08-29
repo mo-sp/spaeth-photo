@@ -105,6 +105,12 @@ Content-Repos. `build-images` läuft im Build und erzeugt daraus die Auslieferun
 unter `public/img/`. Alle Zahlen unten sind auf dem Bestand dieses Projekts gemessen
 (26 Fotos, sharp 0.35 / libvips 8.18).
 
+**Bestehende Web-Quellen werden nie ungefragt überschrieben.** `export-sources` behandelt
+die Web-Quelle wie die YAML-Datei: existiert sie, wird sie übersprungen und als
+„übersprungen, existiert" gemeldet. Nur `--force` schreibt sie neu. Die Quelle ist die
+Vorlage aller Varianten und kann von Hand nachbearbeitet worden sein; ein zweiter Lauf mit
+anderer `--quality` würde diese Arbeit sonst stillschweigend verwerfen.
+
 **Die Web-Quelle ist ein Archiv, kein Auslieferungsformat.** 2560 px lange Kante, JPEG
 q95, und ausdrücklich `chromaSubsampling: 4:4:4`. 4:2:0 wirft drei Viertel der
 Farbauflösung weg, bevor der eigentliche Encoder überhaupt anfängt; dieser Verlust
@@ -184,9 +190,29 @@ Gemessen: erster Lauf 354 s für 26 Fotos und 286 Dateien (32,9 MB), zweiter Lau
 gelöscht wird ausschließlich unterhalb von `public/img` (jeder Pfad läuft durch
 `assertInside`), ausschließlich in Verzeichnissen mit gültigem Slug-Namen und
 ausschließlich Dateien, deren Name dem Muster der erzeugten Varianten entspricht. Alles
-andere wird gemeldet und liegen gelassen. Ohne Quellbilder wird überhaupt nicht
-aufgeräumt — ein leeres Quellverzeichnis ist viel wahrscheinlicher ein
-Konfigurationsfehler als die Ansage, alles zu löschen. `--dry-run` zeigt den Plan.
+andere — `README.md`, `.gitkeep`, Symlinks, fremde Ordner — wird gemeldet und liegen
+gelassen. Ohne Quellbilder wird überhaupt nicht aufgeräumt — ein leeres Quellverzeichnis
+ist viel wahrscheinlicher ein Konfigurationsfehler als die Ansage, alles zu löschen.
+
+**Aufgeräumt wird nur nach einem vollständigen, fehlerfreien Lauf.** Das Löschen richtet
+sich nach dem Sollzustand des Laufs, und der ist in zwei Fällen unvollständig, obwohl die
+Ausgaben auf der Platte gültig sind. **Erstens `--only`:** ein Teillauf betrachtet einen
+Slug: alle anderen stehen nur dann im Sollzustand, wenn der Cache sie kennt — bei kaltem
+Cache also gar nicht. Deshalb räumt ein Lauf mit `--only` überhaupt nicht auf und sagt das
+in einer Zeile; die ausgelassenen Slugs gelten als unangetastet. **Zweitens Fehler:** ein
+Foto mit kaputter YAML-Datei fällt aus dem Sollzustand heraus, und der Lauf schreibt wegen
+des Fehlers ohnehin weder Manifest noch Index noch Cache — dann darf er erst recht nichts
+löschen. Der Fehlerpfad ist nie destruktiv. Zusätzlich stehen die betroffenen Slugs auf
+einer Schutzliste. **`--dry-run` durchläuft dieselbe Entscheidungslogik wie ein echter
+Lauf** und hält nur vor jedem Schreiben und Löschen an: die Vorschau zeigt damit dieselben
+Verdikte und dieselben Löschungen, die der echte Lauf vornähme. Die Funktion selbst liegt
+in `scripts/lib/cleanup.ts` und wird gegen ein temporäres Verzeichnis getestet — ein
+Löschpfad, den man nicht testen kann, ist ein Löschpfad, dem man nicht trauen sollte.
+
+**JPEG-Untergrenze: kein Foto ohne `src`.** Der JPEG-Fallback entsteht auf den Stufen 960
+und 1600. Bei einer Quelle unter 960 px greift keine davon, und `variants.jpeg` bliebe
+leer — ein Browser ohne AVIF und WebP bekäme dann im `<img>` kein `src` und zeigte nichts.
+Deshalb springt in diesem Fall die größte erzeugte Stufe bis 1600 px als JPEG ein.
 
 **Sequenziell, nicht parallel.** libvips parallelisiert innerhalb einer Operation bereits
 über alle Kerne; ein zusätzlicher Parallelismus auf Bildebene bringt kaum Durchsatz, macht

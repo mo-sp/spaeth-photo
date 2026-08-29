@@ -108,7 +108,9 @@ export function resolveSource(override?: string): ResolvedSource {
     const dirs = photosDirs(root)
     if (countJpegs(dirs.source) > 0) {
       return {
-        mode: isInside(DEMO_DIR, dirs.source) || root === DEMO_DIR ? 'demo' : 'content',
+        // `dirs.source` liegt immer unterhalb von `root`; ist root der
+        // Demo-Ordner, greift schon isInside.
+        mode: isInside(DEMO_DIR, dirs.source) ? 'demo' : 'content',
         root,
         sourceDir: dirs.source,
         metaDir: dirs.meta,

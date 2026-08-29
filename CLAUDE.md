@@ -23,6 +23,7 @@ Doku und messbare Performance sind Teil des Ziels.
 | `pnpm dev`                    | Dev-Server                                                    |
 | `pnpm export-sources`         | Originale → Web-Quellen + YAML im Content-Repo (siehe unten)  |
 | `pnpm build-images`           | Bild-Varianten, `photos.manifest.json`, Client-Index          |
+| `pnpm check-manifest`         | erzeugtes Manifest prüfen (CI-Torwächter)                     |
 | `pnpm generate`               | statische Seite bauen                                         |
 | `pnpm build`                  | `build-images` + `generate` (Coolify-Build-Befehl)            |
 | `pnpm preview`                | gebaute Seite lokal ansehen                                   |
@@ -35,7 +36,8 @@ Flags von `build-images`: `--dry-run` (nichts schreiben oder löschen), `--force
 ignorieren), `--only <slug>`, `--strict` (Warnungen als Fehler, für CI), `--source-dir <dir>`
 (andere Content-Wurzel; die Ausgabe geht immer nach `public/img`).
 `export-sources`: `--source-dir <dir>` (Originale, sonst `$PHOTO_SOURCE_DIR`),
-`--map <json>`, `--out <dir>`, `--quality <1-100>`, `--only <slug>`, `--dry-run`.
+`--map <json>`, `--out <dir>`, `--quality <1-100>`, `--only <slug>`, `--dry-run`,
+`--force` (vorhandene Web-Quellen überschreiben; ohne das Flag bleiben sie stehen).
 Beide Skripte kennen `--help`.
 
 ## Kernkonventionen

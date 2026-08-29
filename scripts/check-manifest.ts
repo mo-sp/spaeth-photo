@@ -35,7 +35,13 @@ function main(): void {
   const flags = parseFlags(OPTIONS)
   const file = flags.str('manifest') ?? MANIFEST_PATH
   const expectMode = flags.str('expect-mode')
-  const minPhotos = Number(flags.str('min-photos') ?? 1)
+  const rawMinPhotos = flags.str('min-photos')
+  const minPhotos = rawMinPhotos === undefined ? 1 : Number(rawMinPhotos)
+  // Ohne Prüfung wird aus `--min-photos abc` ein NaN, jeder Vergleich damit ist
+  // falsch, und das Tor in der CI stünde still offen.
+  if (!Number.isInteger(minPhotos) || minPhotos < 0) {
+    throw new CliError(`--min-photos erwartet eine ganze Zahl ab 0, nicht „${rawMinPhotos}"`)
+  }
 
   if (!existsSync(file)) throw new CliError(`Manifest fehlt: ${displayPath(file)}`)
 

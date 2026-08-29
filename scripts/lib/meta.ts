@@ -22,11 +22,14 @@ export function yamlString(value: string): string {
   return JSON.stringify(value)
 }
 
-/** Tags in der kanonischen Reihenfolge aus `shared/constants/tags.ts`. */
-export function sortTags(tags: readonly string[]): Tag[] {
-  const known = tags.filter((tag): tag is Tag => (TAG_ORDER as readonly string[]).includes(tag))
-  const unique = [...new Set(known)]
-  return unique.sort((a, b) => TAG_ORDER.indexOf(a) - TAG_ORDER.indexOf(b))
+/**
+ * Tags in der kanonischen Reihenfolge aus `shared/constants/tags.ts`, ohne
+ * Dubletten. Nimmt nur bereits geprüfte Tags entgegen — beide Aufrufer haben
+ * sie zuvor durch `tagSchema` geschickt, ein zweiter Filter hier wäre toter
+ * Code, der Unbekanntes stillschweigend verschlucken würde.
+ */
+export function sortTags(tags: readonly Tag[]): Tag[] {
+  return [...new Set(tags)].sort((a, b) => TAG_ORDER.indexOf(a) - TAG_ORDER.indexOf(b))
 }
 
 export function renderMetaYaml(meta: PhotoMeta): string {

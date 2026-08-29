@@ -3,6 +3,7 @@ import {
   AVIF_BUDGET_KB,
   SHARPEN,
   budgetBytes,
+  jpegWidthsFor,
   sharpenFor,
   stepFor,
   widthLadder,
@@ -29,6 +30,27 @@ describe('widthLadder', () => {
   it('erzeugt keine zwei praktisch gleichen Stufen', () => {
     expect(widthLadder(1610)).toEqual([480, 960, 1600])
     expect(widthLadder(1640)).toEqual([480, 960, 1600, 1640])
+  })
+})
+
+describe('jpegWidthsFor', () => {
+  it('nimmt die beiden Regelstufen, wenn es sie gibt', () => {
+    expect(jpegWidthsFor(widthLadder(2560))).toEqual([960, 1600])
+    expect(jpegWidthsFor(widthLadder(1707))).toEqual([960, 1600])
+    expect(jpegWidthsFor(widthLadder(1000))).toEqual([960])
+  })
+
+  it('erzeugt für eine schmale Quelle die größte vorhandene Stufe als JPEG', () => {
+    // Ohne diesen Fall bliebe variants.jpeg leer, und ein Browser ohne AVIF
+    // und WebP bekäme im <img> kein src — das Foto wäre schlicht weg.
+    expect(jpegWidthsFor(widthLadder(800))).toEqual([800])
+    expect(jpegWidthsFor(widthLadder(480))).toEqual([480])
+    expect(jpegWidthsFor(widthLadder(400))).toEqual([400])
+  })
+
+  it('bleibt unter 1600 px — ein JPEG in Maximalgröße wäre reine Verschwendung', () => {
+    expect(jpegWidthsFor([1707])).toEqual([])
+    expect(jpegWidthsFor([])).toEqual([])
   })
 })
 

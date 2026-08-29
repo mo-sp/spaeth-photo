@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
+import { z } from 'zod'
 import { RENDER, type RenderResult } from './variants.ts'
 
 /**
@@ -50,19 +51,53 @@ export function emptyCache(): CacheFile {
 }
 
 /**
+ * Schlankes Schema der Cache-Datei. Es prüft nicht das ganze Render-Ergebnis,
+ * sondern genau die Felder, auf die der inkrementelle Build sich verlässt:
+ * fehlte etwa `files`, liefe `outputsPresent` in einen TypeError, und ein
+ * abgeschnittener `path` ließe die Pipeline an einer Datei vorbeisehen, die es
+ * gar nicht gibt. Der Rest des Ergebnisses wird unverändert durchgereicht.
+ */
+const manifestFileSchema = z.object({
+  format: z.string(),
+  width: z.number(),
+  height: z.number(),
+  path: z.string(),
+  bytes: z.number(),
+})
+
+const cacheFileSchema = z.object({
+  schema: z.literal(CACHE_SCHEMA),
+  settingsHash: z.string(),
+  entries: z.record(
+    z.string(),
+    z.object({
+      sourceHash: z.string(),
+      mtimeMs: z.number(),
+      size: z.number(),
+      metaHash: z.string(),
+      render: z.object({ files: z.array(manifestFileSchema), ogFile: manifestFileSchema }).loose(),
+    }),
+  ),
+})
+
+/**
  * Ein defekter oder veralteter Cache ist kein Fehler, sondern nur ein
  * langsamerer Build: er wird verworfen.
  */
 export function loadCache(file: string, expected = settingsHash()): CacheFile {
   if (!existsSync(file)) return emptyCache()
+  let raw: unknown
   try {
-    const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<CacheFile>
-    if (parsed.schema !== CACHE_SCHEMA || parsed.settingsHash !== expected) return emptyCache()
-    if (!parsed.entries || typeof parsed.entries !== 'object') return emptyCache()
-    return { schema: CACHE_SCHEMA, settingsHash: expected, entries: parsed.entries }
+    raw = JSON.parse(readFileSync(file, 'utf8'))
   } catch {
     return emptyCache()
   }
+  if (!cacheFileSchema.safeParse(raw).success) return emptyCache()
+  // Geprüft ist die Struktur, gearbeitet wird mit den Originaldaten: das
+  // Render-Ergebnis trägt mehr Felder, als der Cache prüfen muss.
+  const cache = raw as CacheFile
+  if (cache.settingsHash !== expected) return emptyCache()
+  return { schema: CACHE_SCHEMA, settingsHash: expected, entries: cache.entries }
 }
 
 export function saveCache(file: string, cache: CacheFile): void {
