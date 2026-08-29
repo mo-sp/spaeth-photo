@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
@@ -14,6 +14,7 @@ import {
   type CacheEntry,
   type Decision,
 } from './lib/cache.ts'
+import { cleanupOrphans } from './lib/cleanup.ts'
 import { buildManifest, toIndex, writeJson } from './lib/manifest.ts'
 import { metaHash, readMetaFile } from './lib/meta.ts'
 import {
@@ -27,10 +28,10 @@ import {
   resolveSource,
   statFile,
 } from './lib/paths.ts'
-import { createReporter, formatBytes, formatDuration, type Reporter } from './lib/report.ts'
+import { createReporter, formatBytes, formatDuration } from './lib/report.ts'
 import { formatIssues, photoIndexFileSchema, photoManifestSchema } from './lib/schema.ts'
 import { isValidSlug } from './lib/slug.ts'
-import { renderPhoto, widthLadder, type RenderResult } from './lib/variants.ts'
+import { jpegWidthsFor, renderPhoto, widthLadder, type RenderResult } from './lib/variants.ts'
 import { VARIANT_EXTENSION } from '../shared/constants/images.ts'
 
 /**
@@ -58,11 +59,6 @@ const OPTIONS: OptionSpecs = {
 
 const USAGE = 'Aufruf: pnpm build-images [Optionen]'
 
-/** Nur diese Dateinamen dürfen unterhalb von `public/img/<slug>/` liegen. */
-const OUTPUT_FILE_PATTERN = new RegExp(
-  `^(?:\\d+\\.(?:${Object.values(VARIANT_EXTENSION).join('|')})|og\\.jpg)$`,
-)
-
 interface Planned {
   slug: string
   sourceFile: string
@@ -73,69 +69,25 @@ interface Planned {
   stat: { mtimeMs: number; size: number }
 }
 
+/** Dateinamen aus einem Render-Ergebnis — der Sollzustand eines Slug-Ordners. */
+function namesOf(render: RenderResult): Set<string> {
+  return new Set([...render.files.map((file) => path.basename(file.path)), 'og.jpg'])
+}
+
 /**
- * Räumt verwaiste Ausgaben auf — Bilder, deren Quelle gelöscht oder umbenannt
- * wurde, und Varianten, die es in der aktuellen Konfiguration nicht mehr gibt.
- *
- * Diese Funktion löscht. Sie ist deshalb dreifach abgesichert: sie fasst nur
- * Pfade unterhalb von `public/img` an (`assertInside`), nur Verzeichnisse mit
- * gültigem Slug-Namen und nur Dateien, deren Name dem Muster der erzeugten
- * Varianten entspricht. Alles andere wird gemeldet und liegen gelassen. Ohne
- * Quellbilder räumt sie überhaupt nicht auf — ein leeres Quellverzeichnis ist
- * viel wahrscheinlicher ein Konfigurationsfehler als die Ansage, alles zu
- * löschen.
+ * Dieselben Namen, aber allein aus der Quellbreite abgeleitet. Der Dry-Run
+ * braucht sie für die Aufräum-Vorschau, ohne ein einziges Bild zu kodieren.
  */
-function cleanupOrphans(
-  reporter: Reporter,
-  expected: Map<string, Set<string>>,
-  dryRun: boolean,
-): { files: number; dirs: number } {
-  const removed = { files: 0, dirs: 0 }
-  if (!existsSync(PUBLIC_IMG_DIR)) return removed
-  if (expected.size === 0) {
-    reporter.warn('cleanup', 'keine Quellbilder — es wird nichts aufgeräumt')
-    return removed
+function plannedNames(sourceWidth: number): Set<string> {
+  const widths = widthLadder(sourceWidth)
+  const jpeg = new Set(jpegWidthsFor(widths))
+  const names = new Set<string>(['og.jpg'])
+  for (const width of widths) {
+    names.add(`${width}.${VARIANT_EXTENSION.avif}`)
+    names.add(`${width}.${VARIANT_EXTENSION.webp}`)
+    if (jpeg.has(width)) names.add(`${width}.${VARIANT_EXTENSION.jpeg}`)
   }
-
-  for (const entry of readdirSync(PUBLIC_IMG_DIR, { withFileTypes: true })) {
-    const full = assertInside(PUBLIC_IMG_DIR, path.join(PUBLIC_IMG_DIR, entry.name))
-
-    if (!entry.isDirectory()) {
-      reporter.warn('cleanup', `unerwartete Datei bleibt liegen: ${displayPath(full)}`)
-      continue
-    }
-
-    const allowed = expected.get(entry.name)
-    if (!allowed) {
-      if (!isValidSlug(entry.name)) {
-        reporter.warn('cleanup', `unerwartetes Verzeichnis bleibt liegen: ${displayPath(full)}`)
-        continue
-      }
-      const count = readdirSync(full).length
-      reporter.step(dryRun ? 'entfiele' : 'entfernt', entry.name, `${count} Dateien · Quelle fehlt`)
-      if (!dryRun) rmSync(full, { recursive: true, force: true })
-      removed.dirs += 1
-      continue
-    }
-
-    for (const file of readdirSync(full, { withFileTypes: true })) {
-      if (allowed.has(file.name)) continue
-      const target = assertInside(full, path.join(full, file.name))
-      if (!file.isFile() || !OUTPUT_FILE_PATTERN.test(file.name)) {
-        reporter.warn('cleanup', `unerwarteter Eintrag bleibt liegen: ${displayPath(target)}`)
-        continue
-      }
-      reporter.step(
-        dryRun ? 'entfiele' : 'entfernt',
-        `${entry.name}/${file.name}`,
-        'Variante entfällt',
-      )
-      if (!dryRun) unlinkSync(target)
-      removed.files += 1
-    }
-  }
-
-  return removed
+  return names
 }
 
 async function main(): Promise<void> {
@@ -182,6 +134,12 @@ async function main(): Promise<void> {
 
   const started = Date.now()
   const planned: Planned[] = []
+  /**
+   * Fotos, die aus dem Sollzustand herausfallen, ohne dass ihre Ausgaben
+   * ungültig wären: ein Tippfehler in der YAML-Datei ist kein Grund, die
+   * fertigen Bilder zu löschen.
+   */
+  const protectedSlugs = new Set<string>()
 
   for (const file of files) {
     const slug = path.basename(file, path.extname(file))
@@ -195,17 +153,20 @@ async function main(): Promise<void> {
     const metaFile = path.join(source.metaDir, `${slug}.yaml`)
     if (!existsSync(metaFile)) {
       reporter.error(slug, `Metadaten fehlen: ${displayPath(metaFile)}`)
+      protectedSlugs.add(slug)
       continue
     }
     const meta = readMetaFile(metaFile)
     if (!meta.ok) {
       for (const issue of meta.issues) reporter.error(slug, issue)
+      protectedSlugs.add(slug)
       continue
     }
 
     const stat = statFile(sourceFile)
     if (!stat) {
       reporter.error(slug, 'Quelldatei nicht lesbar')
+      protectedSlugs.add(slug)
       continue
     }
 
@@ -216,7 +177,9 @@ async function main(): Promise<void> {
       stat,
       readHash: () => hashFile(sourceFile),
       metaHash: hash,
-      force: force || (only !== undefined && only === slug && !dryRun),
+      // --only heißt „diesen Slug neu rendern" — auch im Dry-Run, sonst
+      // zeigte die Vorschau eine andere Entscheidung als der echte Lauf.
+      force: force || only === slug,
       outputsPresent: (cached) =>
         [...cached.render.files.map((variant) => variant.path), cached.render.ogFile.path].every(
           (url) => existsSync(path.join(PUBLIC_IMG_DIR, url.replace('/img/', ''))),
@@ -239,26 +202,18 @@ async function main(): Promise<void> {
     const selected = only === undefined || only === item.slug
     const mustRender = item.decision.render && selected
 
-    if (dryRun) {
-      if (item.decision.verdict !== 'cache') {
-        reporter.step('würde', item.slug, item.decision.verdict)
-      }
-      // Für die Aufräum-Vorschau reichen die Maße: sie ergeben die Breitenleiter
-      // und damit die Namen aller Dateien, ohne ein einziges Bild zu kodieren.
-      const metadata = await sharp(item.sourceFile).metadata()
-      const names = new Set<string>(['og.jpg'])
-      for (const width of widthLadder(metadata.width)) {
-        names.add(`${width}.avif`)
-        names.add(`${width}.webp`)
-        if (width === 960 || width === 1600) names.add(`${width}.jpg`)
-      }
-      expected.set(item.slug, names)
-      if (item.decision.render) rendered += 1
-      else fromCache += 1
-      continue
-    }
-
     if (mustRender) {
+      // Der Dry-Run durchläuft dieselben Verzweigungen wie der echte Lauf und
+      // hält nur vor dem Encoder an: die Quellmaße ergeben die Breitenleiter
+      // und damit die Namen aller Dateien, die entstünden.
+      if (dryRun) {
+        const metadata = await sharp(item.sourceFile).metadata()
+        expected.set(item.slug, plannedNames(metadata.width))
+        rendered += 1
+        reporter.step('würde', item.slug, item.decision.verdict)
+        continue
+      }
+
       const startedPhoto = Date.now()
       render = await renderPhoto({
         sourceFile: item.sourceFile,
@@ -279,12 +234,17 @@ async function main(): Promise<void> {
       )
     } else if (!render) {
       reporter.warn(item.slug, 'noch nicht gerendert und durch --only ausgeschlossen — ausgelassen')
+      protectedSlugs.add(item.slug)
       skipped += 1
       continue
     } else {
       fromCache += 1
       if (item.decision.verdict === 'metadaten') {
-        reporter.step('metadaten', item.slug, 'YAML geändert, Bilder unverändert')
+        reporter.step(
+          dryRun ? 'würde' : 'metadaten',
+          item.slug,
+          'YAML geändert, Bilder unverändert',
+        )
       }
     }
 
@@ -296,19 +256,17 @@ async function main(): Promise<void> {
       render,
     }
 
-    expected.set(
-      item.slug,
-      new Set([...render.files.map((file) => path.basename(file.path)), 'og.jpg']),
-    )
+    expected.set(item.slug, namesOf(render))
     results.push({ slug: item.slug, meta: item.meta, render, hash: item.decision.sourceHash })
   }
 
   // Einträge, deren Quelle verschwunden ist, dürfen nicht im Cache verrotten.
+  // Ein Foto mit Fehler ist nicht verschwunden — sein Eintrag bleibt.
   cache.entries = Object.fromEntries(
-    Object.entries(cache.entries).filter(([slug]) => expected.has(slug)),
+    Object.entries(cache.entries).filter(
+      ([slug]) => expected.has(slug) || protectedSlugs.has(slug),
+    ),
   )
-
-  const removed = cleanupOrphans(reporter, expected, dryRun)
 
   let totalBytes = 0
   let totalFiles = 0
@@ -353,6 +311,18 @@ async function main(): Promise<void> {
       )
     }
   }
+
+  // Erst ganz am Ende, wenn alle Fehler bekannt sind: gelöscht wird nur nach
+  // einem vollständigen, fehlerfreien Lauf.
+  const removed = cleanupOrphans({
+    dir: PUBLIC_IMG_DIR,
+    keep: expected,
+    reporter,
+    dryRun,
+    partial: only !== undefined,
+    hasErrors: reporter.counts().errors > 0,
+    protectedSlugs,
+  })
 
   const duration = Date.now() - started
   const parts = [`${planned.length} Fotos`, `${rendered} gerendert`, `${fromCache} aus Cache`]
