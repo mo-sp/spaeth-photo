@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { BRAND_NAME } from './shared/constants/brand.ts'
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -7,6 +8,33 @@ import {
   PREFIXED_LOCALES,
   localePath,
 } from './shared/utils/i18n.ts'
+import { THEME_INIT_SCRIPT } from './shared/utils/theme.ts'
+import { VIDEO_FILES } from './shared/utils/video.ts'
+
+const VIDEO_DIR = fileURLToPath(new URL('./content/video', import.meta.url))
+
+/**
+ * The background clip, or `''` when there is none. Like the photographs it
+ * comes from the private `content/` submodule, and like them its absence is
+ * not an error: without a clip the home page keeps its hero photograph.
+ *
+ * A directory counts only once it holds a poster, so a half-finished encode
+ * does not reach the build. The first one wins, alphabetically, because the
+ * start page shows exactly one.
+ */
+function videoSlug(): string {
+  if (!existsSync(VIDEO_DIR)) return ''
+  const found = readdirSync(VIDEO_DIR, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() && existsSync(`${VIDEO_DIR}/${entry.name}/${VIDEO_FILES.poster}`),
+    )
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b, 'en'))
+  return found[0] ?? ''
+}
+
+const videoSlugValue = videoSlug()
 
 /**
  * Every route of the site in its canonical (English, unprefixed) form.
@@ -56,7 +84,11 @@ export default defineNuxtConfig({
     head: {
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1',
-      titleTemplate: '%s – Moritz Späth',
+      titleTemplate: `%s – ${BRAND_NAME}`,
+      // The one inline script on the site. It applies a stored theme before the
+      // first paint, which no component can do on a prerendered page: by the
+      // time Vue hydrates, the other palette has already been on screen.
+      script: [{ innerHTML: THEME_INIT_SCRIPT, tagPosition: 'head' }],
       // Defaults for the shells that have no route: `.output/public/404.html`
       // is served by the host for any unknown path and 200.html is the SPA
       // fallback; both would otherwise be untitled, language-less and
@@ -75,6 +107,9 @@ export default defineNuxtConfig({
       // Absolute URLs for OpenGraph and sitemap.xml. A *build* variable: a
       // static site has nobody left at runtime to substitute it.
       siteUrl: '',
+      // Slug of the background clip, empty when `content/video/` holds none.
+      // Read at build time for the same reason: there is no server to ask.
+      videoSlug: videoSlugValue,
     },
   },
 
@@ -120,6 +155,15 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    /**
+     * The renditions are served from `/video/` straight out of the content
+     * repo. A second public directory rather than a copy into `public/`: the
+     * files are generated artefacts that must never enter this repository, and
+     * Nitro copies them into `.output/public` at build time just like `public/`.
+     */
+    publicAssets:
+      videoSlugValue === '' ? [] : [{ dir: VIDEO_DIR, baseURL: '/video', maxAge: 60 * 60 * 24 }],
+
     prerender: {
       crawlLinks: true,
       // A build that silently skips a broken route ships a site with holes.

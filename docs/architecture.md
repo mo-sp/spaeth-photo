@@ -128,6 +128,17 @@ until then.
   exact equality. Lossy encoders round: pure red comes back out of AVIF as 254 rather
   than 255. A wrong colour space conversion would be dozens of steps off, so the test stays
   sharp enough.
+- **The handoff palette is extended by a second theme.** The tokens of handoff 1C are
+  binding and unchanged, but the handoff describes one palette and P12's start page turns
+  "Light / Shadow" into a switch between two. The light values are therefore an addition,
+  marked as a placeholder in `tokens.css`: same hues, same roles, contrast checked against
+  the light background (text 16.2:1, muted 5.9:1, faint 4.7:1), and photographs are never
+  filtered — only the surface around them changes. P11 designs the light mode properly.
+- **One inline script in `<head>`.** The site otherwise ships no inline script. A stored
+  theme has to be on the document before the first paint, and on a prerendered page no
+  component can do that: by the time Vue hydrates, the other palette has already been on
+  screen. The script (`shared/utils/theme.ts`, one expression, no dependencies) applies the
+  stored theme, marks the intro as pending and arms the failsafe that lifts it again.
 - **Prettier and ESLint share the responsibility.** Prettier formats, ESLint checks. Where
   both claimed the same spot (`vue/html-self-closing`), the ESLint rule is switched off;
   the `tokens.css` adopted from the handoff is excluded from Prettier so that it matches
@@ -632,6 +643,74 @@ it, and formatting them would put a repo-wide reflow into a diff that is about s
 else (`AGENTS.md` §3). The check is adopted in P9 as its own commit, paired with a single
 repo-wide `prettier --write` pass.
 
+## Start page: brand, clip and theme
+
+P12, prototype. Typography and colours are placeholders — the design round P11 replaces
+them. What is decided here is the mechanism.
+
+**The sequence.** A first visit to `/` (or `/de`) opens on the wordmark, then the clip
+starts behind it, then "Light / Shadow" fades in, centred. Clicking a word picks the
+palette and lands the visitor on the page in it. Everyone who has already chosen skips all
+of it.
+
+**The intro is an overlay, not a route.** The page is in the prerendered HTML underneath,
+complete — that is what keeps the start page indexable and its content in the document.
+The overlay is prerendered too, and hidden by CSS (`display: none`); it appears only for
+a document whose root carries `data-intro`, which the inline head script sets when there
+is no stored theme _and_ the document says it is the home page (`data-page`, set by the
+page itself). Without JavaScript nothing sets it, so a crawler and a reader without
+scripts see the plain page — the same page every returning visitor sees.
+
+While the overlay is up the layout stops painting the page (`visibility: hidden` on
+`.shell`) rather than removing it. Two things follow: the clip and the overlay undo it for
+themselves, because both have to be visible; and a hidden subtree drops out of the tab
+order, so the choice on top needs no focus trap. The script also arms a three-second
+failsafe that lifts `data-intro` again if the bundle has not hydrated by then — a slow
+connection gets the page rather than a blank screen, and no intro.
+
+**Theme.** `data-theme` on `<html>`, the choice in `localStorage` under `ms-theme` — never
+a cookie (hard rule, and hence no banner). Unset, the palette follows
+`prefers-color-scheme`, which is a CSS media query and needs no script. `useTheme()` reads
+the DOM on mount and writes the DOM on a click; it deliberately does not bind `data-theme`
+through `useHead`, which would bake one visitor's theme into every static file. Skipping
+the intro (Escape, or the skip control) stores the palette already on screen, so the gate
+does not stand there again on the next visit.
+
+**The clip.** Renditions live in the private content repo under `content/video/<slug>/`
+and are served from `/video/<slug>/…` — the same convention as the photographs
+(`shared/utils/video.ts`), and the same rule: generated files never enter this repository.
+Nitro serves the directory as a second public asset root and copies it into
+`.output/public` at build time, so there is no copy step and nothing to gitignore beyond
+`public/video/`. `scripts/encode-video.ts` writes 1080p and 720p H.264 MP4, a 720p VP9
+WebM and a poster frame from a source clip that lives outside every repository; audio,
+subtitles, the camera's data stream and all metadata are dropped, and a rendition taller
+than the source is never written.
+
+Delivery is poster-first: the `<video>` element carries only `poster` and
+`preload="none"`, and its `<source>` elements appear only once the page has decided to
+play. So `prefers-reduced-motion: reduce` and `navigator.connection.saveData` cost exactly
+one poster frame and no video bytes, and a browser without JavaScript shows that poster —
+which is the clip standing still. The rendition is chosen in JavaScript by viewport width
+rather than through `<source media>`, which engines read differently: a wide viewport gets
+the 1080p MP4, a narrow one the 720p pair with the WebM first.
+
+**Without a clip there is no clip.** `content/video/` is part of the private submodule, so
+a clone without access has none. `videoSlug()` in `nuxt.config.ts` then resolves to `''`,
+the backdrop is not rendered and the home page keeps the hero photograph and its caption
+it had before P12 — the same graceful path the demo content takes for the photographs. The
+build never fails over it, and the intro still works: brand, then the choice, over the
+plain background.
+
+**Open, for P11 to decide.** Two treatments of the clip in light mode are implemented so
+they can be compared in the preview, reachable through a temporary query flag:
+`?video=full` (the default — full-page background behind a washed-out scrim) and
+`?video=band` (a hero band where the hero photograph stood, page background normal). The
+flag is prototype scaffolding and goes with the decision. Two things are unresolved and
+both are design questions, not mechanics: text over a moving picture cannot be
+contrast-checked the way text over a token colour can — the muted greys of the strip label
+and the sidebar foot are the exposed ones — and the motto is centred in the content column,
+which over a full-bleed clip reads as off-centre against the viewport.
+
 ## SEO
 
 **`NUXT_PUBLIC_SITE_URL` is a build variable, not a runtime one.** A statically generated
@@ -945,6 +1024,32 @@ The about row is the honest one to read carefully: its CLS gain depends on the m
 machine having an Arial-metric font. On a machine with none, the P6 build shifted by 0.133
 and the P7 build shifts the same amount, because the `local()` declaration finds nothing to
 adjust. The fix helps every visitor on Windows, macOS and iOS and is inert elsewhere.
+
+**Results, 2026-09-05** (P12: intro, background clip, second theme; mobile profile,
+`NUXT_PUBLIC_SITE_URL` unset in both runs, so the SEO score is not comparable to the
+table above; before = one run, after = five runs):
+
+| `/` mobile | perf           | FCP       | LCP       | TBT      | CLS   |
+| ---------- | -------------- | --------- | --------- | -------- | ----- |
+| before P12 | 95             | 2.0 s     | 2.7 s     | 40 ms    | 0     |
+| after P12  | **94** (94–96) | 1.7–2.1 s | 2.6–2.8 s | 30–50 ms | **0** |
+
+The clip does not move the metrics, and the reason is worth stating rather than
+celebrating: Lighthouse always sees a first visit, so it measures the intro. The LCP
+element changes from the hero photograph to the intro wordmark — text, in the prerendered
+HTML, needing no request of its own; its breakdown is time to first byte plus render delay
+and no resource load at all. The poster frame is 35 KB, and the 1.1 MB rendition is
+requested only after the first beat, 1.4 s in, by which time LCP is settled. So the number
+is honest for a first visit but says nothing about how long the visitor waits before seeing
+the _page_: that is the length of the intro, by design, and a design decision rather than a
+performance one.
+
+One consequence of the overlay does need watching: while the page is `visibility: hidden`
+beneath it, axe skips the whole subtree, and Lighthouse reports `image-alt`,
+`heading-order`, `list`, `listitem` and `valid-lang` as _not applicable_ on `/`. The 100
+for accessibility on that page is therefore a weaker statement after P12 than before it —
+it audits the overlay, not the page. The page's own audits still hold; they have to be read
+on a route without an intro (`/gallery`, `/photo/<slug>`) or on a second visit.
 
 **Two optimisations that were measured and rejected.** Both are the kind that get added on
 faith:

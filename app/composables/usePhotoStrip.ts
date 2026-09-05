@@ -22,22 +22,30 @@ export function advanceStrip(offset: number, dtMs: number, speed: number, span: 
 }
 
 /**
- * Hover-driven motion for `PhotoStrip`. `animated` stays false where the strip
- * must not move by itself — a coarse pointer has no hover to leave, reduced
- * motion is a request rather than a preference, and a list that does not even
- * fill the visible width would show a gap at every wrap. The component then
- * renders a plain scrollable row without the second copy of the list.
+ * The gallery strip's motion. Two things move the same position: the reader —
+ * by touch, trackpad or wheel, which is the row's own native scrolling — and,
+ * where a fine pointer can hover, a slow drift while the pointer rests on it.
+ * Both write `scrollLeft`, so they compose instead of fighting, and the drift's
+ * wrap makes the row endless in the direction it travels.
+ *
+ * `animated` stays false where the drift must not run: a coarse pointer has no
+ * hover to leave, reduced motion is a request rather than a preference, and a
+ * list that does not even fill the visible width would show a gap at every
+ * wrap. The component then renders a plain scrollable row without the second
+ * copy of the list.
  */
-export function usePhotoStrip(track: Readonly<ShallowRef<HTMLElement | null>>) {
+export function usePhotoStrip(
+  strip: Readonly<ShallowRef<HTMLElement | null>>,
+  track: Readonly<ShallowRef<HTMLElement | null>>,
+) {
   const animated = ref(false)
-  const offset = ref(0)
 
   let frame = 0
   let last = 0
   let span = 0
 
   onMounted(() => {
-    const element = track.value
+    const element = strip.value
     if (element === null) return
     animated.value =
       window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
@@ -46,17 +54,19 @@ export function usePhotoStrip(track: Readonly<ShallowRef<HTMLElement | null>>) {
   })
 
   function step(now: number) {
-    offset.value = advanceStrip(offset.value, now - last, STRIP_SPEED, span)
+    const element = strip.value
+    if (element === null) return
+    element.scrollLeft = advanceStrip(element.scrollLeft, now - last, STRIP_SPEED, span)
     last = now
     frame = requestAnimationFrame(step)
   }
 
   function start() {
-    const element = track.value
-    if (!animated.value || frame !== 0 || element === null) return
+    const element = strip.value
+    if (!animated.value || frame !== 0 || element === null || track.value === null) return
     // Both copies are in the flow, so one copy plus its trailing gap is half of
     // the scroll width plus half a gap.
-    const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0
+    const gap = Number.parseFloat(getComputedStyle(track.value).columnGap) || 0
     span = (element.scrollWidth + gap) / 2
     last = performance.now()
     frame = requestAnimationFrame(step)
@@ -68,7 +78,22 @@ export function usePhotoStrip(track: Readonly<ShallowRef<HTMLElement | null>>) {
     frame = 0
   }
 
+  /**
+   * A plain mouse wheel has no horizontal axis, so its vertical delta drives
+   * the row instead — but only while the row can still go that way. At either
+   * end the gesture belongs to the page again, which is what keeps the strip
+   * from swallowing the scroll of everyone who wanted to read on.
+   */
+  function onWheel(event: WheelEvent) {
+    const element = strip.value
+    if (element === null || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+    const next = element.scrollLeft + event.deltaY
+    if (next < 0 || next > element.scrollWidth - element.clientWidth) return
+    event.preventDefault()
+    element.scrollLeft = next
+  }
+
   onBeforeUnmount(stop)
 
-  return { animated, offset, start, stop }
+  return { animated, start, stop, onWheel }
 }

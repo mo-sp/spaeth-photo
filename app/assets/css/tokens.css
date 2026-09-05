@@ -86,6 +86,20 @@
   --t-fast: 120ms ease;
   --t-slow: 160ms ease;
 
+  /* The intro is the one exception to that rule: its fades are the sequence
+     itself, not decoration, and 160 ms would read as a jump cut. */
+  --t-intro: 900ms ease;
+
+  /* The scrim between the background clip and the page. Dark mode dims the
+     clip; the light values sit with the rest of the light palette below. */
+  --video-scrim: rgba(8, 9, 11, 0.62);
+  --video-scrim-band: rgba(8, 9, 11, 0.22);
+
+  /* Inactive filter label: the handoff's rgba(244,246,248,0.55) as an opacity on
+     the text token (see TagFilter). A token, because the light palette needs a
+     different figure to reach the same contrast. */
+  --filter-inactive-opacity: 0.55;
+
   /* Sidebar foot (place/coordinates, legal): 10px/1.6, ls 0.1em. */
   --text-foot-lh: 1.6;
   --text-foot-ls: 0.1em;
@@ -152,4 +166,72 @@
        for the LCP image of all things. The mobile hero is width-driven instead. */
     --hero-h: auto;
   }
+}
+
+/* ==========================================================================
+   SECOND THEME — placeholder, not from the handoff.
+   The handoff describes one palette; P11 designs the light one properly
+   ("both modes have to be genuinely beautiful"). Until then these values exist
+   to make the switch work: same hues, same roles, contrast checked against the
+   light background (text 16.2:1, muted 5.9:1, faint 4.7:1 — all AA). Photographs
+   are never filtered; only the surface around them changes.
+
+   Two blocks on purpose. The system preference has to work without JavaScript,
+   and an explicit choice has to beat it in both directions — which is one rule
+   inside a media query and one outside it. Keep the mappings in sync.
+   ========================================================================== */
+
+:root {
+  --light-bg: #f4f3ef;
+  --light-surface: #e8e6e0;
+  --light-line: #dfddd6;
+  --light-line-strong: #b4b0a6;
+  --light-text: #15171c;
+  --light-text-muted: #585e68;
+  --light-text-faint: #666d77;
+  --light-overlay-caption: linear-gradient(
+    to top,
+    rgba(244, 243, 239, 0.92) 0%,
+    rgba(244, 243, 239, 0.8) 60%,
+    rgba(244, 243, 239, 0) 100%
+  );
+  /* The scrim between the background clip and the page. Dark mode dims it, light
+     mode washes it out — the two candidates P12 asks Moritz to judge. */
+  --light-video-scrim: rgba(244, 243, 239, 0.8);
+  --light-video-scrim-band: rgba(244, 243, 239, 0.24);
+  /* 0.55 of the dark text over the light ground is 3.9:1 — under AA for an
+     11 px label. 0.68 reaches 5.2:1 and still reads as the dimmer state. */
+  --light-filter-inactive-opacity: 0.68;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --color-bg: var(--light-bg);
+    --color-surface: var(--light-surface);
+    --color-line: var(--light-line);
+    --color-line-strong: var(--light-line-strong);
+    --color-text: var(--light-text);
+    --color-text-muted: var(--light-text-muted);
+    --color-text-faint: var(--light-text-faint);
+    --overlay-caption: var(--light-overlay-caption);
+    --video-scrim: var(--light-video-scrim);
+    --video-scrim-band: var(--light-video-scrim-band);
+    --filter-inactive-opacity: var(--light-filter-inactive-opacity);
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: var(--light-bg);
+  --color-surface: var(--light-surface);
+  --color-line: var(--light-line);
+  --color-line-strong: var(--light-line-strong);
+  --color-text: var(--light-text);
+  --color-text-muted: var(--light-text-muted);
+  --color-text-faint: var(--light-text-faint);
+  --overlay-caption: var(--light-overlay-caption);
+  --video-scrim: var(--light-video-scrim);
+  --video-scrim-band: var(--light-video-scrim-band);
+  --filter-inactive-opacity: var(--light-filter-inactive-opacity);
 }

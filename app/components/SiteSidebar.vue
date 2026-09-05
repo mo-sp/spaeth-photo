@@ -5,10 +5,7 @@
        the landmarks sit on the parts inside. -->
   <div class="side" :class="{ 'side--photo': isPhotoPage }">
     <header class="side-top" @keydown.escape="closeMenu">
-      <NuxtLink :to="path('/')" class="wordmark">
-        <span>Moritz</span>
-        <span>Späth</span>
-      </NuxtLink>
+      <NuxtLink :to="path('/')" class="wordmark">{{ BRAND_NAME }}</NuxtLink>
 
       <!-- The <details> carries only the toggle; the list is a sibling shown
            via `[open] ~ .panel`. A closed <details> hides its children through
@@ -58,6 +55,8 @@
 </template>
 
 <script setup lang="ts">
+import { BRAND_NAME } from '#shared/constants/brand'
+
 const { t, path } = useI18n()
 
 /** Unprefixed targets; `path()` puts them into the current language tree. */
@@ -120,18 +119,12 @@ watch(() => route.fullPath, closeMenu)
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: var(--text-wordmark-size);
-  /* 1.3, not the tight geometry of the micro labels: at 18 px uppercase the
-     line box has to reach over the dots of the Ä. */
+  /* 1.3, not the tight geometry of the micro labels: the wordmark is set at
+     nav size and reads as the one line of type above the navigation. */
   line-height: var(--text-nav-lh);
   letter-spacing: var(--text-nav-ls);
   text-transform: uppercase;
   color: var(--color-text);
-}
-
-/* Two spans rather than a <br>: stacked on the desktop, side by side in the
-   mobile top bar, with no markup change. */
-.wordmark span {
-  display: block;
 }
 
 .menu {
@@ -235,14 +228,6 @@ watch(() => route.fullPath, closeMenu)
 
   .wordmark {
     padding: 0 var(--space-2);
-  }
-
-  .wordmark span {
-    display: inline;
-  }
-
-  .wordmark span + span::before {
-    content: ' ';
   }
 
   .menu {

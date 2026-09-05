@@ -1,4 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
+import { BRAND_NAME } from '#shared/constants/brand'
 import { OG_HEIGHT, OG_WIDTH } from '#shared/constants/images'
 
 /**
@@ -11,7 +12,7 @@ import { OG_HEIGHT, OG_WIDTH } from '#shared/constants/images'
  */
 
 /** Shown in `og:site_name` and appended to the OG title. */
-export const SITE_NAME = 'Moritz Späth'
+export const SITE_NAME = BRAND_NAME
 
 export interface SiteSeoImage {
   /** Site-relative path, e.g. `/img/<slug>/og.jpg`. */
@@ -21,8 +22,8 @@ export interface SiteSeoImage {
 
 export interface SiteSeoInput {
   /**
-   * Page title, without the `– Moritz Späth` suffix that `titleTemplate`
-   * adds. Omitted on the home page, which titles itself.
+   * Page title, without the `– MS-Media` suffix that `titleTemplate` adds.
+   * Omitted on the home page, which titles itself.
    */
   title?: MaybeRefOrGetter<string>
   description: MaybeRefOrGetter<string>

@@ -103,8 +103,10 @@ watch(active, () => nextTick(revealActive))
   text-transform: uppercase;
   color: var(--color-text);
   /* Spec: inactive rgba(244,246,248,0.55). Expressed as opacity on the token
-     colour — same result (5.8:1 on the ground), no colour outside tokens.css. */
-  opacity: 0.55;
+     colour — same result (5.8:1 on the ground), no colour outside tokens.css.
+     The value is a token because an opacity does not invert with the palette:
+     the same 0.55 over the light ground falls to 3.9:1. */
+  opacity: var(--filter-inactive-opacity);
   transition: opacity var(--t-fast);
 }
 

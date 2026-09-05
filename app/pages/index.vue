@@ -1,6 +1,8 @@
 <template>
   <div class="page">
-    <template v-if="hero">
+    <SiteVideo v-if="videoActive" :slug="videoSlug" :variant="videoVariant" />
+
+    <template v-else-if="hero">
       <div class="hero">
         <PhotoImage
           :photo="hero"
@@ -18,25 +20,28 @@
       </div>
     </template>
 
-    <!-- The duality the project is named for: light italic and bright, shadow
-         upright and muted, a mono slash as the hinge. This is the home page's
-         heading — the wordmark in the sidebar is a link, not a heading. -->
-    <h1 class="motto">
-      <em>{{ t('home.motto.light') }}</em>
-      <span class="slash" aria-hidden="true">/</span>
-      <span class="shadow">{{ t('home.motto.shadow') }}</span>
-    </h1>
+    <!-- The home page's heading and the theme switch in one: clicking a word
+         picks the palette. The wordmark in the sidebar is a link, not a heading. -->
+    <div class="motto-row" :class="{ 'motto-row--stage': stage }">
+      <SiteMotto />
+    </div>
 
     <section class="strip-section">
       <h2 class="label">{{ t('home.all') }}</h2>
       <PhotoStrip />
     </section>
+
+    <SiteIntro />
   </div>
 </template>
 
 <script setup lang="ts">
 const { hero } = usePhotos()
 const { locale, t } = useI18n()
+const { slug: videoSlug, active: videoActive, variant: videoVariant } = useSiteVideo()
+
+/** The clip as a full background turns the motto into a full-height stage. */
+const stage = computed(() => videoActive.value && videoVariant.value === 'full')
 
 /**
  * The hero is as wide as the content area, full width on mobile. Not 66vw as
@@ -52,10 +57,14 @@ const HERO_SIZES = [
 useSiteSeo({ description: () => t('site.description'), ogType: 'website' })
 
 useHead({
-  // The home page carries the name itself; the `%s – Moritz Späth` template
-  // would either repeat it or produce "Home – Moritz Späth".
+  // The home page carries the name itself; the `%s – MS-Media` template would
+  // either repeat it or produce "Home – MS-Media".
   titleTemplate: null,
   title: () => t('site.title'),
+  // Read by the inline head script, which has to tell the home page from a deep
+  // link before any component exists. A marker on the document, because that is
+  // the only thing already parsed at that point.
+  htmlAttrs: { 'data-page': 'home' },
 })
 </script>
 
@@ -99,37 +108,20 @@ useHead({
   color: var(--color-text-muted);
 }
 
-.motto {
-  display: flex;
-  align-items: baseline;
-  gap: 0;
-  margin: 0;
+.motto-row {
   padding: 22px var(--space-4);
   border-bottom: var(--border);
-  font-family: var(--font-sans);
-  font-size: var(--text-title-size);
-  line-height: var(--text-title-lh);
-  letter-spacing: var(--text-title-ls);
 }
 
-.motto em {
-  margin-right: 0.06em;
-  font-style: italic;
-  font-weight: 400;
-  color: var(--color-text);
-}
-
-.slash {
-  margin: 0 0.5em;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  color: var(--color-text-faint);
-}
-
-.shadow {
-  font-weight: 600;
-  color: var(--color-text-muted);
+/* Over the clip the motto is the whole screen, and a hairline across a moving
+   picture would only cut it in half. */
+.motto-row--stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100dvh - var(--space-page-top));
+  padding: var(--space-4);
+  border-bottom: 0;
 }
 
 .strip-section {
@@ -154,7 +146,7 @@ useHead({
 
 @media (max-width: 767px) {
   .hero-caption,
-  .motto {
+  .motto-row {
     padding: var(--space-2);
   }
 

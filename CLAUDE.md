@@ -25,6 +25,7 @@ performance are part of the goal.
 | `pnpm dev`                    | dev server (`predev` renders the images first; cached run ~40 ms) |
 | `pnpm export-sources`         | originals → web sources + YAML in the content repo (see below)    |
 | `pnpm build-images`           | image variants, `photos.manifest.json`, client index              |
+| `pnpm encode-video`           | start-page clip → renditions + poster in the content repo         |
 | `pnpm check-manifest`         | validates the generated manifest (the CI gate)                    |
 | `pnpm generate`               | builds the static site                                            |
 | `pnpm build`                  | `build-images` + `generate` (the host's build command)            |
@@ -39,7 +40,9 @@ performance are part of the goal.
 errors, for CI), `--source-dir <dir>` (output always goes to `public/img`).
 `export-sources`: `--source-dir` (else `$PHOTO_SOURCE_DIR`), `--map`, `--out`,
 `--quality`, `--only`, `--dry-run`, `--force` (without it, existing web sources stay).
-Both know `--help`.
+`encode-video`: `--source <file>` (relative to `$VIDEO_SOURCE_DIR`), `--slug`, `--out`,
+`--start`, `--duration`, `--poster`, `--ffmpeg`, `--dry-run`, `--force`.
+All three know `--help`.
 
 ## Core conventions
 
@@ -60,18 +63,27 @@ Both know `--help`.
   in `app/i18n/{en,de}.json`, read through `useI18n()` — no plain text in components. Link
   through `path('/gallery')` so links stay in the current language; photo titles come from
   the index (`photoTitle`/`photoAlt`). See "Internationalisation".
+- **The start-page clip follows the same rules as the photographs**: renditions in the
+  private `content/video/<slug>/`, served from `/video/<slug>/…` by convention
+  (`shared/utils/video.ts`), never in this repo, and absent without the submodule — in
+  which case the home page falls back to its hero photograph.
+- **Theme**: `data-theme` on `<html>`, the choice in `localStorage` (never a cookie),
+  default from `prefers-color-scheme`. The one inline head script
+  (`shared/utils/theme.ts`) applies it before the first paint and marks the intro.
 - No colour values hard-coded in Vue files — only tokens from `tokens.css` (the one colour
-  correction lives in the project block there).
+  correction lives in the project block there; the light palette is a P11 placeholder).
 - **Read `AGENTS.md` before every change.**
 
 ## Hard rules
 
-- Never commit `public/img/`, `photos.manifest.json`, `app/data/` or `.image-cache/`.
+- Never commit `public/img/`, `public/video/`, `photos.manifest.json`, `app/data/` or
+  `.image-cache/`.
 - Never upscale an image.
 - Never write EXIF or other metadata into a delivered image.
 - Never change a slug after the deploy.
 - No full-resolution files in the repo or on the server (web sources max 2560 px); the
-  originals live outside every repo and are only ever read.
+  originals — photographs and video clips alike — live outside every repo and are only
+  ever read.
 - No external trackers, no analytics, no cookies (hence no banner).
 - No heavy dependencies without need; justify every new one in `docs/architecture.md`.
 - Secrets only in `.env` or the host's environment, never in the repo.

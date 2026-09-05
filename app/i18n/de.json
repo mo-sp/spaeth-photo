@@ -1,5 +1,5 @@
 {
-  "site.title": "Moritz Späth – Fotografie",
+  "site.title": "MS-Media – Fotografie",
   "site.description": "Fotografien von Moritz Späth aus Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.",
 
   "a11y.skip": "Zum Inhalt springen",
@@ -26,6 +26,12 @@
   "home.all": "Alle Bilder",
   "home.motto.light": "Licht",
   "home.motto.shadow": "Schatten",
+
+  "theme.toLight": "zur hellen Ansicht wechseln",
+  "theme.toShadow": "zur dunklen Ansicht wechseln",
+
+  "intro.aria": "Licht oder Schatten wählen",
+  "intro.skip": "Überspringen",
 
   "gallery.title": "Galerie",
   "gallery.tagTitle": "{tag} – Galerie",
