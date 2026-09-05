@@ -395,7 +395,7 @@ image. Prev/next pass `?tag=` along, and so do the arrow keys and the swipe — 
 against modifiers and input fields. The canonical is stated without a query.
 
 **On the detail page the sidebar swaps its foot rather than gaining a second one.** Down
-there sit prev/next, the counter and the legal links (`PhotoAsideFoot`); `SiteFoot` with
+there sit the language switch and the legal links (`PhotoAsideFoot`); `SiteFoot` with
 place and coordinates is dropped — in the handoff it is an ingredient of the home page
 anyway. With both present, „Impressum" (legal notice) would appear twice on the same page.
 On mobile it is the other way round: there the layout's page foot carries place and legal,
@@ -454,12 +454,25 @@ the contrast of the white 10 px text falls below AA. A stop at 60 % holds the op
 the text is and still lets the gradient fade out softly above it; the only visible change is
 that the caption stays readable.
 
-**The home page shows five curated images, not six to nine** (deviation from the plan). The
-grid in the spec has five columns; six images break into a second row where four slots stay
-empty. Five is the only number that yields a full row — and a selection one takes in at a
-glance is the point anyway. Which images they are and in which order is in the YAML as
-`featured` and `order`: a decision by the photographer, not by the code (`curated()` in
-`shared/utils/photos.ts`, with tests).
+**The home page's five-image curated row became a strip of every photo on 2026-09-05, at
+the owner's request** (second deviation from the plan, which asked for six to nine curated
+images, and from the handoff's five-column grid). The row now holds all photos in the
+gallery's order, each at the height the grid tiles had (`--curated-h`) and in its own aspect
+ratio, and it moves: while the pointer is on it, it scrolls to the left at 48 px per second
+and stops when the pointer leaves. It loops by rendering the list twice and wrapping the
+offset once the first copy has scrolled out — the arithmetic is one pure function
+(`advanceStrip` in `app/composables/usePhotoStrip.ts`, with tests), the motion is
+`requestAnimationFrame` and a `transform`, never a layout property. The second copy is
+`aria-hidden` and out of the tab order; the same 26 links twice would be noise. Where the
+strip must not move by itself — a coarse pointer has no hover to leave, `prefers-reduced-motion`
+is a request, and a list narrower than the visible area would show a gap at every wrap — the
+copy is not rendered at all and the strip is a plain scrollable row with `scroll-snap`. That
+fallback is the CSS default and the enhancement is added by script, so the delivered HTML is
+the version that works without JavaScript. With the row went the "All photos" link and the
+photo count beneath it: the strip _is_ all photos, and the count said nothing the gallery
+does not. `featured` and `order` stay in the schema and `curated()` stays in
+`shared/utils/photos.ts` — the hero still comes from the YAML, and phase 2 may want a
+selection again.
 
 **On mobile the hero is width-driven — and `sizes` says 100vw, not 66vw.** The handoff sets
 `--hero-h: 60vh` below 768 px. But a height in viewport heights couples the display width to
@@ -468,8 +481,9 @@ express: the browser would pick the step by a number that is wrong — for the L
 all things. On mobile the hero is therefore 3:2 at `height: auto` (`--hero-h` overridden in
 the project block). Its width is thereby exactly 100vw, and that is what `sizes` says; the
 66vw named in the preconception comes from the 60vh version and would now be a third too
-little. The same reasoning applies to the curated row: below 768 px it becomes single-column
-(`--curated-cols: 1`, `--curated-h: auto`, 3:2) instead of five tiles at 70 px.
+little. The strip below it keeps its tile height at every width instead: a row one scrolls
+sideways does not need the tiles to grow, and a fixed height is the one thing that lets the
+loop measure its span before the first image has decoded.
 
 **„Licht / Schatten" (light / shadow) is the `<h1>` of the home page.** The project's motif
 stands as its own band below the hero caption: `Licht` italic at 400 and in full text
@@ -571,15 +585,47 @@ navigation items are 20 px (`--text-nav-item-size` in the project block), not th
 `.t-ui` size they shared with counters and micro labels — three links in a 220 px column are
 the primary navigation and read as such only above the size the site uses for footnotes.
 Family, capitals and letter spacing are unchanged, as are the 2 px active marker and the
-hover, which still only brightens the text. The home page and the detail page open with
-`--space-4` at the top, the padding every other page gets from its header block; below
-768 px it is `--space-2`, because the sticky top bar already separates the page from the
-edge. And prev/next on the detail page is one row — previous left, next right, the counter
-centred between them in a three-column grid, so a missing neighbour leaves its cell empty
-instead of pulling the counter off centre. Each control is 44 px tall and its arrow is an
-inline SVG chevron: the ← and → glyphs came from whatever the system font had, at whatever
-weight it had. The visible words are gone because the row has 124 px at the 180 px sidebar
-width; they stay as the links' accessible names.
+hover, which still only brightens the text. The home page and the detail page gained the top
+padding every other page got from its header block. And prev/next on the detail page became
+a row of two 44 px controls with the counter between them, each arrow an inline SVG chevron:
+the ← and → glyphs came from whatever the system font had, at whatever weight it had. The
+visible words are gone; they stay as the links' accessible names. Review round 2 moved that
+row out of the sidebar and made the top padding one shared token — both below.
+
+**Review round 2, 2026-09-05: two fluid values, one strip, and the stepper beside the
+image.** The strip is described above; the other three findings are these.
+
+_The page-top distance and the wordmark are the only two values on this site that scale with
+the viewport._ They are what the eye actually compares — the page top across pages, the
+wordmark across screens — and a fixed pixel value is either lost on a desktop or cramped on
+a phone; everything else keeps the handoff's px ladder, which has its own breakpoints.
+`--space-page-top: clamp(28px, 4.5vw - 13px, 72px)` is the top padding of the first content
+element on every page and of the sidebar, so the wordmark starts at the height the page
+content does. It is `vw`, not `vh`, because a phone is taller than a laptop and a vh-based
+value would give the phone the largest distance of all; and not a percentage, because
+vertical padding resolves against the container _width_. `--text-wordmark-size:
+clamp(15px, 0.26vw + 13px, 18px)` lifts the wordmark off the 13 px nav size by the ~40 % the
+review asked for at the top end, while both lines still fit the 180 px sidebar; its line
+height stays 1.3, which is what keeps the dots of the Ä inside the line box.
+
+_The sidebar grows instead of scrolling._ `.side` is `min-height: 100dvh` with no inner
+scroll region; the `overflow-y: auto` that used to let the metadata block scroll is gone,
+because the scrollbar it produced on the detail page read as a defect. Most of the overflow
+left with the stepper. What remains is a trade-off worth naming: `position: sticky; top: 0`
+pins a column taller than the viewport instead of letting it scroll, so in a window shorter
+than roughly 600 px the foot of the sidebar is out of reach. Keeping the navigation in place
+on every long gallery page is worth more than that case.
+
+_Prev/next stand beside the image, the counter under it._ `PhotoStepper` is a three-column
+grid, `44px 1fr 44px`, with the stage slotted into the middle cell and the counter centred
+in the row beneath — the arrows are in the content area but outside the picture, so nothing
+covers it. The `nav` landmark is `display: contents` and its three parts are grid cells of
+that frame, which keeps the links, the counter and their common label in one group without a
+box of its own. Below 768 px the image takes the full width and there is no room beside it:
+the arrows drop into the counter's row and flank it, the way the sidebar foot had them. The
+two columns cost the stage 104 px of width, and `detailSizes` subtracts exactly that
+(`STEPPER_GUTTER`), so `sizes` keeps telling the browser the truth; `--detail-h` is
+unchanged, the image is as tall as it was. The arrow keys and the swipe stay on the stage.
 
 **`prettier --check` is not part of `pnpm lint`** yet. Files untouched by this package fail
 it, and formatting them would put a repo-wide reflow into a diff that is about something

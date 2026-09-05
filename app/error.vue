@@ -34,12 +34,14 @@ useHead({
 </script>
 
 <style scoped>
+/* The top padding is the shared, fluid page-top token, so the first content
+   element sits at the same height as on every other page. */
 .head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-4);
+  padding: var(--space-page-top) var(--space-4) var(--space-4);
   border-bottom: var(--border);
 }
 
@@ -93,7 +95,7 @@ useHead({
 
 @media (max-width: 767px) {
   .head {
-    padding: var(--space-2);
+    padding: var(--space-page-top) var(--space-2) var(--space-2);
   }
 
   .body {

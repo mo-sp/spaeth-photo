@@ -5,17 +5,19 @@
          the sidebar, semantic here. -->
     <h1 class="sr-only">{{ title }}</h1>
 
-    <div class="stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
-      <PhotoImage
-        :photo="photo"
-        :alt="photoAlt(photo, locale)"
-        :sizes="sizes"
-        :variant-max="variantMax"
-        eager
-        priority
-        lqip
-      />
-    </div>
+    <PhotoStepper>
+      <div class="stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+        <PhotoImage
+          :photo="photo"
+          :alt="photoAlt(photo, locale)"
+          :sizes="sizes"
+          :variant-max="variantMax"
+          eager
+          priority
+          lqip
+        />
+      </div>
+    </PhotoStepper>
   </article>
 </template>
 
@@ -62,10 +64,10 @@ useSiteSeo({
 </script>
 
 <style scoped>
-/* Every other page opens with the padding of its header block; without it the
-   stage would sit flush against the top edge. */
+/* The same top distance as every other page; the token is fluid, so the first
+   content element sits at the same height on all of them. */
 .page {
-  padding-block: var(--space-4);
+  padding-block: var(--space-page-top) var(--space-4);
 }
 
 /* The stage carries the page background so the image is never cropped and both
@@ -91,9 +93,8 @@ useSiteSeo({
 }
 
 @media (max-width: 767px) {
-  /* The sticky top bar already separates the page from the edge here. */
   .page {
-    padding-block: var(--space-2);
+    padding-block: var(--space-page-top) var(--space-2);
   }
 
   .stage {

@@ -83,15 +83,23 @@ export function detailCap(aspectRatio: number): number {
 }
 
 /**
+ * What the two 44 px stepper columns and their gaps take from the stage width
+ * above 768 px; mirrors `--step-w` in `PhotoStepper.vue`. Below that breakpoint
+ * the arrows sit under the image and the stage keeps the full width.
+ */
+const STEPPER_GUTTER = 2 * (44 + 8)
+
+/**
  * Per-photo `sizes` for the detail image: below 768 px the stage is height-less
- * and the image is exactly 100vw, above it the content width capped at `detailCap`.
+ * and the image is exactly 100vw, above it the content width minus the stepper
+ * columns, capped at `detailCap`.
  */
 export function detailSizes(aspectRatio: number): string {
   const cap = detailCap(aspectRatio)
   return [
     '(max-width: 767px) 100vw',
-    `(max-width: 1023px) min(calc(100vw - 180px), ${cap}px)`,
-    `min(calc(100vw - 220px), ${cap}px)`,
+    `(max-width: 1023px) min(calc(100vw - ${180 + STEPPER_GUTTER}px), ${cap}px)`,
+    `min(calc(100vw - ${220 + STEPPER_GUTTER}px), ${cap}px)`,
   ].join(', ')
 }
 

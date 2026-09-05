@@ -95,6 +95,21 @@
      than the space around them. Family, case and letter spacing stay. */
   --text-nav-item-size: 20px;
 
+  /* The wordmark and the page-top distance are the only two values on this site
+     that scale with the viewport: they are what the eye compares across pages
+     and across screens, and a fixed pixel value is either small on a desktop or
+     cramped on a phone. Wordmark 15 -> 18px between 768 and 1920px viewport
+     width; 18px is the ~40% over the 13px nav size the review asked for, and it
+     still leaves the two lines inside the 180px sidebar. */
+  --text-wordmark-size: clamp(15px, 0.26vw + 13px, 18px);
+
+  /* Top distance of the first content element, identical on every page and on
+     the sidebar. Reaches the 28px floor below ~910px viewport width and the
+     72px ceiling at ~1890px; vw, not vh, because a phone is taller than a
+     laptop, and not a percentage, because vertical padding resolves against the
+     container width. */
+  --space-page-top: clamp(var(--space-3), 4.5vw - 13px, var(--space-5));
+
   /* Spec spacings that are off the 8/14/28/32/72/96 ladder. */
   --space-brand: 44px; /* wordmark → navigation */
   --space-back: 36px;  /* back link → title on the detail page */
@@ -136,10 +151,5 @@
        `sizes` cannot express — so the browser picks a step by a wrong width,
        for the LCP image of all things. The mobile hero is width-driven instead. */
     --hero-h: auto;
-
-    /* The selection row becomes a column: five tiles side by side are 70 px
-       each at 390 px viewport width. */
-    --curated-cols: 1;
-    --curated-h: auto;
   }
 }
