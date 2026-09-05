@@ -62,8 +62,9 @@ function softenShouting(value: string): string {
  * `Make: "SONY"` + `Model: "ILCE-7M4"` → `"Sony ILCE-7M4"`.
  * Enthält das Modell den Hersteller bereits (`Make: "NIKON CORPORATION"`,
  * `Model: "NIKON D850"`), wird nur das Modell übernommen — verglichen wird das
- * erste Wort, denn Modellbezeichnungen selbst dürfen ihre Großschreibung
- * behalten (`ILCE-7M4` ist kein Geschrei).
+ * erste Wort. Auch dann wird das Geschrei gedämpft (`"Nikon D850"`); echte
+ * Modellbezeichnungen bleiben davon unberührt, weil sie Ziffern oder
+ * Bindestriche enthalten (`ILCE-7M4` ist kein Geschrei).
  */
 export function cameraName(make: unknown, model: unknown): string | null {
   const rawMake = clean(make)
@@ -72,7 +73,7 @@ export function cameraName(make: unknown, model: unknown): string | null {
   if (!rawMake) return rawModel
   const firstMake = rawMake.split(' ')[0]?.toLowerCase()
   const firstModel = rawModel.split(' ')[0]?.toLowerCase()
-  if (firstMake && firstMake === firstModel) return rawModel
+  if (firstMake && firstMake === firstModel) return softenShouting(rawModel)
   return `${softenShouting(rawMake)} ${rawModel}`
 }
 
@@ -103,6 +104,9 @@ export function readExif(block: Buffer | undefined): SourceExif {
   return {
     date: taken ? formatExifDate(taken) : null,
     camera: cameraName(image.Make, image.Model),
-    lens: clean(photo.LensModel) ?? clean(photo.LensSpecification) ?? null,
+    // Nur LensModel: LensSpecification ist ein Array aus vier Brüchen
+    // (Brennweiten und Blenden), niemals ein Name — `clean` gäbe dafür immer
+    // null zurück.
+    lens: clean(photo.LensModel),
   }
 }

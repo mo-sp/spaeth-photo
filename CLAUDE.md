@@ -8,27 +8,44 @@ Doku und messbare Performance sind Teil des Ziels.
 ## Stack
 
 - Nuxt 4 + TypeScript, Rendering SSG über `nuxt generate` (Output `.output/public`).
-- pnpm, Node ≥ 22 (`.nvmrc`: 24).
+- pnpm, Node ≥ 24 (`.nvmrc`: 24). Die Skripte unter `scripts/` laufen ohne Runner:
+  Node entfernt die Typen selbst (`node scripts/x.ts`), `tsconfig.scripts.json` erzwingt
+  dafür `erasableSyntaxOnly`.
 - Eigenes CSS mit Custom Properties (`app/assets/css/tokens.css`). Kein Tailwind, kein UI-Framework.
-- Bildverarbeitung: eigenes Sharp-Prebuild-Skript (`scripts/build-images.ts`), kein @nuxt/image.
+- Bildverarbeitung: eigene Sharp-Skripte (`scripts/export-sources.ts`, `scripts/build-images.ts`),
+  kein @nuxt/image. Tests mit vitest.
 - Schriften Archivo und JetBrains Mono selbst gehostet in `public/fonts/`.
 
 ## Kommandos
 
-| Befehl                        | Wirkung                                               |
-| ----------------------------- | ----------------------------------------------------- |
-| `pnpm dev`                    | Dev-Server                                            |
-| `pnpm build-images`           | Bild-Varianten + `photos.manifest.json` erzeugen (P3) |
-| `pnpm generate`               | statische Seite bauen                                 |
-| `pnpm build`                  | `build-images` + `generate` (Coolify-Build-Befehl)    |
-| `pnpm preview`                | gebaute Seite lokal ansehen                           |
-| `pnpm lint` / `pnpm lint:fix` | ESLint (Flat Config über @nuxt/eslint)                |
-| `pnpm typecheck`              | `nuxt typecheck` (vue-tsc)                            |
+| Befehl                        | Wirkung                                                       |
+| ----------------------------- | ------------------------------------------------------------- |
+| `pnpm dev`                    | Dev-Server                                                    |
+| `pnpm export-sources`         | Originale → Web-Quellen + YAML im Content-Repo (siehe unten)  |
+| `pnpm build-images`           | Bild-Varianten, `photos.manifest.json`, Client-Index          |
+| `pnpm check-manifest`         | erzeugtes Manifest prüfen (CI-Torwächter)                     |
+| `pnpm generate`               | statische Seite bauen                                         |
+| `pnpm build`                  | `build-images` + `generate` (Coolify-Build-Befehl)            |
+| `pnpm preview`                | gebaute Seite lokal ansehen                                   |
+| `pnpm lint` / `pnpm lint:fix` | ESLint (Flat Config über @nuxt/eslint)                        |
+| `pnpm typecheck`              | `nuxt typecheck` + `tsc -p tsconfig.scripts.json`             |
+| `pnpm test`                   | vitest, nur Unit-Tests (< 1 s)                                |
+| `pnpm test:integration`       | Farb-Regressionstest der Bild-Pipeline (kodiert echte Bilder) |
+
+Flags von `build-images`: `--dry-run` (nichts schreiben oder löschen), `--force` (Cache
+ignorieren), `--only <slug>`, `--strict` (Warnungen als Fehler, für CI), `--source-dir <dir>`
+(andere Content-Wurzel; die Ausgabe geht immer nach `public/img`).
+`export-sources`: `--source-dir <dir>` (Originale, sonst `$PHOTO_SOURCE_DIR`),
+`--map <json>`, `--out <dir>`, `--quality <1-100>`, `--only <slug>`, `--dry-run`,
+`--force` (vorhandene Web-Quellen überschreiben; ohne das Flag bleiben sie stehen).
+Beide Skripte kennen `--help`.
 
 ## Kernkonventionen
 
-- **`photos.manifest.json` ist die einzige Datenquelle des Frontends.** Kein direkter
-  Dateisystem-Zugriff aus Komponenten.
+- **Der generierte Client-Index (`app/data/photos.index.json`) ist die einzige Datenquelle
+  des Frontends.** Kein direkter Dateisystem-Zugriff aus Komponenten. Bild-URLs stehen
+  nicht darin, sondern folgen der Konvention `/img/<slug>/<breite>.<endung>`
+  (`shared/constants/images.ts`).
 - **Dateiname = Slug = URL** (`/foto/<slug>`): kleingeschrieben, kebab-case, ASCII
   (`ae/oe/ue/ss`). Slugs sind nach dem Deploy unveränderlich — sie werden in Phase 2
   Produkt-URLs.
@@ -40,11 +57,12 @@ Doku und messbare Performance sind Teil des Ziels.
 
 ## Harte Regeln (PLAN.md §9)
 
-- `public/img/` und `photos.manifest.json` niemals committen.
+- `public/img/`, `photos.manifest.json`, `app/data/` und `.image-cache/` niemals committen.
 - Bilder niemals hochskalieren.
 - Niemals EXIF/Metadaten in ausgelieferte Bilder schreiben.
 - Slugs nach dem Deploy nie ändern.
-- Keine Vollauflösungs-Dateien ins Repo oder auf den Server (Quellen max. 2560 px).
+- Keine Vollauflösungs-Dateien ins Repo oder auf den Server (Quellen max. 2560 px);
+  die Originale liegen außerhalb jedes Repositorys und werden nur gelesen.
 - Keine externen Tracker, kein Analytics, keine Cookies (daher kein Banner).
 - Keine schweren Dependencies ohne Not; jede neue Dependency in `docs/architecture.md`
   begründen.

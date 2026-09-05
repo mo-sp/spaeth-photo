@@ -51,8 +51,9 @@ export function createReporter(): Reporter {
       console.log(message)
     },
     step(label, subject, detail) {
-      const padded = color(label.padEnd(9), 'cyan')
-      console.log(`  ${padded}${subject}${detail ? color(`  ${detail}`, 'gray') : ''}`)
+      const padded = color(label.padEnd(13), 'cyan')
+      const name = subject.padEnd(30)
+      console.log(`  ${padded}${name}${detail ? color(` ${detail}`, 'gray') : ''}`)
     },
     warn(scope, message) {
       issues.push({ level: 'warn', scope, message })

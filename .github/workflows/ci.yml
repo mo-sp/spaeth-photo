@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Der Checkout holt das private Submodule bewusst NICHT. Damit prüft jeder
+# Lauf zugleich, was ein fremder Clone erlebt: der Build muss über den
+# Demo-Fallback durchlaufen, statt am fehlenden Content zu scheitern.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - name: Farb-Regressionstest der Bild-Pipeline
+        run: pnpm test:integration
+
+      - run: pnpm typecheck
+
+      - name: Bildvarianten erzeugen
+        run: pnpm build-images --strict
+
+      - name: Manifest auf Plausibilität prüfen
+        run: pnpm check-manifest --expect-mode demo --min-photos 3
+
+      - run: pnpm generate
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: .output/public
+          retention-days: 7
