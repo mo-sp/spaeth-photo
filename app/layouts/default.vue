@@ -124,9 +124,9 @@ useSeoMeta({
 
 /* While the intro overlay is up, the page stays in the document — that is the
    whole point of an overlay — but is not painted. `visibility`, not `display`:
-   the overlay and the clip sit inside this subtree and undo it for themselves,
-   and a hidden subtree also drops out of the tab order, so the choice on top
-   needs no focus trap. */
+   the overlay and the clip sit inside this subtree and undo it for themselves.
+   A hidden subtree also drops out of the tab order, which is most of a modal
+   but not all of it — the overlay traps the focus itself. */
 html[data-intro] .shell {
   visibility: hidden;
 }
