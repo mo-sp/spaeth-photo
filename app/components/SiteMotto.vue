@@ -1,5 +1,5 @@
 <template>
-  <component :is="as" class="motto">
+  <component :is="as" class="motto" :class="{ 'motto--flat': !overClip }">
     <button
       type="button"
       class="word light"
@@ -45,6 +45,13 @@ const { t } = useI18n()
 const { setTheme, isCurrent } = useTheme()
 
 /**
+ * Whether a clip is playing behind these words. The motto only ever appears on
+ * the start page and in its intro, so `active` answers exactly that — and it is
+ * a build value, so the class is the same on the server and after hydration.
+ */
+const { active: overClip } = useSiteVideo()
+
+/**
  * The visible word first, then what clicking it does. WCAG 2.5.3 asks for the
  * visible text to be part of the accessible name, so the label is composed from
  * the same string the button shows rather than replacing it.
@@ -75,6 +82,18 @@ function choose(theme: Theme) {
   /* The script has long ascenders and descenders; 1 would let them out of the
      line box and into the hairline below the row. */
   line-height: 1.2;
+}
+
+/* No clip behind the words, so the five colour roles swap to their groundless
+   set (tokens.css). The substitution has to happen here rather than in
+   `:root` — a custom property that references another one is resolved where it
+   is declared, so an override further down the tree would come too late. */
+.motto--flat {
+  --motto-script-color: var(--motto-script-color-flat);
+  --motto-script-color-hover: var(--motto-script-color-hover-flat);
+  --motto-script-glow: var(--motto-script-glow-flat);
+  --motto-caps-color: var(--motto-caps-color-flat);
+  --motto-caps-fallback: var(--motto-caps-fallback-flat);
 }
 
 /* A word, not a control: the button contributes nothing but its behaviour. */
@@ -130,7 +149,7 @@ function choose(theme: Theme) {
    word, not a subtler one. */
 @supports not (-webkit-text-stroke: 1px currentcolor) {
   .shadow {
-    color: var(--motto-caps-color-flat);
+    color: var(--motto-caps-fallback);
   }
 }
 

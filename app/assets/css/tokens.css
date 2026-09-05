@@ -186,7 +186,7 @@
   --motto-script-color-hover: rgba(253, 252, 249, 0.75);
   --motto-script-glow: none;
   --motto-caps-color: #0b0c0e;      /* filled: a silhouette against the clip */
-  --motto-caps-color-flat: #0b0c0e; /* the same, where text-stroke is unknown */
+  --motto-caps-fallback: #0b0c0e;   /* the same, where text-stroke is unknown */
   --motto-caps-stroke-width: 0;
   --motto-caps-stroke-color: transparent;
   --motto-caps-stroke-color-hover: transparent;
@@ -194,6 +194,18 @@
      Not the faint token: measured over the clip it came to 2.5:1, which for a
      mark this size is a smudge rather than a hinge. */
   --motto-slash-color: rgba(244, 246, 248, 0.75);
+
+  /* The same five roles for a motto with no clip behind it — a build without
+     the private content repo, and the only state in which the words stand on
+     the page's own ground. A silhouette needs something to be a silhouette
+     against, and there #0B0C0E *is* the ground; the executed word takes the
+     text colour instead. The other word is unchanged: faded here, an outline on
+     the light side. SiteMotto swaps the five in one rule. */
+  --motto-script-color-flat: rgba(253, 252, 249, 0.45);
+  --motto-script-color-hover-flat: rgba(253, 252, 249, 0.75);
+  --motto-script-glow-flat: none;
+  --motto-caps-color-flat: var(--color-text);      /* 18.4:1 on the ground */
+  --motto-caps-fallback-flat: var(--color-text);
 }
 
 @media (max-width: 767px) {
@@ -259,11 +271,19 @@
   /* Without text-stroke a transparent fill is an invisible word, so the
      @supports fallback fills it faintly instead: 4.2:1, above the 3:1 AA asks
      of text this size. */
-  --light-motto-caps-color-flat: rgba(11, 12, 14, 0.55);
+  --light-motto-caps-fallback: rgba(11, 12, 14, 0.55);
   --light-motto-caps-stroke-width: 1.2px;
   --light-motto-caps-stroke-color: rgba(11, 12, 14, 0.8);  /* 10.0:1 on the ground */
   --light-motto-caps-stroke-color-hover: rgba(11, 12, 14, 1);
   --light-motto-slash-color: rgba(26, 25, 22, 0.85);
+
+  /* No clip: here it is the pale word that would be the ground. The outlined
+     one is unchanged — an outline works on any ground. */
+  --light-motto-script-color-flat: var(--light-text);   /* 15.3:1 on the ground */
+  --light-motto-script-color-hover-flat: var(--light-text);
+  --light-motto-script-glow-flat: none;
+  --light-motto-caps-color-flat: transparent;
+  --light-motto-caps-fallback-flat: rgba(11, 12, 14, 0.55);
 }
 
 @media (prefers-color-scheme: light) {
@@ -283,11 +303,16 @@
     --motto-script-color-hover: var(--light-motto-script-color-hover);
     --motto-script-glow: var(--light-motto-script-glow);
     --motto-caps-color: var(--light-motto-caps-color);
-    --motto-caps-color-flat: var(--light-motto-caps-color-flat);
+    --motto-caps-fallback: var(--light-motto-caps-fallback);
     --motto-caps-stroke-width: var(--light-motto-caps-stroke-width);
     --motto-caps-stroke-color: var(--light-motto-caps-stroke-color);
     --motto-caps-stroke-color-hover: var(--light-motto-caps-stroke-color-hover);
     --motto-slash-color: var(--light-motto-slash-color);
+    --motto-script-color-flat: var(--light-motto-script-color-flat);
+    --motto-script-color-hover-flat: var(--light-motto-script-color-hover-flat);
+    --motto-script-glow-flat: var(--light-motto-script-glow-flat);
+    --motto-caps-color-flat: var(--light-motto-caps-color-flat);
+    --motto-caps-fallback-flat: var(--light-motto-caps-fallback-flat);
   }
 }
 
@@ -307,9 +332,14 @@
   --motto-script-color-hover: var(--light-motto-script-color-hover);
   --motto-script-glow: var(--light-motto-script-glow);
   --motto-caps-color: var(--light-motto-caps-color);
-  --motto-caps-color-flat: var(--light-motto-caps-color-flat);
+  --motto-caps-fallback: var(--light-motto-caps-fallback);
   --motto-caps-stroke-width: var(--light-motto-caps-stroke-width);
   --motto-caps-stroke-color: var(--light-motto-caps-stroke-color);
   --motto-caps-stroke-color-hover: var(--light-motto-caps-stroke-color-hover);
   --motto-slash-color: var(--light-motto-slash-color);
+  --motto-script-color-flat: var(--light-motto-script-color-flat);
+  --motto-script-color-hover-flat: var(--light-motto-script-color-hover-flat);
+  --motto-script-glow-flat: var(--light-motto-script-glow-flat);
+  --motto-caps-color-flat: var(--light-motto-caps-color-flat);
+  --motto-caps-fallback-flat: var(--light-motto-caps-fallback-flat);
 }
