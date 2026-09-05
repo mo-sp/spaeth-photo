@@ -85,8 +85,9 @@ All three know `--help`.
 
 ## Way of working
 
-- One commit per work package (`feat(Pn): …`, `fix(Pn): …`), Conventional style, subject
-  ≤ 72 characters. Work goes through pull requests against `main`.
+- One pull request per work package against `main`, merged by rebase; inside it, logical
+  commits per sub-step (`feat(Pn): …`, `fix(Pn): …`), Conventional style, subject
+  ≤ 72 characters.
 - Deviating from a documented decision is allowed when justified — record the reason in
   `docs/architecture.md`.
 - Public artefacts (repo files, commit messages, PRs): **mechanism, not inventory.**
