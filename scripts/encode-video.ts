@@ -104,6 +104,25 @@ interface Probe {
   width: number
   height: number
   duration: number
+  /** False where ffprobe was not there and the figures are placeholders. */
+  measured: boolean
+}
+
+/** The dimensions of the largest rendition, so a dry run plans all of them. */
+const UNMEASURED: Probe = {
+  width: Number.POSITIVE_INFINITY,
+  height: Number.POSITIVE_INFINITY,
+  duration: Number.POSITIVE_INFINITY,
+  measured: false,
+}
+
+/** Measures if it can; a dry run is worth having on a machine without ffmpeg. */
+function probeOrGuess(ffprobe: string, file: string): Probe {
+  try {
+    return probe(ffprobe, file)
+  } catch {
+    return UNMEASURED
+  }
 }
 
 function probe(ffprobe: string, file: string): Probe {
@@ -130,13 +149,21 @@ function probe(ffprobe: string, file: string): Probe {
     width: stream.width,
     height: stream.height,
     duration: Number(parsed.format?.duration ?? 0),
+    measured: true,
   }
 }
 
 /**
  * Shared front of every encode. `-map 0:v:0` alone drops audio, subtitle and
- * the camera's data streams; `-map_metadata -1` plus `+bitexact` keep the
- * delivered file free of metadata, down to the encoder's own version string.
+ * the camera's data streams, and `-map_metadata -1` drops everything the source
+ * carried — which is the point: nothing of the recording reaches a visitor.
+ *
+ * What `+bitexact` adds is narrower than it sounds. It removes ffmpeg's version
+ * numbers, not the names: the delivered files still say `encoder=Lavc libx264`
+ * and `Lavc libvpx-vp9`, the WebM still says `encoder=Lavf`, and the MP4 still
+ * carries `major_brand`. Measured, not assumed — an empty `-metadata encoder=`
+ * does not clear those, because the muxer writes them after metadata mapping.
+ * They name the tool, never the source or its owner.
  */
 function inputArgs(source: string, start: number, duration: number): string[] {
   return [
@@ -195,6 +222,10 @@ function encoderArgs(rendition: Rendition): string[] {
     // The whole file is one loop, so the browser needs the header up front.
     '-movflags',
     '+faststart',
+    // The one identifying tag that can be removed: without this the track is
+    // labelled `handler_name=VideoHandler`.
+    '-empty_hdlr_name',
+    '1',
     '-flags:v',
     '+bitexact',
   ]
@@ -245,16 +276,20 @@ async function main(): Promise<void> {
   const ffprobe = ffmpeg.includes(path.sep) ? path.join(path.dirname(ffmpeg), 'ffprobe') : 'ffprobe'
 
   const reporter = createReporter()
-  const info = probe(ffprobe, source)
+  // A dry run reports the plan, and the plan does not need the source measured:
+  // without this, `--dry-run` fails on a machine that has no ffmpeg at all.
+  const info = dryRun ? probeOrGuess(ffprobe, source) : probe(ffprobe, source)
 
   reporter.info(
-    `Source  ${displayPath(source)} (${info.width}×${info.height}, ${info.duration.toFixed(1)} s)`,
+    info.measured
+      ? `Source  ${displayPath(source)} (${info.width}×${info.height}, ${info.duration.toFixed(1)} s)`
+      : `Source  ${displayPath(source)} (not measured — no ffprobe)`,
   )
   reporter.info(`Target  ${displayPath(outDir)}${dryRun ? '  [dry-run]' : ''}`)
   reporter.info(`Loop    ${start} s + ${duration} s · ${FPS} fps · no audio · no metadata`)
   reporter.info('')
 
-  if (duration > info.duration - start) {
+  if (info.measured && duration > info.duration - start) {
     reporter.warn(slug, `source is only ${info.duration.toFixed(1)} s — the loop will be shorter`)
   }
 
@@ -312,15 +347,19 @@ async function main(): Promise<void> {
     // same quality scale and the same metadata stripping as every photo.
     const frame = path.join(outDir, '.poster-frame.png')
     run(ffmpeg, [...inputArgs(source, start + posterAt, 1), '-frames:v', '1', frame])
-    await sharp(frame)
-      .resize({
-        width: Math.min(POSTER_WIDTH, info.width),
-        withoutEnlargement: true,
-        kernel: 'lanczos3',
-      })
-      .jpeg({ quality: POSTER_QUALITY, mozjpeg: true })
-      .toFile(poster)
-    rmSync(frame)
+    try {
+      await sharp(frame)
+        .resize({
+          width: Math.min(POSTER_WIDTH, info.width),
+          withoutEnlargement: true,
+          kernel: 'lanczos3',
+        })
+        .jpeg({ quality: POSTER_QUALITY, mozjpeg: true })
+        .toFile(poster)
+    } finally {
+      // Whatever happened above, the intermediate frame is not left behind.
+      rmSync(frame, { force: true })
+    }
     const bytes = statSync(poster).size
     totalBytes += bytes
     written += 1
