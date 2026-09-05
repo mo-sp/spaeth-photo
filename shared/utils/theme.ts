@@ -35,6 +35,7 @@ export const INTRO_FAILSAFE_MS = 3000
  * stored theme, mark the intro as pending when there is no stored choice and
  * the document is the home page (`data-page`, set by the page itself), and arm
  * the failsafe above. Without JavaScript none of it happens, which is the
- * plain, unhidden page — the state crawlers see.
+ * plain, unhidden page — the state crawlers see. The accepted values come from
+ * `THEMES`, so the script cannot fall out of step with `parseTheme`.
  */
-export const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;var s=null;try{s=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})}catch(e){}if(s==='light'||s==='dark'){d.dataset.theme=s;return}if(d.dataset.page==='home'){d.dataset.intro='pending';setTimeout(function(){if(d.dataset.intro==='pending')delete d.dataset.intro},${INTRO_FAILSAFE_MS})}})()`
+export const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;var s=null;try{s=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})}catch(e){}if(${JSON.stringify(THEMES)}.indexOf(s)>-1){d.dataset.theme=s;return}if(d.dataset.page==='home'){d.dataset.intro='pending';setTimeout(function(){if(d.dataset.intro==='pending')delete d.dataset.intro},${INTRO_FAILSAFE_MS})}})()`
