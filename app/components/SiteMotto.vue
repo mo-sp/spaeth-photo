@@ -142,6 +142,6 @@ function choose(theme: Theme) {
   font-family: var(--font-mono);
   font-weight: 400;
   font-size: var(--motto-caps-size);
-  color: var(--color-text-faint);
+  color: var(--motto-slash-color);
 }
 </style>

@@ -190,6 +190,10 @@
   --motto-caps-stroke-width: 0;
   --motto-caps-stroke-color: transparent;
   --motto-caps-stroke-color-hover: transparent;
+  /* The hinge is punctuation, not a word, and takes the neither-side colour.
+     Not the faint token: measured over the clip it came to 2.5:1, which for a
+     mark this size is a smudge rather than a hinge. */
+  --motto-slash-color: rgba(244, 246, 248, 0.75);
 }
 
 @media (max-width: 767px) {
@@ -259,6 +263,7 @@
   --light-motto-caps-stroke-width: 1.2px;
   --light-motto-caps-stroke-color: rgba(11, 12, 14, 0.8);  /* 10.0:1 on the ground */
   --light-motto-caps-stroke-color-hover: rgba(11, 12, 14, 1);
+  --light-motto-slash-color: rgba(26, 25, 22, 0.85);
 }
 
 @media (prefers-color-scheme: light) {
@@ -282,6 +287,7 @@
     --motto-caps-stroke-width: var(--light-motto-caps-stroke-width);
     --motto-caps-stroke-color: var(--light-motto-caps-stroke-color);
     --motto-caps-stroke-color-hover: var(--light-motto-caps-stroke-color-hover);
+    --motto-slash-color: var(--light-motto-slash-color);
   }
 }
 
@@ -305,4 +311,5 @@
   --motto-caps-stroke-width: var(--light-motto-caps-stroke-width);
   --motto-caps-stroke-color: var(--light-motto-caps-stroke-color);
   --motto-caps-stroke-color-hover: var(--light-motto-caps-stroke-color-hover);
+  --motto-slash-color: var(--light-motto-slash-color);
 }
