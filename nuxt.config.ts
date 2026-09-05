@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { BRAND_NAME } from './shared/constants/brand.ts'
 import {
@@ -8,33 +8,31 @@ import {
   PREFIXED_LOCALES,
   localePath,
 } from './shared/utils/i18n.ts'
+import { CLIP_SLUGS } from './shared/constants/video.ts'
 import { THEME_INIT_SCRIPT } from './shared/utils/theme.ts'
 import { VIDEO_FILES } from './shared/utils/video.ts'
 
 const VIDEO_DIR = fileURLToPath(new URL('./content/video', import.meta.url))
 
 /**
- * The background clip, or `''` when there is none. Like the photographs it
- * comes from the private `content/` submodule, and like them its absence is
- * not an error: without a clip the home page keeps its hero photograph.
+ * The clip directories the build can serve, one per palette. Like the
+ * photographs they come from the private `content/` submodule, and like them
+ * their absence is not an error: without them the home page keeps its hero
+ * photograph.
  *
- * A directory counts only once it holds a poster, so a half-finished encode
- * does not reach the build. The first one wins, alphabetically, because the
- * start page shows exactly one.
+ * A directory counts only once it holds a poster, so a half-finished encode does
+ * not reach the build — and the start page shows a clip only when every palette
+ * has one, because a switch that changes the ground but not the picture is a
+ * half-built feature rather than a graceful fallback.
  */
-function videoSlug(): string {
-  if (!existsSync(VIDEO_DIR)) return ''
-  const found = readdirSync(VIDEO_DIR, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isDirectory() && existsSync(`${VIDEO_DIR}/${entry.name}/${VIDEO_FILES.poster}`),
-    )
-    .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b, 'en'))
-  return found[0] ?? ''
+function clipDirs(): { slug: string; dir: string }[] {
+  const found = CLIP_SLUGS.map((slug) => ({ slug, dir: `${VIDEO_DIR}/${slug}` })).filter(
+    ({ dir }) => existsSync(`${dir}/${VIDEO_FILES.poster}`),
+  )
+  return found.length === CLIP_SLUGS.length ? found : []
 }
 
-const videoSlugValue = videoSlug()
+const clips = clipDirs()
 
 /**
  * Every route of the site in its canonical (English, unprefixed) form.
@@ -107,9 +105,10 @@ export default defineNuxtConfig({
       // Absolute URLs for OpenGraph and sitemap.xml. A *build* variable: a
       // static site has nobody left at runtime to substitute it.
       siteUrl: '',
-      // Slug of the background clip, empty when `content/video/` holds none.
-      // Read at build time for the same reason: there is no server to ask.
-      videoSlug: videoSlugValue,
+      // Whether the background clips are there at all; which one a palette
+      // shows is a constant, not a build value. Read at build time for the same
+      // reason as the URL: there is no server left to ask.
+      hasClips: clips.length > 0,
     },
   },
 
@@ -156,13 +155,19 @@ export default defineNuxtConfig({
 
   nitro: {
     /**
-     * The renditions are served from `/video/` straight out of the content
-     * repo. A second public directory rather than a copy into `public/`: the
-     * files are generated artefacts that must never enter this repository, and
-     * Nitro copies them into `.output/public` at build time just like `public/`.
+     * The renditions are served from `/video/<slug>/` straight out of the
+     * content repo. A public directory per clip rather than one for the whole
+     * `content/video/`: only the clips the site actually shows are published, so
+     * a leftover encode in the content repo costs the build nothing. And a
+     * second public root rather than a copy into `public/`, because the files
+     * are generated artefacts that must never enter this repository — Nitro puts
+     * them into `.output/public` at build time just like `public/`.
      */
-    publicAssets:
-      videoSlugValue === '' ? [] : [{ dir: VIDEO_DIR, baseURL: '/video', maxAge: 60 * 60 * 24 }],
+    publicAssets: clips.map(({ slug, dir }) => ({
+      dir,
+      baseURL: `/video/${slug}`,
+      maxAge: 60 * 60 * 24,
+    })),
 
     prerender: {
       crawlLinks: true,

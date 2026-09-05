@@ -37,8 +37,7 @@ const asideKind = computed(() => route.meta.aside ?? 'none')
  * simply cover it: the clip lies behind the shell so the page can scroll over
  * it, and behind means behind the background too.
  */
-const { active: clipActive, variant: clipVariant } = useSiteVideo()
-const behindClip = computed(() => clipActive.value && clipVariant.value === 'full')
+const { active: behindClip } = useSiteVideo()
 
 // One instance for the page and both sidebar components, which are siblings of
 // the page rather than its descendants.

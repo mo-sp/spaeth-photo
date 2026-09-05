@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <SiteVideo v-if="videoActive" :slug="videoSlug" :variant="videoVariant" />
+    <SiteVideo v-if="videoActive" :slug="videoSlug" />
 
     <template v-else-if="hero">
       <div class="hero">
@@ -22,11 +22,11 @@
 
     <!-- The home page's heading and the theme switch in one: clicking a word
          picks the palette. The wordmark in the sidebar is a link, not a heading. -->
-    <div class="motto-row" :class="{ 'motto-row--stage': stage }">
+    <div class="motto-row" :class="{ 'motto-row--stage': videoActive }">
       <SiteMotto />
     </div>
 
-    <section class="strip-section" :class="{ 'strip-section--stage': stage }">
+    <section class="strip-section" :class="{ 'strip-section--stage': videoActive }">
       <h2 class="label">{{ t('home.all') }}</h2>
       <PhotoStrip />
     </section>
@@ -38,10 +38,8 @@
 <script setup lang="ts">
 const { hero } = usePhotos()
 const { locale, t } = useI18n()
-const { slug: videoSlug, active: videoActive, variant: videoVariant } = useSiteVideo()
-
-/** The clip as a full background turns the motto into a full-height stage. */
-const stage = computed(() => videoActive.value && videoVariant.value === 'full')
+/** The clip is a full-page background, which turns the motto into a full-height stage. */
+const { slug: videoSlug, active: videoActive } = useSiteVideo()
 
 /**
  * The hero is as wide as the content area, full width on mobile. Not 66vw as
@@ -133,9 +131,10 @@ useHead({
   padding: var(--space-5) var(--space-4) var(--space-6);
 }
 
-/* The 11 px label over the clip measured 2.1:1 against a bright frame. A ground
-   the width of the words, not the row: the tiles below it are photographs and
-   stay untouched. Prototype guardrail; the treatment is P11's. */
+/* The 11 px label over the clip measured 2.1:1 against a bright frame, and no
+   scrim a design would tolerate fixes that for text this small. A ground the
+   width of the words, not of the row: the tiles below it are photographs and
+   stay untouched. */
 .strip-section--stage .label {
   align-self: flex-start;
   padding: var(--space-1) var(--space-2);
