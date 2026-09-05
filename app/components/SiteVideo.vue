@@ -54,7 +54,8 @@ const allowed = ref(false)
 
 /** Read once, on mount: the rendition is chosen for the viewport the visit began in. */
 let viewport = 0
-let fade: ReturnType<typeof setTimeout> | undefined
+/** Ends a fade that is still running, at its own time or because the page left. */
+let endFade: (() => void) | undefined
 
 onMounted(() => {
   viewport = window.innerWidth
@@ -66,7 +67,10 @@ onMounted(() => {
   }
 })
 
-onBeforeUnmount(() => clearTimeout(fade))
+// Cut short rather than merely cancelled: a navigation during the fade must not
+// leave the timer firing into a component that is gone, and must not leave the
+// wait below pending either.
+onBeforeUnmount(() => endFade?.())
 
 watch([allowed, started, () => props.slug], ([mayPlay, wanted]) => {
   if (mayPlay && wanted) void show()
@@ -94,9 +98,14 @@ async function show(): Promise<void> {
 
   if (sources.value.length > 0) {
     swapping.value = true
-    await new Promise((resolve) => {
-      fade = setTimeout(resolve, FADE_MS)
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, FADE_MS)
+      endFade = () => {
+        clearTimeout(timer)
+        resolve()
+      }
     })
+    endFade = undefined
   }
 
   sources.value = next
