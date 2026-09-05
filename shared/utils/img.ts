@@ -2,20 +2,18 @@ import type { PhotoIndexEntry, VariantFormat } from '../types/photo.ts'
 import { variantUrl } from '../constants/images.ts'
 
 /**
- * Der Weg vom Index-Eintrag zu `<picture>`. Der Index führt nur die
- * tatsächlich erzeugten Breiten je Format; die URLs entstehen über die
- * Konvention in `shared/constants/images.ts`. Ein `srcset` darf deshalb nie aus
- * einer Konstante gebaut werden — sonst verspricht die Seite Stufen, die es für
- * dieses Bild nicht gibt (Hochformate haben andere).
+ * Index entry to `<picture>`. A `srcset` is always built from the widths the
+ * index records per format, never from a constant: portraits get different
+ * steps than landscapes, and a promised step that does not exist is a 404.
  */
 
-/** Reihenfolge der `<source>`-Elemente: der Browser nimmt das erste, das er kann. */
+/** `<source>` order: the browser takes the first format it can decode. */
 const SOURCE_FORMATS = ['avif', 'webp'] as const
 
 export interface PhotoSource {
   type: string
   srcset: string
-  /** Wiederholt auf jeder `<source>` — ohne `sizes` wählt der Browser 100vw. */
+  /** Repeated on every `<source>`: without `sizes` the browser assumes 100vw. */
   sizes: string
 }
 
@@ -25,12 +23,9 @@ export function imgUrl(photo: PhotoIndexEntry, width: number, format: VariantFor
 }
 
 /**
- * Die auslieferbaren Breiten eines Formats, aufsteigend und optional gedeckelt.
- *
- * `variantMax` deckelt dort, wo das Layout die Anzeigebreite ohnehin begrenzt
- * (die Detailseite deckelt ein Hochformat über die Höhe). Liegt der Deckel
- * unter der kleinsten erzeugten Stufe, bleibt trotzdem diese kleinste Stufe
- * stehen: ein leeres `srcset` wäre ein kaputtes Bild.
+ * The deliverable widths of a format, ascending and optionally capped where the
+ * layout already limits the display width. A cap below the smallest rendered
+ * step still keeps that step — an empty `srcset` is a broken image.
  */
 export function variantWidths(widths: readonly number[], variantMax?: number): number[] {
   const sorted = [...widths].sort((a, b) => a - b)
@@ -40,14 +35,14 @@ export function variantWidths(widths: readonly number[], variantMax?: number): n
   return capped.length > 0 ? capped : [sorted[0]!]
 }
 
-/** `"/img/x/480.avif 480w, /img/x/960.avif 960w"`; leer, wenn es das Format nicht gibt. */
+/** `"/img/x/480.avif 480w, /img/x/960.avif 960w"`; empty if the format is absent. */
 export function srcSet(photo: PhotoIndexEntry, format: VariantFormat, variantMax?: number): string {
   return variantWidths(photo.variants[format], variantMax)
     .map((width) => `${imgUrl(photo, width, format)} ${width}w`)
     .join(', ')
 }
 
-/** Die `<source>`-Elemente in Reihenfolge der Präferenz. */
+/** The `<source>` elements in order of preference. */
 export function buildSources(
   photo: PhotoIndexEntry,
   sizes: string,
@@ -60,21 +55,14 @@ export function buildSources(
   }))
 }
 
-/**
- * Das Format des `<img>`-Fallbacks: JPEG, solange es welches gibt. Fehlt es,
- * darf der Fallback nicht leer bleiben — dann tritt WebP an seine Stelle, das
- * jeder Browser der letzten zehn Jahre versteht.
- */
+/** Format of the `<img>` fallback: JPEG where it exists, otherwise WebP — never empty. */
 export function fallbackFormat(photo: PhotoIndexEntry): VariantFormat {
   if (photo.variants.jpeg.length > 0) return 'jpeg'
   if (photo.variants.webp.length > 0) return 'webp'
   return 'avif'
 }
 
-/**
- * `src` des Fallbacks: die kleinste ausgelieferte JPEG-Stufe (960). Sie ist nur
- * für Browser ohne `srcset` gedacht und soll dort kein Megabyte kosten.
- */
+/** Fallback `src`: the smallest rendered step, since only `srcset`-less browsers use it. */
 export function fallbackSrc(photo: PhotoIndexEntry, variantMax?: number): string {
   const format = fallbackFormat(photo)
   const widths = variantWidths(photo.variants[format], variantMax)
@@ -82,33 +70,21 @@ export function fallbackSrc(photo: PhotoIndexEntry, variantMax?: number): string
   return width === undefined ? '' : imgUrl(photo, width, format)
 }
 
-/**
- * Höhe der Detail-Bühne in CSS-Pixeln — dieselbe Zahl wie `--detail-h` in
- * `tokens.css`. Sie steht hier ein zweites Mal, weil aus ihr die
- * Auslieferungsbreite folgt und CSS-Variablen zur Bauzeit nicht lesbar sind;
- * ändert sich der Token, gehört diese Konstante mitgeändert.
- */
+/** Detail stage height in CSS px; mirrors `--detail-h` in `tokens.css`, which JS cannot read. Change both together. */
 export const DETAIL_STAGE_H = 820
 
 /**
- * Die größte Breite, die das Detailbild auf der Bühne je einnehmen kann.
- *
- * `object-fit: contain` in einem 820 px hohen Kasten deckelt die Breite auf
- * `820 · aspectRatio`: ein Hochformat (0,67) füllt nie mehr als 547 px, egal
- * wie breit der Bildschirm ist. Ohne diesen Deckel verspräche `sizes` dem
- * Browser die volle Contentbreite, und er lüde für ein Hochformat die
- * 1707er-Stufe, wo 960 reichen.
+ * Widest the detail image can ever render: `object-fit: contain` in an 820 px
+ * box caps the width at `820 · aspectRatio` (a 0.67 portrait never exceeds
+ * 547 px), which keeps `sizes` from over-promising on portraits.
  */
 export function detailCap(aspectRatio: number): number {
   return Math.round(DETAIL_STAGE_H * aspectRatio)
 }
 
 /**
- * `sizes` des Detailbilds, pro Foto verschieden.
- *
- * Unter 768 px ist die Bühne höhenlos (`--detail-h: auto`), das Bild also
- * breitengetrieben und exakt 100vw breit. Darüber ist es die Contentbreite
- * (Viewport minus Seitenleiste, 180 bzw. 220 px), gedeckelt auf `detailCap`.
+ * Per-photo `sizes` for the detail image: below 768 px the stage is height-less
+ * and the image is exactly 100vw, above it the content width capped at `detailCap`.
  */
 export function detailSizes(aspectRatio: number): string {
   const cap = detailCap(aspectRatio)
@@ -120,14 +96,9 @@ export function detailSizes(aspectRatio: number): string {
 }
 
 /**
- * Der Deckel für das `srcset` des Detailbilds.
- *
- * `sizes` nennt CSS-Pixel, der Browser multipliziert selbst mit der
- * Pixeldichte — ein Deckel in Höhe von `detailCap` würde auf jedem
- * Retina-Display eine zu kleine Stufe erzwingen. Deshalb der Faktor 2. Und er
- * darf nie unter das fallen, was ein Telefon braucht: dort ist das Bild
- * 100vw breit (bis 767 CSS-px), bei doppelter Dichte also rund 1534 px — die
- * nächste erzeugte Stufe darüber ist 1600.
+ * `srcset` cap for the detail image. Factor 2 because `sizes` is in CSS px and
+ * the browser multiplies by device pixel ratio; the 1600 floor covers a phone
+ * at 767 CSS px and 2× (~1534 px).
  */
 export function detailVariantMax(aspectRatio: number): number {
   const MOBILE_MIN = 1600

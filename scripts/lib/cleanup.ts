@@ -6,58 +6,37 @@ import type { Reporter } from './report.ts'
 import { isValidSlug } from './slug.ts'
 
 /**
- * Aufräumen verwaister Ausgaben unterhalb des Bild-Ausgabeverzeichnisses.
- *
- * Diese Funktion löscht — sie ist deshalb die einzige Stelle der Pipeline, die
- * ihre Vorbedingungen selbst prüft, statt sich auf den Aufrufer zu verlassen.
- * Sie räumt nur auf, wenn der Lauf ein vollständiges Bild des Sollzustands
- * hatte:
- *
- * - **`--only` unterbindet das Aufräumen vollständig.** Bei einem Teillauf ist
- *   `keep` per Definition unvollständig: Slugs, die weder gerendert wurden noch
- *   einen Cache-Eintrag haben, fehlen darin, obwohl ihre Ausgaben gültig sind.
- * - **Fehler unterbinden das Aufräumen.** Ein Foto mit kaputter YAML-Datei
- *   fällt aus dem Sollzustand heraus; der Lauf schreibt wegen des Fehlers
- *   ohnehin nichts, also darf er erst recht nichts löschen. Der Fehlerpfad ist
- *   nie destruktiv.
- * - **Ohne Quellbilder wird nicht aufgeräumt.** Ein leeres `keep` ist viel
- *   wahrscheinlicher ein Konfigurationsfehler als die Ansage, alles zu löschen.
- * - **`protectedSlugs`** bleiben unangetastet, auch wenn sie nicht in `keep`
- *   stehen.
- *
- * Was übrig bleibt, ist dreifach abgesichert: nur Pfade unterhalb von `dir`
- * (`assertInside`), nur Verzeichnisse mit gültigem Slug-Namen, nur Dateien,
- * deren Name dem Muster der erzeugten Varianten entspricht. Alles andere —
- * `README.md`, `.gitkeep`, Symlinks, fremde Verzeichnisse — wird gemeldet und
- * liegen gelassen.
+ * Removal of orphaned outputs below the image output directory. The only place
+ * in the pipeline that deletes, and therefore the only one that checks its own
+ * preconditions instead of trusting the caller.
  */
 
-/** Nur diese Dateinamen dürfen unterhalb von `<dir>/<slug>/` liegen. */
+/** Only these file names may live below `<dir>/<slug>/`. */
 export const OUTPUT_FILE_PATTERN = new RegExp(
   `^(?:\\d+\\.(?:${Object.values(VARIANT_EXTENSION).join('|')})|og\\.jpg)$`,
 )
 
 export interface CleanupOptions {
-  /** Ausgabeverzeichnis, üblicherweise `public/img`. Es wird nie verlassen. */
+  /** Output directory, usually `public/img`. It is never left. */
   dir: string
-  /** Sollzustand: Slug → erlaubte Dateinamen. */
+  /** Target state: slug → permitted file names. */
   keep: Map<string, Set<string>>
   reporter: Reporter
-  /** Nur berichten, nichts anfassen. */
+  /** Report only, touch nothing. */
   dryRun?: boolean
-  /** Der Lauf war ein Teillauf (`--only`) — dann wird gar nicht aufgeräumt. */
+  /** The run was partial (`--only`), so `keep` is incomplete and nothing is removed. */
   partial?: boolean
-  /** Der Lauf hatte Fehler — dann wird gar nicht aufgeräumt. */
+  /** The run had errors — the error path is never destructive. */
   hasErrors?: boolean
-  /** Slugs, deren Ausgaben unabhängig von `keep` bleiben müssen. */
+  /** Slugs whose outputs must survive regardless of `keep`. */
   protectedSlugs?: ReadonlySet<string>
 }
 
 export interface CleanupResult {
   files: number
   dirs: number
-  /** Grund, falls gar nicht aufgeräumt wurde. */
-  skipped: 'partial' | 'errors' | 'leer' | 'kein-verzeichnis' | null
+  /** Reason, if nothing was cleaned up at all. */
+  skipped: 'partial' | 'errors' | 'empty' | 'no-directory' | null
 }
 
 export function cleanupOrphans(options: CleanupOptions): CleanupResult {
@@ -66,47 +45,46 @@ export function cleanupOrphans(options: CleanupOptions): CleanupResult {
   const removed: CleanupResult = { files: 0, dirs: 0, skipped: null }
 
   if (partial) {
-    reporter.info('  Cleanup übersprungen (--only): der Lauf kennt nur einen Teil des Bestands.')
+    reporter.info('  Cleanup skipped (--only): the run knows only part of the set.')
     return { ...removed, skipped: 'partial' }
   }
   if (hasErrors) {
-    reporter.info('  Cleanup übersprungen (Fehler): der Fehlerpfad löscht nichts.')
+    reporter.info('  Cleanup skipped (errors): the error path deletes nothing.')
     return { ...removed, skipped: 'errors' }
   }
-  if (!existsSync(dir)) return { ...removed, skipped: 'kein-verzeichnis' }
+  if (!existsSync(dir)) return { ...removed, skipped: 'no-directory' }
   if (keep.size === 0) {
-    reporter.warn('cleanup', 'keine Quellbilder — es wird nichts aufgeräumt')
-    return { ...removed, skipped: 'leer' }
+    reporter.warn('cleanup', 'no source images — nothing is cleaned up')
+    return { ...removed, skipped: 'empty' }
   }
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = assertInside(dir, path.join(dir, entry.name))
 
-    // Ein Symlink ist für readdir kein Verzeichnis; er landet hier und bleibt
-    // liegen. Einen Symlink zu löschen hieße, über das Ausgabeverzeichnis
-    // hinauszugreifen — genau das, was assertInside verhindern soll.
+    // Deleting a symlink would reach beyond the output directory — exactly what
+    // assertInside exists to prevent.
     if (entry.isSymbolicLink()) {
-      reporter.warn('cleanup', `Symlink bleibt unangetastet: ${displayPath(full)}`)
+      reporter.warn('cleanup', `symlink left untouched: ${displayPath(full)}`)
       continue
     }
 
     if (!entry.isDirectory()) {
-      reporter.warn('cleanup', `unerwartete Datei bleibt liegen: ${displayPath(full)}`)
+      reporter.warn('cleanup', `unexpected file left in place: ${displayPath(full)}`)
       continue
     }
 
     const allowed = keep.get(entry.name)
     if (!allowed) {
       if (!isValidSlug(entry.name)) {
-        reporter.warn('cleanup', `unerwartetes Verzeichnis bleibt liegen: ${displayPath(full)}`)
+        reporter.warn('cleanup', `unexpected directory left in place: ${displayPath(full)}`)
         continue
       }
       if (protectedSlugs.has(entry.name)) {
-        reporter.warn('cleanup', `${entry.name}: Ausgaben bleiben stehen (Foto mit Fehler)`)
+        reporter.warn('cleanup', `${entry.name}: outputs kept (photo has errors)`)
         continue
       }
       const count = readdirSync(full).length
-      reporter.step(dryRun ? 'entfiele' : 'entfernt', entry.name, `${count} Dateien · Quelle fehlt`)
+      reporter.step(dryRun ? 'would remove' : 'removed', entry.name, `${count} files · source gone`)
       if (!dryRun) rmSync(full, { recursive: true, force: true })
       removed.dirs += 1
       continue
@@ -116,13 +94,13 @@ export function cleanupOrphans(options: CleanupOptions): CleanupResult {
       if (allowed.has(file.name)) continue
       const target = assertInside(full, path.join(full, file.name))
       if (!file.isFile() || file.isSymbolicLink() || !OUTPUT_FILE_PATTERN.test(file.name)) {
-        reporter.warn('cleanup', `unerwarteter Eintrag bleibt liegen: ${displayPath(target)}`)
+        reporter.warn('cleanup', `unexpected entry left in place: ${displayPath(target)}`)
         continue
       }
       reporter.step(
-        dryRun ? 'entfiele' : 'entfernt',
+        dryRun ? 'would remove' : 'removed',
         `${entry.name}/${file.name}`,
-        'Variante entfällt',
+        'variant gone',
       )
       if (!dryRun) unlinkSync(target)
       removed.files += 1

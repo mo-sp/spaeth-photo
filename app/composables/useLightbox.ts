@@ -1,19 +1,15 @@
 import type { PhotoIndexEntry } from '#shared/types/photo'
 
 /**
- * Die Lightbox lebt in der URL (`?foto=<slug>`), nicht in einem Store.
- *
- * Damit ist sie teilbar, der Zurück-Knopf schließt sie, und Galerie-Seite wie
- * Dialog leiten ihren Zustand aus derselben Quelle ab — ohne dass die eine der
- * anderen etwas mitteilen müsste.
+ * The lightbox lives in the URL (`?foto=<slug>`), not in a store: it is
+ * shareable, the back button closes it, and page and dialog derive their state
+ * from the same source.
  */
 
 /**
- * Ob dieser Tab die Lightbox selbst auf den Verlauf gelegt hat. Modul-Scope,
- * aber ausschließlich im Browser geschrieben: beim Prerendern wird nichts
- * geöffnet, es kann also nichts zwischen zwei Anfragen hängen bleiben. Ohne
- * das Flag würde ein `back()` beim Schließen die Seite verlassen, wenn jemand
- * mit `?foto=…` in der Adresszeile eingestiegen ist.
+ * Whether this tab pushed the lightbox onto the history itself. Module scope but
+ * only ever written in the browser. Without the flag, closing a deep link
+ * entered as `?foto=…` would `back()` right out of the site.
  */
 const pushedByLightbox = ref(false)
 
@@ -34,22 +30,20 @@ export function useLightbox(photos: MaybeRefOrGetter<readonly PhotoIndexEntry[]>
 
   const nav = computed(() => neighbours(list.value, slug.value ?? ''))
 
-  /** Öffnen legt genau einen Eintrag auf den Verlauf. */
+  /** Opening pushes exactly one history entry. */
   function open(target: string) {
     pushedByLightbox.value = true
     return router.push({ path: route.path, query: { ...route.query, foto: target } })
   }
 
-  /** Blättern ersetzt ihn, sonst sammelt der Zurück-Knopf jede Kachel ein. */
+  /** Paging replaces it, or the back button would collect every tile. */
   function go(target: string) {
     return router.replace({ path: route.path, query: { ...route.query, foto: target } })
   }
 
   /**
-   * Schließt der Browser-Zurück-Knopf die Lightbox, läuft `close()` nie — das
-   * Flag bliebe gesetzt, und das nächste `close()` ginge einen Schritt zu weit
-   * zurück (aus der Galerie heraus). Deshalb wird es zurückgesetzt, sobald der
-   * Zustand von „offen" auf „zu" kippt, egal wodurch.
+   * The browser's back button closes the lightbox without running `close()`, so
+   * the flag is reset whenever the state flips to closed, by any route.
    */
   watch(isOpen, (open) => {
     if (!open) pushedByLightbox.value = false

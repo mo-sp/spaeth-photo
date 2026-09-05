@@ -1,7 +1,7 @@
 <template>
   <!-- Links, not a toggle: the other language is a different address. No
        flags — a flag is a country, not a language. -->
-  <nav class="lang" :aria-label="t('lang.aria')">
+  <nav class="lang t-meta" :aria-label="t('lang.aria')">
     <NuxtLink
       v-for="item in items"
       :key="item.locale"
@@ -21,20 +21,8 @@
 const route = useRoute()
 const { locale, t } = useI18n()
 
-/**
- * Keeps the path, drops the query: `?tag=`/`?foto=` are views, not pages.
- * `aria-current="true"` rather than `"page"` — the navigation entry already
- * owns `page`.
- */
-const items = computed(() =>
-  LOCALES.map((code) => ({
-    locale: code,
-    tag: LOCALE_TAGS[code],
-    name: LOCALE_NAMES[code],
-    to: localePath(route.path, code),
-    active: code === locale.value,
-  })),
-)
+// `aria-current="true"` rather than `"page"`: the navigation entry owns `page`.
+const items = computed(() => localeLinks(route.path, locale.value))
 </script>
 
 <style scoped>
@@ -42,12 +30,8 @@ const items = computed(() =>
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--space-2);
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-meta-size);
   line-height: var(--text-foot-lh);
   letter-spacing: var(--text-foot-ls);
-  text-transform: uppercase;
   color: var(--color-text-faint);
 }
 

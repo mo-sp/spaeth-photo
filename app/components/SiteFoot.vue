@@ -1,11 +1,7 @@
 <template>
-  <!--
-    Ort, Koordinaten und die Rechtslinks. Auf der Detailseite tritt
-    `PhotoAsideFoot` an diese Stelle — dort trägt der Sidebar-Fuß Prev/Next, und
-    die Rechtslinks kommen von dort. Sichtbar ist immer genau eine der beiden
-    Fassungen (mobil der Seitenfuß im Layout).
-  -->
-  <footer class="foot">
+  <!-- Exactly one foot is ever visible: `PhotoAsideFoot` replaces this one on
+       the detail page, and the layout's page foot replaces it on mobile. -->
+  <footer class="foot t-meta">
     <p class="place">
       Wedel<br />
       <span class="coords">53.58°N 9.70°E</span>
@@ -17,12 +13,8 @@
 
 <style scoped>
 .foot {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-meta-size);
   line-height: var(--text-foot-lh);
   letter-spacing: var(--text-foot-ls);
-  text-transform: uppercase;
   color: var(--color-text-faint);
 }
 

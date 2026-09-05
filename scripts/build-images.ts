@@ -35,13 +35,10 @@ import { jpegWidthsFor, renderPhoto, widthLadder, type RenderResult } from './li
 import { VARIANT_EXTENSION } from '../shared/constants/images.ts'
 
 /**
- * Erzeugt aus den Web-Quellen alle Auslieferungsvarianten unter `public/img/`
- * sowie das vollständige Manifest und den Client-Index.
- *
- * Läuft vor `nuxt generate` (`pnpm build`). Der Lauf ist inkrementell: was sich
- * nicht geändert hat, wird nicht neu kodiert. Ausgeliefert wird ausschließlich
- * nach `public/img/` — auch dann, wenn die Quelle über `--source-dir` woanders
- * liegt; und gelöscht wird ausschließlich dort.
+ * Builds every delivery variant under `public/img/` from the web sources, plus
+ * the full manifest and the client index. Runs before `nuxt generate`. Writes
+ * and deletes exclusively inside `public/img/`, even when `--source-dir` points
+ * the sources elsewhere.
  */
 
 const OPTIONS: OptionSpecs = {
@@ -49,15 +46,15 @@ const OPTIONS: OptionSpecs = {
     type: 'string',
     placeholder: '<dir>',
     description:
-      'Content-Wurzel mit photos/source und photos/meta (Standard: content, sonst demo-content)',
+      'Content root with photos/source and photos/meta (default: content, else demo-content)',
   },
-  'dry-run': { type: 'boolean', description: 'Nichts schreiben und nichts löschen, nur berichten' },
-  force: { type: 'boolean', description: 'Alles neu rendern, Cache ignorieren' },
-  only: { type: 'string', placeholder: '<slug>', description: 'Nur diesen Slug neu rendern' },
-  strict: { type: 'boolean', description: 'Warnungen als Fehler behandeln (für CI)' },
+  'dry-run': { type: 'boolean', description: 'Write and delete nothing, only report' },
+  force: { type: 'boolean', description: 'Re-render everything, ignore the cache' },
+  only: { type: 'string', placeholder: '<slug>', description: 'Re-render only this slug' },
+  strict: { type: 'boolean', description: 'Treat warnings as errors (for CI)' },
 }
 
-const USAGE = 'Aufruf: pnpm build-images [Optionen]'
+const USAGE = 'Usage: pnpm build-images [options]'
 
 interface Planned {
   slug: string
@@ -69,14 +66,14 @@ interface Planned {
   stat: { mtimeMs: number; size: number }
 }
 
-/** Dateinamen aus einem Render-Ergebnis — der Sollzustand eines Slug-Ordners. */
+/** File names from a render result — the target state of one slug directory. */
 function namesOf(render: RenderResult): Set<string> {
   return new Set([...render.files.map((file) => path.basename(file.path)), 'og.jpg'])
 }
 
 /**
- * Dieselben Namen, aber allein aus der Quellbreite abgeleitet. Der Dry-Run
- * braucht sie für die Aufräum-Vorschau, ohne ein einziges Bild zu kodieren.
+ * The same names, derived from the source width alone: the dry run needs them
+ * for the cleanup preview without encoding a single image.
  */
 function plannedNames(sourceWidth: number): Set<string> {
   const widths = widthLadder(sourceWidth)
@@ -106,15 +103,15 @@ async function main(): Promise<void> {
   const reporter = createReporter()
 
   const files = listJpegs(source.sourceDir)
-  reporter.info(`Quelle    ${displayPath(source.sourceDir)} (${source.reason})`)
-  reporter.info(`Modus     ${source.mode}${dryRun ? '  [dry-run]' : ''}${force ? '  [force]' : ''}`)
-  reporter.info(`Ziel      ${displayPath(PUBLIC_IMG_DIR)}`)
+  reporter.info(`Source  ${displayPath(source.sourceDir)} (${source.reason})`)
+  reporter.info(`Mode    ${source.mode}${dryRun ? '  [dry-run]' : ''}${force ? '  [force]' : ''}`)
+  reporter.info(`Target  ${displayPath(PUBLIC_IMG_DIR)}`)
   reporter.info('')
 
   if (files.length === 0) {
     throw new CliError(
-      `Keine Quellbilder in ${displayPath(source.sourceDir)}. ` +
-        'Erwartet werden <slug>.jpg-Dateien; für den Demo-Fallback muss demo-content/ vorhanden sein.',
+      `No source images in ${displayPath(source.sourceDir)}. ` +
+        '<slug>.jpg files are expected; the demo fallback needs demo-content/ to be present.',
     )
   }
 
@@ -122,23 +119,20 @@ async function main(): Promise<void> {
   const cache = loadCache(CACHE_PATH, expectedSettings)
   const cacheWasEmpty = Object.keys(cache.entries).length === 0
 
-  // Metadaten ohne Quellbild fallen sonst stillschweigend unter den Tisch.
+  // Metadata without a source image would otherwise pass unnoticed.
   const slugs = new Set(files.map((file) => path.basename(file, path.extname(file))))
   if (existsSync(source.metaDir)) {
     for (const file of readdirSync(source.metaDir)) {
       if (!file.endsWith('.yaml')) continue
       const slug = path.basename(file, '.yaml')
-      if (!slugs.has(slug)) reporter.warn(slug, 'Metadaten ohne zugehöriges Quellbild')
+      if (!slugs.has(slug)) reporter.warn(slug, 'metadata without a matching source image')
     }
   }
 
   const started = Date.now()
   const planned: Planned[] = []
-  /**
-   * Fotos, die aus dem Sollzustand herausfallen, ohne dass ihre Ausgaben
-   * ungültig wären: ein Tippfehler in der YAML-Datei ist kein Grund, die
-   * fertigen Bilder zu löschen.
-   */
+  // Photos that drop out of the target state without their outputs being
+  // invalid: a typo in a YAML file is no reason to delete finished images.
   const protectedSlugs = new Set<string>()
 
   for (const file of files) {
@@ -146,13 +140,13 @@ async function main(): Promise<void> {
     const sourceFile = path.join(source.sourceDir, file)
 
     if (!isValidSlug(slug)) {
-      reporter.error(file, `Dateiname ist kein gültiger Slug: „${slug}"`)
+      reporter.error(file, `file name is not a valid slug: "${slug}"`)
       continue
     }
 
     const metaFile = path.join(source.metaDir, `${slug}.yaml`)
     if (!existsSync(metaFile)) {
-      reporter.error(slug, `Metadaten fehlen: ${displayPath(metaFile)}`)
+      reporter.error(slug, `metadata missing: ${displayPath(metaFile)}`)
       protectedSlugs.add(slug)
       continue
     }
@@ -165,7 +159,7 @@ async function main(): Promise<void> {
 
     const stat = statFile(sourceFile)
     if (!stat) {
-      reporter.error(slug, 'Quelldatei nicht lesbar')
+      reporter.error(slug, 'source file not readable')
       protectedSlugs.add(slug)
       continue
     }
@@ -177,8 +171,8 @@ async function main(): Promise<void> {
       stat,
       readHash: () => hashFile(sourceFile),
       metaHash: hash,
-      // --only heißt „diesen Slug neu rendern" — auch im Dry-Run, sonst
-      // zeigte die Vorschau eine andere Entscheidung als der echte Lauf.
+      // --only means "re-render this slug", in a dry run too — otherwise the
+      // preview would show a different decision than the real run.
       force: force || only === slug,
       outputsPresent: (cached) =>
         [...cached.render.files.map((variant) => variant.path), cached.render.ogFile.path].every(
@@ -203,14 +197,14 @@ async function main(): Promise<void> {
     const mustRender = item.decision.render && selected
 
     if (mustRender) {
-      // Der Dry-Run durchläuft dieselben Verzweigungen wie der echte Lauf und
-      // hält nur vor dem Encoder an: die Quellmaße ergeben die Breitenleiter
-      // und damit die Namen aller Dateien, die entstünden.
+      // The dry run takes the same branches as the real one and stops just
+      // before the encoder: the source dimensions give the width ladder, and
+      // with it the names of every file that would appear.
       if (dryRun) {
         const metadata = await sharp(item.sourceFile).metadata()
         expected.set(item.slug, plannedNames(metadata.width))
         rendered += 1
-        reporter.step('würde', item.slug, item.decision.verdict)
+        reporter.step('would', item.slug, item.decision.verdict)
         continue
       }
 
@@ -228,23 +222,19 @@ async function main(): Promise<void> {
       reporter.step(
         item.decision.verdict,
         item.slug,
-        `${render.variants.avif.length} Breiten · ${render.files.length + 1} Dateien · ` +
-          `${formatBytes(render.totalBytes)} · ${render.encodes} Encodes · ` +
+        `${render.variants.avif.length} widths · ${render.files.length + 1} files · ` +
+          `${formatBytes(render.totalBytes)} · ${render.encodes} encodes · ` +
           formatDuration(Date.now() - startedPhoto),
       )
     } else if (!render) {
-      reporter.warn(item.slug, 'noch nicht gerendert und durch --only ausgeschlossen — ausgelassen')
+      reporter.warn(item.slug, 'not yet rendered and excluded by --only — skipped')
       protectedSlugs.add(item.slug)
       skipped += 1
       continue
     } else {
       fromCache += 1
-      if (item.decision.verdict === 'metadaten') {
-        reporter.step(
-          dryRun ? 'würde' : 'metadaten',
-          item.slug,
-          'YAML geändert, Bilder unverändert',
-        )
+      if (item.decision.verdict === 'metadata') {
+        reporter.step(dryRun ? 'would' : 'metadata', item.slug, 'YAML changed, images unchanged')
       }
     }
 
@@ -260,8 +250,8 @@ async function main(): Promise<void> {
     results.push({ slug: item.slug, meta: item.meta, render, hash: item.decision.sourceHash })
   }
 
-  // Einträge, deren Quelle verschwunden ist, dürfen nicht im Cache verrotten.
-  // Ein Foto mit Fehler ist nicht verschwunden — sein Eintrag bleibt.
+  // Entries whose source is gone must not rot in the cache. A photo with an
+  // error has not gone anywhere — its entry stays.
   cache.entries = Object.fromEntries(
     Object.entries(cache.entries).filter(
       ([slug]) => expected.has(slug) || protectedSlugs.has(slug),
@@ -305,15 +295,12 @@ async function main(): Promise<void> {
       writeJson(INDEX_PATH, index, false)
       saveCache(CACHE_PATH, cache)
     } else {
-      reporter.warn(
-        'manifest',
-        'wegen der Fehler wurden Manifest, Index und Cache nicht geschrieben',
-      )
+      reporter.warn('manifest', 'manifest, index and cache not written because of the errors')
     }
   }
 
-  // Erst ganz am Ende, wenn alle Fehler bekannt sind: gelöscht wird nur nach
-  // einem vollständigen, fehlerfreien Lauf.
+  // Last of all, once every error is known: deletion only follows a complete,
+  // error-free run.
   const removed = cleanupOrphans({
     dir: PUBLIC_IMG_DIR,
     keep: expected,
@@ -325,11 +312,11 @@ async function main(): Promise<void> {
   })
 
   const duration = Date.now() - started
-  const parts = [`${planned.length} Fotos`, `${rendered} gerendert`, `${fromCache} aus Cache`]
-  if (skipped > 0) parts.push(`${skipped} ausgelassen`)
-  if (removed.dirs > 0) parts.push(`${removed.dirs} verwaiste Verzeichnisse`)
-  if (removed.files > 0) parts.push(`${removed.files} verwaiste Dateien`)
-  if (!dryRun) parts.push(`${totalFiles} Dateien`, formatBytes(totalBytes))
+  const parts = [`${planned.length} photos`, `${rendered} rendered`, `${fromCache} from cache`]
+  if (skipped > 0) parts.push(`${skipped} skipped`)
+  if (removed.dirs > 0) parts.push(`${removed.dirs} orphaned directories`)
+  if (removed.files > 0) parts.push(`${removed.files} orphaned files`)
+  if (!dryRun) parts.push(`${totalFiles} files`, formatBytes(totalBytes))
   parts.push(formatDuration(duration))
 
   reporter.info('')
@@ -340,7 +327,7 @@ async function main(): Promise<void> {
         `(${formatBytes(statSync(INDEX_PATH).size)})`,
     )
   }
-  if (cacheWasEmpty && !dryRun) reporter.info('  Cache neu aufgebaut.')
+  if (cacheWasEmpty && !dryRun) reporter.info('  Cache rebuilt.')
 
   reporter.finish({ strict })
 }
@@ -349,7 +336,7 @@ try {
   await main()
 } catch (error) {
   if (error instanceof CliError) {
-    console.error(`Fehler: ${error.message}`)
+    console.error(`Error: ${error.message}`)
     process.exitCode = 1
   } else {
     throw error

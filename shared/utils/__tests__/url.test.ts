@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { absoluteUrl } from '../url.ts'
 
 describe('absoluteUrl', () => {
-  it('setzt Basis und Pfad zusammen', () => {
+  it('joins base and path', () => {
     expect(absoluteUrl('https://example.org', '/foto/x')).toBe('https://example.org/foto/x')
   })
 
-  it('verträgt einen Schrägstrich am Ende der Basis', () => {
+  it('tolerates a trailing slash on the base', () => {
     expect(absoluteUrl('https://example.org/', '/foto/x')).toBe('https://example.org/foto/x')
   })
 
-  it('ergänzt einen fehlenden Schrägstrich am Pfad', () => {
+  it('adds a missing leading slash to the path', () => {
     expect(absoluteUrl('https://example.org', 'foto/x')).toBe('https://example.org/foto/x')
   })
 
-  it('lässt den Pfad relativ, wenn keine Basis konfiguriert ist', () => {
+  it('leaves the path relative when no base is configured', () => {
     expect(absoluteUrl('', '/foto/x')).toBe('/foto/x')
     expect(absoluteUrl('  ', '/foto/x')).toBe('/foto/x')
   })

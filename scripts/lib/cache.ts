@@ -6,18 +6,8 @@ import { z } from 'zod'
 import { RENDER, type RenderResult } from './variants.ts'
 
 /**
- * Inkrementeller Build. Ohne Cache kostet ein Durchlauf über den ganzen
- * Bestand Minuten; mit Cache kostet ein Lauf ohne Änderungen Sekundenbruchteile.
- *
- * Drei Fragen entscheiden, ob neu gerendert wird:
- *
- * 1. Haben sich die Render-Einstellungen oder libvips geändert? Dann alles neu —
- *    sonst mischen sich in `public/img/` Ausgaben zweier Konfigurationen.
- * 2. Hat sich die Quelldatei geändert? Erst über mtime und Größe (billig), bei
- *    Abweichung über den Inhaltshash (verlässlich). Ein Checkout ändert die
- *    mtime, ohne den Inhalt anzufassen — deshalb entscheidet am Ende der Hash.
- * 3. Hat sich nur die YAML-Datei geändert? Dann wird das Manifest neu
- *    geschrieben, aber kein einziges Bild neu kodiert.
+ * Incremental build: a full pass over the whole set costs minutes, an unchanged
+ * run costs fractions of a second.
  */
 
 export const CACHE_SCHEMA = 1
@@ -37,9 +27,8 @@ export interface CacheFile {
 }
 
 /**
- * Fingerabdruck aller Render-Einstellungen plus der libvips-Version. Ein
- * libvips-Update kann Encoder-Voreinstellungen verschieben; dann sollen die
- * Ausgaben neu entstehen, statt still zu divergieren.
+ * Fingerprint of all render settings plus the libvips version — a libvips
+ * update can shift encoder defaults, and the outputs must not diverge silently.
  */
 export function settingsHash(): string {
   const payload = JSON.stringify({ render: RENDER, vips: sharp.versions.vips })
@@ -51,11 +40,8 @@ export function emptyCache(): CacheFile {
 }
 
 /**
- * Schlankes Schema der Cache-Datei. Es prüft nicht das ganze Render-Ergebnis,
- * sondern genau die Felder, auf die der inkrementelle Build sich verlässt:
- * fehlte etwa `files`, liefe `outputsPresent` in einen TypeError, und ein
- * abgeschnittener `path` ließe die Pipeline an einer Datei vorbeisehen, die es
- * gar nicht gibt. Der Rest des Ergebnisses wird unverändert durchgereicht.
+ * Only the fields the incremental build relies on: a missing `files` would run
+ * `outputsPresent` into a TypeError. The rest is passed through unchecked.
  */
 const manifestFileSchema = z.object({
   format: z.string(),
@@ -80,10 +66,7 @@ const cacheFileSchema = z.object({
   ),
 })
 
-/**
- * Ein defekter oder veralteter Cache ist kein Fehler, sondern nur ein
- * langsamerer Build: er wird verworfen.
- */
+/** A broken or stale cache is not an error, only a slower build: it is discarded. */
 export function loadCache(file: string, expected = settingsHash()): CacheFile {
   if (!existsSync(file)) return emptyCache()
   let raw: unknown
@@ -93,8 +76,8 @@ export function loadCache(file: string, expected = settingsHash()): CacheFile {
     return emptyCache()
   }
   if (!cacheFileSchema.safeParse(raw).success) return emptyCache()
-  // Geprüft ist die Struktur, gearbeitet wird mit den Originaldaten: das
-  // Render-Ergebnis trägt mehr Felder, als der Cache prüfen muss.
+  // Validated the shape, but work with the raw data: the render result carries
+  // more fields than the cache needs to check.
   const cache = raw as CacheFile
   if (cache.settingsHash !== expected) return emptyCache()
   return { schema: CACHE_SCHEMA, settingsHash: expected, entries: cache.entries }
@@ -105,7 +88,7 @@ export function saveCache(file: string, cache: CacheFile): void {
   writeFileSync(file, JSON.stringify(cache), 'utf8')
 }
 
-/** SHA-256 der Datei, gestreamt — die Quellen sind einige Megabyte groß. */
+/** SHA-256 of the file, streamed — the sources are several megabytes each. */
 export function hashFile(file: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const hash = createHash('sha256')
@@ -116,23 +99,22 @@ export function hashFile(file: string): Promise<string> {
   })
 }
 
-export type CacheVerdict =
-  'neu' | 'geändert' | 'metadaten' | 'ausgabe fehlt' | 'erzwungen' | 'cache'
+export type CacheVerdict = 'new' | 'changed' | 'metadata' | 'output missing' | 'forced' | 'cache'
 
 export interface DecideInput {
   entry: CacheEntry | undefined
   stat: { mtimeMs: number; size: number } | null
-  /** Wird nur aufgerufen, wenn der mtime-Schnellpfad nicht greift. */
+  /** Called only when the mtime fast path does not apply. */
   readHash: () => Promise<string>
   metaHash: string
   force: boolean
-  /** Prüft, ob alle im Cache vermerkten Ausgabedateien noch existieren. */
+  /** Checks that every output file recorded in the cache still exists. */
   outputsPresent: (entry: CacheEntry) => boolean
 }
 
 export interface Decision {
   verdict: CacheVerdict
-  /** true = Bilder neu kodieren. */
+  /** true = re-encode the images. */
   render: boolean
   sourceHash: string
 }
@@ -140,16 +122,17 @@ export interface Decision {
 export async function decide(input: DecideInput): Promise<Decision> {
   const { entry, stat, readHash, metaHash, force, outputsPresent } = input
 
-  if (force) return { verdict: 'erzwungen', render: true, sourceHash: await readHash() }
-  if (!entry) return { verdict: 'neu', render: true, sourceHash: await readHash() }
+  if (force) return { verdict: 'forced', render: true, sourceHash: await readHash() }
+  if (!entry) return { verdict: 'new', render: true, sourceHash: await readHash() }
 
-  // Schnellpfad: gleiche mtime und Größe ⇒ die Datei wurde nicht angefasst,
-  // der Hash muss gar nicht erst gelesen werden.
+  // Same mtime and size ⇒ the file was not touched, so the hash need not be
+  // read at all. A checkout changes the mtime without touching the content —
+  // that is why the hash decides in the end.
   const untouched = stat !== null && stat.mtimeMs === entry.mtimeMs && stat.size === entry.size
   const sourceHash = untouched ? entry.sourceHash : await readHash()
 
-  if (sourceHash !== entry.sourceHash) return { verdict: 'geändert', render: true, sourceHash }
-  if (!outputsPresent(entry)) return { verdict: 'ausgabe fehlt', render: true, sourceHash }
-  if (metaHash !== entry.metaHash) return { verdict: 'metadaten', render: false, sourceHash }
+  if (sourceHash !== entry.sourceHash) return { verdict: 'changed', render: true, sourceHash }
+  if (!outputsPresent(entry)) return { verdict: 'output missing', render: true, sourceHash }
+  if (metaHash !== entry.metaHash) return { verdict: 'metadata', render: false, sourceHash }
   return { verdict: 'cache', render: false, sourceHash }
 }

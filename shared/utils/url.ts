@@ -1,11 +1,8 @@
 /**
- * Absolute URLs für OpenGraph, Canonical und (ab P7) die Sitemap.
- *
- * Die Basis steht in `runtimeConfig.public.siteUrl` und wird beim Build
- * gesetzt (Coolify: BUILD-Variable) — bei einer statischen Seite gibt es zur
- * Laufzeit niemanden mehr, der sie einsetzen könnte. Fehlt sie, bleibt der
- * Pfad relativ: eine erfundene Domain wäre schlimmer als eine unvollständige
- * Angabe, und der Build soll daran nicht scheitern.
+ * Absolute URLs for OpenGraph, canonical and the sitemap. The base comes from
+ * `runtimeConfig.public.siteUrl`, a *build* variable — a static site has no
+ * request at runtime. Missing base leaves the path relative rather than
+ * inventing a host or failing the build.
  */
 export function absoluteUrl(siteUrl: string, path: string): string {
   const base = siteUrl.trim().replace(/\/+$/, '')

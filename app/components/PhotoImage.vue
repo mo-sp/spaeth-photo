@@ -28,42 +28,32 @@
 import type { PhotoIndexEntry } from '#shared/types/photo'
 
 /**
- * Ein Index-Eintrag als `<picture>`.
- *
- * `sizes` und `alt` sind Pflicht: die richtige Breite kennt nur das Layout an
- * der Einsatzstelle, und ein Bild ohne Beschreibung ist für einen Screenreader
- * ein Loch in der Seite. Welcher Text das ist, entscheidet der Aufrufer —
- * meist `photo.alt ?? photo.title`.
+ * An index entry as a `<picture>`. `sizes` and `alt` are required: only the call
+ * site knows the display width, and an undescribed image is a hole in the page.
  */
 const props = withDefaults(
   defineProps<{
     photo: PhotoIndexEntry
-    /** Wird auf jeder <source> wiederholt; ohne sie rechnet der Browser mit 100vw. */
+    /** Repeated on every <source>; without it the browser assumes 100vw. */
     sizes: string
     alt: string
-    /** `loading="eager"` — für alles, was ohne Scrollen sichtbar ist. */
+    /** `loading="eager"` — for anything visible without scrolling. */
     eager?: boolean
-    /** LCP-Kandidat: `fetchpriority="high"` und kein `decoding="async"`. */
+    /** LCP candidate: `fetchpriority="high"` and no `decoding="async"`. */
     priority?: boolean
-    /** Deckelt das srcset, wo das Layout die Anzeigebreite ohnehin begrenzt. */
+    /** Caps the srcset where the layout already limits the display width. */
     variantMax?: number
-    /** Blur-up aus dem 20-px-Vorschaubild. Nur für Hero und Detailseite. */
+    /** Blur-up from the 20 px preview. Hero and detail page only. */
     lqip?: boolean
   }>(),
   { eager: false, priority: false, variantMax: undefined, lqip: false },
 )
 
 /**
- * Eager is about *when* the request starts, priority about who wins the
- * bandwidth once several have started.
- *
- * The gallery loads the top of the masonry eagerly, because the browser's lazy
- * loader decides only after layout and CSS columns lay out late (see
- * `eagerCount`). On a throttled mobile connection those nine tiles then
- * competed with the one that is the LCP element: measured LCP was 3.2 s with
- * all of them at default priority. Marking every eager image that is *not* the
- * LCP candidate as `low` keeps them out of its way while still starting them
- * immediately - the browser reorders, it does not defer.
+ * Eager is *when* the request starts, priority is who wins bandwidth once
+ * several have. Nine eager tiles at default priority measured LCP 3.2 s on a
+ * throttled mobile connection; `low` on every eager non-LCP image reorders them
+ * behind the LCP candidate without deferring them.
  */
 const fetchPriority = computed(() => {
   if (props.priority) return 'high'
@@ -79,12 +69,10 @@ const fallbackSrcset = computed(() =>
 )
 
 /**
- * Was am Element hängt, statt im Stylesheet zu stehen: die Durchschnittsfarbe
- * und das Seitenverhältnis kommen aus den Daten. Beides steht als Custom
- * Property, nicht als fertige Deklaration — so kann die Einsatzstelle das
- * Verhältnis überschreiben (die Auswahlreihe der Startseite schneidet auf 3:2),
- * was gegen ein Inline-`aspect-ratio` nicht möglich wäre. Zusammen mit den
- * `width`/`height`-Attributen hält es CLS bei 0.
+ * Average colour and aspect ratio come from the data, so they ride on the
+ * element. Custom properties rather than finished declarations, so a call site
+ * can override the ratio (the home-page row crops to 3:2) — an inline
+ * `aspect-ratio` could not be overridden.
  */
 const frame = computed(() => ({
   '--photo-color': props.photo.color,
@@ -94,8 +82,8 @@ const frame = computed(() => ({
 
 const img = useTemplateRef<HTMLImageElement>('img')
 
-// Bei einer statisch ausgelieferten Seite kann das Bild schon vollständig sein,
-// bevor Vue den Listener hängt — dann feuert `load` nie.
+// On a static page the image can already be complete before Vue attaches the
+// listener, in which case `load` never fires.
 onMounted(() => {
   if (img.value?.complete) loaded.value = true
 })
@@ -114,12 +102,8 @@ img {
   background-color: var(--photo-color);
 }
 
-/*
-  Blur-up: das 20-px-Vorschaubild liegt als Pseudo-Element unter dem echten
-  Bild, unscharf und minimal überskaliert, damit die weichen Ränder des Blurs
-  nicht als heller Saum stehen bleiben. `overflow: hidden` fängt diese
-  Überskalierung. Das echte Bild blendet darüber ein, statt zu springen.
-*/
+/* Blur-up: the 20 px preview sits below the real image, slightly over-scaled so
+   the soft edges of the blur do not show as a bright seam. */
 .has-lqip {
   position: relative;
   overflow: hidden;
@@ -146,11 +130,8 @@ img {
   opacity: 1;
 }
 
-/*
-  Ohne JavaScript wird `is-loaded` nie gesetzt — dann darf das Bild nicht
-  unsichtbar bleiben. Der Vorschauwisch entfällt in diesem Fall, das Bild ist
-  sofort da.
-*/
+/* Without JavaScript `is-loaded` is never set, so the image must not stay
+   invisible; the blur-up is simply skipped. */
 @media (scripting: none) {
   .has-lqip img {
     opacity: 1;

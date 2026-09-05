@@ -1,7 +1,7 @@
-# Verbindlich aus dem Design-Handoff übernommen — nicht umformatieren.
+# Adopted verbatim from the design handoff - do not reformat.
 app/assets/css/tokens.css
 
-# Generiert
+# Generated
 .nuxt
 .output
 public/img
@@ -10,11 +10,9 @@ app/data
 .image-cache
 pnpm-lock.yaml
 
-# Vom Export-Skript erzeugt; das Format der YAML-Dateien gibt content/CLAUDE.md
-# vor, nicht Prettier.
+# Written by the export script; content/CLAUDE.md defines the YAML format,
+# not Prettier.
 demo-content/photos
 
-# Submodule und Planungsdokumente unverändert lassen
+# Leave the submodule alone
 content
-PLAN.md
-WORKPLAN.md

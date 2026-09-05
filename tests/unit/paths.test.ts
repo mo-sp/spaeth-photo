@@ -13,74 +13,74 @@ import {
 } from '../../scripts/lib/paths.ts'
 
 describe('isInside', () => {
-  it('erkennt echte Kindpfade', () => {
+  it('recognises real child paths', () => {
     expect(isInside('/a/b', '/a/b/c')).toBe(true)
     expect(isInside('/a/b', '/a/b/c/d.txt')).toBe(true)
   })
 
-  it('lässt sich von einem gemeinsamen Namenspräfix nicht täuschen', () => {
-    // /a/bc liegt NICHT in /a/b — ein reiner Zeichenkettenvergleich fiele hier um.
+  it('is not fooled by a shared name prefix', () => {
+    // /a/bc is NOT inside /a/b — a plain string comparison would fall over here.
     expect(isInside('/a/b', '/a/bc')).toBe(false)
     expect(isInside('/a/b', '/a/b-anders/x')).toBe(false)
   })
 
-  it('erkennt Ausbrüche über ..', () => {
+  it('recognises escapes via ..', () => {
     expect(isInside('/a/b', '/a/b/../../etc/passwd')).toBe(false)
     expect(isInside('/a/b', '/a')).toBe(false)
   })
 
-  it('zählt ein Verzeichnis nicht als sein eigenes Kind', () => {
+  it('does not count a directory as its own child', () => {
     expect(isInside('/a/b', '/a/b')).toBe(false)
     expect(isInside('/a/b', '/a/b/')).toBe(false)
   })
 })
 
 describe('assertInside', () => {
-  it('gibt den normalisierten Pfad zurück', () => {
+  it('returns the normalised path', () => {
     expect(assertInside('/a/b', '/a/b/./c')).toBe(path.resolve('/a/b/c'))
   })
 
-  it('wirft, statt außerhalb zu arbeiten', () => {
+  it('throws rather than working outside', () => {
     expect(() => assertInside('/a/b', '/a/b/../x')).toThrow()
     expect(() => assertInside('/a/b', '/etc/passwd')).toThrow()
   })
 })
 
 describe('expandHome', () => {
-  it('ersetzt nur ein führendes ~', () => {
+  it('replaces only a leading ~', () => {
     expect(expandHome('~')).toBe(homedir())
-    expect(expandHome('~/bilder')).toBe(path.join(homedir(), 'bilder'))
+    expect(expandHome('~/photos')).toBe(path.join(homedir(), 'photos'))
     expect(expandHome('/tmp/~/x')).toBe('/tmp/~/x')
-    expect(expandHome('~nutzer/x')).toBe('~nutzer/x')
+    expect(expandHome('~user/x')).toBe('~user/x')
   })
 })
 
 describe('fromRoot', () => {
-  it('bezieht relative Pfade auf die Projektwurzel, nicht auf das Arbeitsverzeichnis', () => {
+  it('resolves relative paths against the project root, not the working directory', () => {
     expect(fromRoot('content')).toBe(path.join(ROOT, 'content'))
     expect(fromRoot('/tmp/x')).toBe('/tmp/x')
   })
 })
 
 describe('displayPath', () => {
-  it('kürzt Pfade innerhalb des Projekts', () => {
+  it('shortens paths inside the project', () => {
     expect(displayPath(path.join(ROOT, 'public', 'img'))).toBe('public/img')
     expect(displayPath('/etc/hosts')).toBe('/etc/hosts')
   })
 })
 
 describe('resolveSource', () => {
-  it('erkennt den Demo-Content als solchen', () => {
+  it('recognises the demo content as such', () => {
     const resolved = resolveSource('demo-content')
     expect(resolved.mode).toBe('demo')
     expect(resolved.sourceDir).toBe(path.join(DEMO_DIR, 'photos', 'source'))
   })
 
-  it('fällt auf den Demo-Content zurück, wenn der Override ins Leere zeigt', () => {
-    // Genau der Fall eines fremden Clones ohne Zugriff auf das private Submodule:
-    // der Build darf daran nicht scheitern.
-    const resolved = resolveSource('/gibt/es/nicht')
+  it('falls back to the demo content when the override points nowhere', () => {
+    // The case of a foreign clone without access to the private submodule: the
+    // build must not fail over it.
+    const resolved = resolveSource('/does/not/exist')
     expect(['content', 'demo']).toContain(resolved.mode)
-    expect(resolved.sourceDir).not.toBe('/gibt/es/nicht')
+    expect(resolved.sourceDir).not.toBe('/does/not/exist')
   })
 })

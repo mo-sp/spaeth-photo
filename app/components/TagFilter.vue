@@ -19,10 +19,9 @@
 
 <script setup lang="ts">
 /**
- * Der Filter ist eine Liste von Links, kein Schalter mit Zustand. Damit
- * funktioniert er ohne JavaScript, steht schon im ausgelieferten HTML und
- * `aria-current="page"` (von NuxtLink gesetzt) ist keine Behauptung, sondern
- * wahr: der aktive Tag ist die Adresse.
+ * A list of links, not a stateful control: it works without JavaScript, ships in
+ * the static HTML, and `aria-current="page"` is true rather than asserted —
+ * the active tag *is* the address.
  */
 const { tags, knownTag } = usePhotos()
 const route = useRoute()
@@ -42,9 +41,9 @@ const items = computed(() => [
 const bar = useTemplateRef<HTMLElement>('bar')
 
 /**
- * Mobil ist die Leiste horizontal scrollbar. Steht der aktive Chip außerhalb,
- * sähe die Seite ungefiltert aus — also nachziehen. Nur dort, wo tatsächlich
- * gescrollt wird, und ohne Sprung, wenn der Nutzer Bewegung abbestellt hat.
+ * The mobile bar scrolls horizontally; an active chip out of view would make the
+ * page look unfiltered. Only where it actually scrolls, and without motion under
+ * `prefers-reduced-motion`.
  */
 function revealActive() {
   const element = bar.value?.querySelector<HTMLElement>('[data-active]')
@@ -76,7 +75,7 @@ watch(active, () => nextTick(revealActive))
   font-weight: 400;
   font-size: var(--text-meta-size);
   line-height: var(--text-meta-lh);
-  letter-spacing: 0.16em;
+  letter-spacing: var(--text-label-ls);
   text-transform: uppercase;
   color: var(--color-text-faint);
 }
@@ -94,8 +93,7 @@ watch(active, () => nextTick(revealActive))
   display: flex;
   align-items: center;
   gap: 10px;
-  /* Spec sagt 7px; 8px hebt die Zielgröße über 24px, ohne dass sich am
-     Rhythmus etwas Sichtbares ändert. */
+  /* Spec says 7px; 8px lifts the target size past 24px with no visible change. */
   padding: 8px 0;
   font-family: var(--font-mono);
   font-weight: 400;
@@ -104,9 +102,8 @@ watch(active, () => nextTick(revealActive))
   letter-spacing: var(--text-filter-ls);
   text-transform: uppercase;
   color: var(--color-text);
-  /* Spec: inaktiv rgba(244,246,248,0.55). Als Deckkraft auf der Tokenfarbe
-     statt als zweiter Hexwert — dasselbe Ergebnis (5,8:1 auf dem Grund), aber
-     ohne eine Farbe, die neben tokens.css lebt. */
+  /* Spec: inactive rgba(244,246,248,0.55). Expressed as opacity on the token
+     colour — same result (5.8:1 on the ground), no colour outside tokens.css. */
   opacity: 0.55;
   transition: opacity var(--t-fast);
 }
@@ -131,9 +128,8 @@ watch(active, () => nextTick(revealActive))
 }
 
 @media (max-width: 767px) {
-  /* Horizontal scrollbare Reihe unter der Kopfleiste. Der Aktivzustand ist
-     hier ein 2-px-Unterstrich statt des Punkts — ein 5-px-Quadrat neben
-     jedem Chip kostet in einer Zeile zu viel Platz. */
+  /* Horizontally scrollable row below the top bar; the active state is a 2px
+     underline rather than the dot, which costs too much width in a single line. */
   .filter {
     padding: 0;
     background: var(--color-bg);

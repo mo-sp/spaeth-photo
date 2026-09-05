@@ -7,24 +7,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { renderPhoto, type RenderResult } from '../../scripts/lib/variants.ts'
 
 /**
- * Farb-Regressionstest.
- *
- * Die Pipeline verlässt sich darauf, dass libvips die sRGB-Werte der Web-Quelle
- * unverändert durchreicht: kein `toColorspace`, kein mitgeschriebenes Profil,
- * profillose Ausgaben, die jeder Browser als sRGB liest. Wäre irgendwo eine
- * Konvertierung im Spiel — etwa eine Interpretation der Werte als linear —,
- * verschöben sich vor allem die mittleren Töne dramatisch (128 würde zu 55
- * oder 186). Die Sättigungsspitzen allein würden das nicht zeigen, deshalb
- * enthält das Testbild auch ein Mittelgrau.
- *
- * Läuft nicht in `pnpm test`, sondern in `pnpm test:integration`: der Test
- * kodiert echte Bilder und braucht Sekunden statt Millisekunden.
+ * Colour regression test. A stray conversion — reading the sRGB values as linear,
+ * say — would shift the mid-tones dramatically (128 to 55 or 186) while the
+ * saturated patches barely move, hence the mid grey in the test image.
+ * Runs in `pnpm test:integration`, not `pnpm test`: it encodes real images.
  */
 
 const PATCHES: Array<{ name: string; rgb: [number, number, number] }> = [
-  { name: 'Rot', rgb: [255, 0, 0] },
-  { name: 'Mittelgrau', rgb: [128, 128, 128] },
-  { name: 'Grün', rgb: [0, 255, 0] },
+  { name: 'Red', rgb: [255, 0, 0] },
+  { name: 'Mid grey', rgb: [128, 128, 128] },
+  { name: 'Green', rgb: [0, 255, 0] },
   { name: 'Orange', rgb: [255, 128, 0] },
 ]
 
@@ -54,7 +46,7 @@ async function makeSource(file: string): Promise<void> {
     .toFile(file)
 }
 
-/** Farbe in der Mitte eines Streifens, relativ zur Bildhöhe. */
+/** Colour at the centre of a band, relative to the image height. */
 async function sample(file: string, band: number): Promise<[number, number, number]> {
   const image = sharp(file)
   const { width, height } = await image.metadata()
@@ -69,20 +61,20 @@ async function sample(file: string, band: number): Promise<[number, number, numb
 
 let result: RenderResult
 
-// Einmal rendern, dann beide Prüfungen darauf ansetzen: sonst hinge der zweite
-// Test daran, dass der erste vorher lief und seine Quelle liegen ließ.
+// Render once and run both checks on that: otherwise the second test would depend
+// on the first having run and left its source behind.
 beforeAll(async () => {
   await makeSource(sourceFile)
   result = await renderPhoto({
     sourceFile,
-    slug: 'farbprobe',
+    slug: 'colour-patches',
     outDir,
     write: (file, data) => writeFile(file, data),
   })
 })
 
-describe('Farbmanagement der Varianten-Pipeline', () => {
-  it('reicht sRGB-Werte unverändert durch alle Formate', async () => {
+describe('colour management of the variant pipeline', () => {
+  it('passes sRGB values through every format unchanged', async () => {
     expect(result.files.length).toBeGreaterThan(0)
 
     for (const file of result.files) {
@@ -90,8 +82,8 @@ describe('Farbmanagement der Varianten-Pipeline', () => {
       for (const [band, patch] of PATCHES.entries()) {
         const [r, g, b] = await sample(onDisk, band)
         const message = `${path.basename(file.path)} · ${patch.name}`
-        // Verlustbehaftete Encoder dürfen um wenige Stufen daneben liegen;
-        // eine falsche Farbraumkonvertierung läge um Dutzende daneben.
+        // Lossy encoders may be off by a few steps; a wrong colour-space
+        // conversion would be off by dozens.
         expect(Math.abs(r - patch.rgb[0]), `${message} R`).toBeLessThanOrEqual(3)
         expect(Math.abs(g - patch.rgb[1]), `${message} G`).toBeLessThanOrEqual(3)
         expect(Math.abs(b - patch.rgb[2]), `${message} B`).toBeLessThanOrEqual(3)
@@ -99,7 +91,7 @@ describe('Farbmanagement der Varianten-Pipeline', () => {
     }
   })
 
-  it('schreibt keine Metadaten und kein Profil in die Ausgaben', async () => {
+  it('writes no metadata and no profile into the outputs', async () => {
     for (const file of [...result.files, result.ogFile]) {
       const metadata = await sharp(path.join(outDir, path.basename(file.path))).metadata()
       expect(metadata.exif, file.path).toBeUndefined()
@@ -108,18 +100,18 @@ describe('Farbmanagement der Varianten-Pipeline', () => {
     }
   })
 
-  it('liefert auch für eine Quelle unter 960 px ein JPEG aus', async () => {
-    // 800 px breit: keine der beiden JPEG-Regelstufen greift. Ohne Fallback
-    // hätte das <img> im Frontend kein src.
-    const schmal = path.join(dir, 'schmal.jpg')
-    await sharp(sourceFile).resize({ width: 800 }).jpeg({ quality: 90 }).toFile(schmal)
-    const klein = await renderPhoto({
-      sourceFile: schmal,
-      slug: 'schmal',
-      outDir: path.join(dir, 'out-schmal'),
+  it('delivers a JPEG for a source below 960 px too', async () => {
+    // 800 px wide: neither JPEG standard step applies. Without the fallback the
+    // <img> in the frontend would have no src.
+    const narrowFile = path.join(dir, 'narrow.jpg')
+    await sharp(sourceFile).resize({ width: 800 }).jpeg({ quality: 90 }).toFile(narrowFile)
+    const narrow = await renderPhoto({
+      sourceFile: narrowFile,
+      slug: 'narrow',
+      outDir: path.join(dir, 'out-narrow'),
       write: (file, data) => writeFile(file, data),
     })
-    expect(klein.variants.jpeg).toEqual([800])
-    expect(klein.variants.avif).toEqual([480, 800])
+    expect(narrow.variants.jpeg).toEqual([800])
+    expect(narrow.variants.avif).toEqual([480, 800])
   })
 })

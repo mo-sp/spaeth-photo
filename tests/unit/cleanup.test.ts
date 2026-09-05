@@ -5,12 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupOrphans } from '../../scripts/lib/cleanup.ts'
 import type { Issue, Reporter } from '../../scripts/lib/report.ts'
 
-/**
- * Der einzige Code des Projekts, der löscht. Getestet wird deshalb nicht nur,
- * dass er aufräumt, sondern vor allem, wann er es unterlässt: bei einem
- * Teillauf, nach einem Fehler, ohne Quellbilder — und bei allem, was nicht
- * eindeutig eine erzeugte Variante ist.
- */
+// The only code in this project that deletes, so most of these tests pin down
+// when it refuses to.
 
 interface Recorder {
   reporter: Reporter
@@ -50,22 +46,19 @@ function recorder(): Recorder {
 
 let dir: string
 
-/**
- * Ein Ausgabeverzeichnis mit zwei Fotos: `hafen` ist der Sollzustand,
- * `verwaist` hat keine Quelle mehr, und `hafen/2560.avif` ist eine Variante,
- * die es in der aktuellen Konfiguration nicht mehr gibt.
- */
+// `harbour` is the wanted state, `orphan` has no source any more, and
+// `harbour/2560.avif` is a variant the current configuration no longer produces.
 function makeTree(): void {
-  mkdirSync(path.join(dir, 'hafen'), { recursive: true })
+  mkdirSync(path.join(dir, 'harbour'), { recursive: true })
   for (const name of ['480.avif', '960.avif', '960.jpg', 'og.jpg', '2560.avif']) {
-    writeFileSync(path.join(dir, 'hafen', name), name)
+    writeFileSync(path.join(dir, 'harbour', name), name)
   }
-  mkdirSync(path.join(dir, 'verwaist'), { recursive: true })
-  writeFileSync(path.join(dir, 'verwaist', '480.avif'), 'x')
-  writeFileSync(path.join(dir, 'verwaist', 'og.jpg'), 'x')
+  mkdirSync(path.join(dir, 'orphan'), { recursive: true })
+  writeFileSync(path.join(dir, 'orphan', '480.avif'), 'x')
+  writeFileSync(path.join(dir, 'orphan', 'og.jpg'), 'x')
 }
 
-const keep = () => new Map([['hafen', new Set(['480.avif', '960.avif', '960.jpg', 'og.jpg'])]])
+const keep = () => new Map([['harbour', new Set(['480.avif', '960.avif', '960.jpg', 'og.jpg'])]])
 
 beforeEach(() => {
   dir = mkdtempSync(path.join(tmpdir(), 'spaeth-cleanup-'))
@@ -74,25 +67,25 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
 describe('cleanupOrphans', () => {
-  it('entfernt verwaiste Slug-Ordner und Varianten, die es nicht mehr gibt', () => {
+  it('removes orphaned slug folders and variants that no longer exist', () => {
     makeTree()
     const { reporter, steps } = recorder()
     const removed = cleanupOrphans({ dir, keep: keep(), reporter })
 
     expect(removed).toEqual({ files: 1, dirs: 1, skipped: null })
-    expect(existsSync(path.join(dir, 'verwaist'))).toBe(false)
-    expect(existsSync(path.join(dir, 'hafen', '2560.avif'))).toBe(false)
-    expect(existsSync(path.join(dir, 'hafen', '960.avif'))).toBe(true)
-    expect(existsSync(path.join(dir, 'hafen', 'og.jpg'))).toBe(true)
-    expect(steps.join('\n')).toContain('entfernt verwaist')
+    expect(existsSync(path.join(dir, 'orphan'))).toBe(false)
+    expect(existsSync(path.join(dir, 'harbour', '2560.avif'))).toBe(false)
+    expect(existsSync(path.join(dir, 'harbour', '960.avif'))).toBe(true)
+    expect(existsSync(path.join(dir, 'harbour', 'og.jpg'))).toBe(true)
+    expect(steps.join('\n')).toContain('removed orphan')
   })
 
-  it('lässt alles liegen, was keine erzeugte Variante ist', () => {
+  it('leaves behind everything that is not a generated variant', () => {
     makeTree()
-    writeFileSync(path.join(dir, 'README.md'), '# Ausgabe')
-    writeFileSync(path.join(dir, 'hafen', '.gitkeep'), '')
-    writeFileSync(path.join(dir, 'hafen', 'notiz.txt'), 'von Hand')
-    writeFileSync(path.join(dir, 'hafen', '960.avif.bak'), 'von Hand')
+    writeFileSync(path.join(dir, 'README.md'), '# Output')
+    writeFileSync(path.join(dir, 'harbour', '.gitkeep'), '')
+    writeFileSync(path.join(dir, 'harbour', 'note.txt'), 'by hand')
+    writeFileSync(path.join(dir, 'harbour', '960.avif.bak'), 'by hand')
     mkdirSync(path.join(dir, 'Kein Slug'))
     writeFileSync(path.join(dir, 'Kein Slug', 'egal.avif'), 'x')
 
@@ -103,97 +96,101 @@ describe('cleanupOrphans', () => {
     expect(removed.files).toBe(1)
     for (const survivor of [
       'README.md',
-      path.join('hafen', '.gitkeep'),
-      path.join('hafen', 'notiz.txt'),
-      path.join('hafen', '960.avif.bak'),
+      path.join('harbour', '.gitkeep'),
+      path.join('harbour', 'note.txt'),
+      path.join('harbour', '960.avif.bak'),
       path.join('Kein Slug', 'egal.avif'),
     ]) {
       expect(existsSync(path.join(dir, survivor)), survivor).toBe(true)
     }
-    // Liegengelassenes wird gemeldet, nicht verschwiegen.
+    // What is left behind is reported, not passed over in silence.
     expect(issues.filter((issue) => issue.scope === 'cleanup').length).toBe(5)
   })
 
-  it('räumt ohne Quellbilder gar nicht auf', () => {
+  it('does not clean up at all without source images', () => {
     makeTree()
     const { reporter, issues } = recorder()
     const removed = cleanupOrphans({ dir, keep: new Map(), reporter })
 
-    expect(removed).toEqual({ files: 0, dirs: 0, skipped: 'leer' })
-    expect(existsSync(path.join(dir, 'verwaist'))).toBe(true)
-    expect(issues[0]?.message).toContain('keine Quellbilder')
+    expect(removed).toEqual({ files: 0, dirs: 0, skipped: 'empty' })
+    expect(existsSync(path.join(dir, 'orphan'))).toBe(true)
+    expect(issues[0]?.message).toContain('no source images')
   })
 
-  it('fasst einen Symlink nicht an — er zeigt aus dem Ausgabeverzeichnis heraus', () => {
+  it('does not touch a symlink — it points out of the output directory', () => {
     makeTree()
-    const fremd = mkdtempSync(path.join(tmpdir(), 'spaeth-fremd-'))
-    writeFileSync(path.join(fremd, 'wichtig.txt'), 'nicht löschen')
-    symlinkSync(fremd, path.join(dir, 'anderswo'))
+    const outside = mkdtempSync(path.join(tmpdir(), 'spaeth-outside-'))
+    writeFileSync(path.join(outside, 'wichtig.txt'), 'do not delete')
+    symlinkSync(outside, path.join(dir, 'elsewhere'))
     try {
       const { reporter, issues } = recorder()
       const removed = cleanupOrphans({ dir, keep: keep(), reporter })
 
       expect(removed.dirs).toBe(1)
-      expect(existsSync(path.join(fremd, 'wichtig.txt'))).toBe(true)
-      expect(issues.some((issue) => issue.message.includes('Symlink'))).toBe(true)
+      expect(existsSync(path.join(outside, 'wichtig.txt'))).toBe(true)
+      expect(issues.some((issue) => issue.message.includes('symlink'))).toBe(true)
     } finally {
-      rmSync(fremd, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
     }
   })
 
-  it('löscht bei einem Teillauf (--only) überhaupt nichts', () => {
+  it('deletes nothing at all on a partial run (--only)', () => {
     makeTree()
     const { reporter, infos } = recorder()
-    // Genau der gefährliche Fall: kalter Cache, --only, alle anderen Slugs
-    // fehlen im Sollzustand — ihre Ausgaben sind trotzdem gültig.
+    // The dangerous case: cold cache, --only, every other slug missing from the
+    // wanted state — their outputs are valid all the same.
     const removed = cleanupOrphans({ dir, keep: keep(), reporter, partial: true })
 
     expect(removed).toEqual({ files: 0, dirs: 0, skipped: 'partial' })
-    expect(existsSync(path.join(dir, 'verwaist'))).toBe(true)
-    expect(existsSync(path.join(dir, 'hafen', '2560.avif'))).toBe(true)
+    expect(existsSync(path.join(dir, 'orphan'))).toBe(true)
+    expect(existsSync(path.join(dir, 'harbour', '2560.avif'))).toBe(true)
     expect(infos.join('\n')).toContain('--only')
   })
 
-  it('löscht nach einem Lauf mit Fehlern nichts', () => {
+  it('deletes nothing after a run with errors', () => {
     makeTree()
     const { reporter, infos } = recorder()
     const removed = cleanupOrphans({ dir, keep: keep(), reporter, hasErrors: true })
 
     expect(removed).toEqual({ files: 0, dirs: 0, skipped: 'errors' })
-    expect(existsSync(path.join(dir, 'verwaist'))).toBe(true)
-    expect(infos.join('\n')).toContain('Fehler')
+    expect(existsSync(path.join(dir, 'orphan'))).toBe(true)
+    expect(infos.join('\n')).toContain('errors')
   })
 
-  it('lässt geschützte Slugs stehen, auch wenn sie im Sollzustand fehlen', () => {
+  it('keeps protected slugs even when they are missing from the wanted state', () => {
     makeTree()
     const { reporter, issues } = recorder()
     const removed = cleanupOrphans({
       dir,
       keep: keep(),
       reporter,
-      protectedSlugs: new Set(['verwaist']),
+      protectedSlugs: new Set(['orphan']),
     })
 
     expect(removed.dirs).toBe(0)
-    expect(existsSync(path.join(dir, 'verwaist'))).toBe(true)
-    expect(issues.some((issue) => issue.message.includes('Foto mit Fehler'))).toBe(true)
+    expect(existsSync(path.join(dir, 'orphan'))).toBe(true)
+    expect(issues.some((issue) => issue.message.includes('photo has errors'))).toBe(true)
   })
 
-  it('meldet im Dry-Run, was entfiele, und löscht nichts', () => {
+  it('reports in a dry run what would go and deletes nothing', () => {
     makeTree()
     const { reporter, steps } = recorder()
     const removed = cleanupOrphans({ dir, keep: keep(), reporter, dryRun: true })
 
     expect(removed).toEqual({ files: 1, dirs: 1, skipped: null })
-    expect(existsSync(path.join(dir, 'verwaist'))).toBe(true)
-    expect(existsSync(path.join(dir, 'hafen', '2560.avif'))).toBe(true)
-    expect(steps.join('\n')).toContain('entfiele verwaist')
-    expect(steps.join('\n')).toContain('entfiele hafen/2560.avif')
+    expect(existsSync(path.join(dir, 'orphan'))).toBe(true)
+    expect(existsSync(path.join(dir, 'harbour', '2560.avif'))).toBe(true)
+    expect(steps.join('\n')).toContain('would remove orphan')
+    expect(steps.join('\n')).toContain('would remove harbour/2560.avif')
   })
 
-  it('kommt mit einem fehlenden Ausgabeverzeichnis aus', () => {
+  it('copes with a missing output directory', () => {
     const { reporter } = recorder()
-    const removed = cleanupOrphans({ dir: path.join(dir, 'gibt-es-nicht'), keep: keep(), reporter })
-    expect(removed.skipped).toBe('kein-verzeichnis')
+    const removed = cleanupOrphans({
+      dir: path.join(dir, 'does-not-exist'),
+      keep: keep(),
+      reporter,
+    })
+    expect(removed.skipped).toBe('no-directory')
   })
 })

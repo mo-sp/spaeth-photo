@@ -7,24 +7,21 @@ import { createReporter } from './lib/report.ts'
 import { formatIssues, photoManifestSchema } from './lib/schema.ts'
 
 /**
- * Prüft ein erzeugtes Manifest, ohne es zu erzeugen. Gedacht als Torwächter in
- * der CI: dass `build-images` fehlerfrei durchläuft, heißt noch nicht, dass es
- * das Richtige getan hat. Hier wird nachgesehen, ob der erwartete Quellmodus
- * gewählt wurde, ob überhaupt Fotos entstanden sind und ob jede im Manifest
- * genannte Datei wirklich auf der Platte liegt.
+ * Checks a generated manifest without generating it — the CI gatekeeper: that
+ * `build-images` ran without errors does not yet mean it did the right thing.
  */
 
 const OPTIONS: OptionSpecs = {
-  manifest: { type: 'string', placeholder: '<json>', description: 'Pfad zum Manifest' },
+  manifest: { type: 'string', placeholder: '<json>', description: 'Path to the manifest' },
   'expect-mode': {
     type: 'string',
     placeholder: '<content|demo>',
-    description: 'Erwarteter Quellmodus',
+    description: 'Expected source mode',
   },
-  'min-photos': { type: 'string', placeholder: '<n>', description: 'Mindestzahl an Fotos' },
+  'min-photos': { type: 'string', placeholder: '<n>', description: 'Minimum number of photos' },
 }
 
-const USAGE = 'Aufruf: node scripts/check-manifest.ts [Optionen]'
+const USAGE = 'Usage: node scripts/check-manifest.ts [options]'
 
 function main(): void {
   if (wantsHelp()) {
@@ -37,13 +34,13 @@ function main(): void {
   const expectMode = flags.str('expect-mode')
   const rawMinPhotos = flags.str('min-photos')
   const minPhotos = rawMinPhotos === undefined ? 1 : Number(rawMinPhotos)
-  // Ohne Prüfung wird aus `--min-photos abc` ein NaN, jeder Vergleich damit ist
-  // falsch, und das Tor in der CI stünde still offen.
+  // Unchecked, `--min-photos abc` becomes NaN, every comparison with it is
+  // false, and the CI gate would stand silently open.
   if (!Number.isInteger(minPhotos) || minPhotos < 0) {
-    throw new CliError(`--min-photos erwartet eine ganze Zahl ab 0, nicht „${rawMinPhotos}"`)
+    throw new CliError(`--min-photos expects a whole number from 0 up, not "${rawMinPhotos}"`)
   }
 
-  if (!existsSync(file)) throw new CliError(`Manifest fehlt: ${displayPath(file)}`)
+  if (!existsSync(file)) throw new CliError(`manifest missing: ${displayPath(file)}`)
 
   const parsed = photoManifestSchema.safeParse(JSON.parse(readFileSync(file, 'utf8')))
   const reporter = createReporter()
@@ -57,31 +54,31 @@ function main(): void {
   const manifest = parsed.data
 
   if (expectMode && manifest.sourceMode !== expectMode) {
-    reporter.error('sourceMode', `erwartet ${expectMode}, gefunden ${manifest.sourceMode}`)
+    reporter.error('sourceMode', `expected ${expectMode}, found ${manifest.sourceMode}`)
   }
   if (manifest.photos.length < minPhotos) {
-    reporter.error('photos', `erwartet mindestens ${minPhotos}, gefunden ${manifest.photos.length}`)
+    reporter.error('photos', `expected at least ${minPhotos}, found ${manifest.photos.length}`)
   }
   if (manifest.heroSlug === null) {
-    reporter.error('heroSlug', 'kein Hero aufgelöst')
+    reporter.error('heroSlug', 'no hero resolved')
   } else if (!manifest.photos.some((photo) => photo.slug === manifest.heroSlug)) {
-    reporter.error('heroSlug', `${manifest.heroSlug} kommt in photos nicht vor`)
+    reporter.error('heroSlug', `${manifest.heroSlug} does not appear in photos`)
   }
 
   let checked = 0
   for (const photo of manifest.photos) {
     for (const entry of [...photo.files, photo.ogFile]) {
       const onDisk = path.join(PUBLIC_IMG_DIR, entry.path.replace('/img/', ''))
-      if (!existsSync(onDisk)) reporter.error(photo.slug, `Datei fehlt: ${entry.path}`)
+      if (!existsSync(onDisk)) reporter.error(photo.slug, `file missing: ${entry.path}`)
       checked += 1
     }
-    if (photo.variants.avif.length === 0) reporter.error(photo.slug, 'keine AVIF-Variante')
+    if (photo.variants.avif.length === 0) reporter.error(photo.slug, 'no AVIF variant')
   }
 
   const { errors } = reporter.counts()
   console.log(
-    `  ${manifest.photos.length} Fotos · Modus ${manifest.sourceMode} · Hero ${manifest.heroSlug} · ` +
-      `${checked} Dateien geprüft · ${errors === 0 ? 'in Ordnung' : `${errors} Fehler`}`,
+    `  ${manifest.photos.length} photos · mode ${manifest.sourceMode} · hero ${manifest.heroSlug} · ` +
+      `${checked} files checked · ${errors === 0 ? 'ok' : `${errors} errors`}`,
   )
   reporter.finish()
 }
@@ -90,7 +87,7 @@ try {
   main()
 } catch (error) {
   if (error instanceof CliError) {
-    console.error(`Fehler: ${error.message}`)
+    console.error(`Error: ${error.message}`)
     process.exitCode = 1
   } else {
     throw error

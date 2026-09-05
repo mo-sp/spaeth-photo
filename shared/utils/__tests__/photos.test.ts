@@ -3,6 +3,7 @@ import type { PhotoIndexEntry, Tag } from '../../types/photo.ts'
 import {
   curated,
   eagerCount,
+  effectiveTag,
   filterByTag,
   neighbours,
   padCounter,
@@ -12,7 +13,7 @@ import {
   tagCounts,
 } from '../photos.ts'
 
-/** Nur die Felder, die die reinen Funktionen anfassen. */
+/** Only the fields the pure functions touch. */
 function photo(slug: string, options: Partial<PhotoIndexEntry> = {}): PhotoIndexEntry {
   return {
     slug,
@@ -46,7 +47,7 @@ const list = [
 ]
 
 describe('sortPhotos', () => {
-  it('sortiert nach Datum absteigend', () => {
+  it('sorts by date, newest first', () => {
     const sorted = sortPhotos([
       photo('alt', { date: '2020-01-01' }),
       photo('neu', { date: '2024-06-01' }),
@@ -54,12 +55,12 @@ describe('sortPhotos', () => {
     expect(sorted.map((entry) => entry.slug)).toEqual(['neu', 'alt'])
   })
 
-  it('entscheidet bei gleichem Datum über den Slug', () => {
+  it('decides by slug on the same date', () => {
     const sorted = sortPhotos([photo('zeta'), photo('alpha')])
     expect(sorted.map((entry) => entry.slug)).toEqual(['alpha', 'zeta'])
   })
 
-  it('lässt die Eingabe unverändert', () => {
+  it('leaves the input unchanged', () => {
     const input = [photo('zeta'), photo('alpha')]
     sortPhotos(input)
     expect(input.map((entry) => entry.slug)).toEqual(['zeta', 'alpha'])
@@ -67,38 +68,57 @@ describe('sortPhotos', () => {
 })
 
 describe('filterByTag', () => {
-  it('gibt ohne Tag den vollen Pool zurück', () => {
+  it('returns the full pool without a tag', () => {
     expect(filterByTag(list, null)).toHaveLength(3)
   })
 
-  it('filtert auf den Tag', () => {
+  it('filters down to the tag', () => {
     expect(filterByTag(list, 'nature').map((entry) => entry.slug)).toEqual(['b', 'c'])
   })
 
-  it('fällt bei leerem Ergebnis auf den vollen Pool zurück (Spec)', () => {
+  it('falls back to the full pool on an empty result (spec)', () => {
     expect(filterByTag(list, 'animals' as Tag)).toHaveLength(3)
   })
 
-  it('fällt bei leerem Pool nicht in eine Endlosschleife', () => {
+  it('does not fall into an endless loop on an empty pool', () => {
     expect(filterByTag([], 'nature')).toEqual([])
   })
 })
 
+describe('effectiveTag', () => {
+  it('keeps a tag the photo actually carries', () => {
+    expect(effectiveTag(list, 'a', 'sailing')).toBe('sailing')
+    expect(effectiveTag(list, 'c', 'nature')).toBe('nature')
+  })
+
+  it('drops a tag the photo does not carry', () => {
+    expect(effectiveTag(list, 'a', 'nature')).toBeNull()
+  })
+
+  it('drops the tag for an unknown slug', () => {
+    expect(effectiveTag(list, 'nope', 'sailing')).toBeNull()
+  })
+
+  it('passes null through', () => {
+    expect(effectiveTag(list, 'a', null)).toBeNull()
+  })
+})
+
 describe('tagCounts', () => {
-  it('zählt nur vergebene Tags in kanonischer Reihenfolge', () => {
+  it('counts only assigned tags, in canonical order', () => {
     expect(tagCounts(list)).toEqual([
       { tag: 'nature', count: 2 },
       { tag: 'sailing', count: 2 },
     ])
   })
 
-  it('ist auf einer leeren Liste leer', () => {
+  it('is empty on an empty list', () => {
     expect(tagCounts([])).toEqual([])
   })
 })
 
 describe('neighbours', () => {
-  it('liefert Position und Zähler einsbasiert', () => {
+  it('reports position and counter one-based', () => {
     const result = neighbours(list, 'b')
     expect(result.index).toBe(1)
     expect(result.position).toBe(2)
@@ -106,19 +126,19 @@ describe('neighbours', () => {
     expect(result.current?.slug).toBe('b')
   })
 
-  it('läuft am Anfang zyklisch um', () => {
+  it('wraps around at the start', () => {
     const result = neighbours(list, 'a')
     expect(result.prev?.slug).toBe('c')
     expect(result.next?.slug).toBe('b')
   })
 
-  it('läuft am Ende zyklisch um', () => {
+  it('wraps around at the end', () => {
     const result = neighbours(list, 'c')
     expect(result.prev?.slug).toBe('b')
     expect(result.next?.slug).toBe('a')
   })
 
-  it('verlinkt bei einem einzigen Bild nicht auf sich selbst', () => {
+  it('does not link to itself when there is a single image', () => {
     const result = neighbours([photo('einzig')], 'einzig')
     expect(result.position).toBe(1)
     expect(result.total).toBe(1)
@@ -126,7 +146,7 @@ describe('neighbours', () => {
     expect(result.next).toBeNull()
   })
 
-  it('meldet einen unbekannten Slug ohne Position', () => {
+  it('reports an unknown slug without a position', () => {
     const result = neighbours(list, 'gibtsnicht')
     expect(result.index).toBe(-1)
     expect(result.position).toBe(0)
@@ -135,7 +155,7 @@ describe('neighbours', () => {
     expect(result.next).toBeNull()
   })
 
-  it('kommt mit einer leeren Liste zurecht', () => {
+  it('copes with an empty list', () => {
     const result = neighbours([], 'a')
     expect(result.index).toBe(-1)
     expect(result.total).toBe(0)
@@ -144,14 +164,14 @@ describe('neighbours', () => {
 })
 
 describe('eagerCount', () => {
-  it('füllt drei Spalten mit Querformaten und bleibt im erwarteten Band', () => {
+  it('fills three columns of landscape images and stays in the expected band', () => {
     const many = Array.from({ length: 26 }, (_, i) => photo(`p${i}`))
     const count = eagerCount(many, 3)
     expect(count).toBeGreaterThanOrEqual(6)
     expect(count).toBeLessThanOrEqual(9)
   })
 
-  it('lädt bei Hochformaten nicht mehr als nötig', () => {
+  it('loads no more than necessary for portrait images', () => {
     const portraits = Array.from({ length: 26 }, (_, i) => photo(`p${i}`, { aspectRatio: 0.667 }))
     expect(eagerCount(portraits, 3)).toBeLessThanOrEqual(
       eagerCount(
@@ -161,19 +181,19 @@ describe('eagerCount', () => {
     )
   })
 
-  it('lädt nie mehr Kacheln als vorhanden', () => {
+  it('never loads more tiles than exist', () => {
     expect(eagerCount([photo('a'), photo('b')], 3)).toBe(2)
     expect(eagerCount([], 3)).toBe(0)
   })
 })
 
 describe('padCounter', () => {
-  it('füllt einstellige Zahlen auf zwei Stellen auf', () => {
+  it('pads single-digit numbers to two places', () => {
     expect(padCounter(3)).toBe('03')
     expect(padCounter(0)).toBe('00')
   })
 
-  it('lässt zwei- und dreistellige Zahlen unangetastet', () => {
+  it('leaves two- and three-digit numbers untouched', () => {
     expect(padCounter(14)).toBe('14')
     expect(padCounter(104)).toBe('104')
   })
@@ -188,15 +208,15 @@ describe('curated', () => {
     photo('b', { featured: true, order: 2 }),
   ]
 
-  it('nimmt nur featured und sortiert nach order', () => {
+  it('takes only featured and sorts by order', () => {
     expect(curated(pool, 3).map((entry) => entry.slug)).toEqual(['a', 'b', 'c'])
   })
 
-  it('hängt Bilder ohne order hinten an', () => {
+  it('appends images without an order at the end', () => {
     expect(curated(pool, 10).map((entry) => entry.slug)).toEqual(['a', 'b', 'c', 'd'])
   })
 
-  it('deckelt auf die Zahl der Kacheln', () => {
+  it('caps at the number of tiles', () => {
     expect(curated(pool, 2)).toHaveLength(2)
     expect(curated([], 5)).toEqual([])
   })

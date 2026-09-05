@@ -20,34 +20,34 @@ const complete: PhotoMeta = {
 }
 
 describe('photoMetaSchema', () => {
-  it('nimmt einen vollständigen Datensatz an', () => {
+  it('accepts a complete record', () => {
     expect(photoMetaSchema.parse(complete)).toEqual(complete)
   })
 
-  it('besteht auf Titel und Datum', () => {
+  it('insists on title and date', () => {
     expect(photoMetaSchema.safeParse({ ...complete, title: '   ' }).success).toBe(false)
     expect(photoMetaSchema.safeParse({ ...complete, date: undefined }).success).toBe(false)
   })
 
-  it('lehnt Daten ab, die es nicht gibt', () => {
+  it('rejects dates that do not exist', () => {
     expect(photoMetaSchema.safeParse({ ...complete, date: '2025-02-30' }).success).toBe(false)
     expect(photoMetaSchema.safeParse({ ...complete, date: '14.08.2020' }).success).toBe(false)
   })
 
-  it('lässt nur die vereinbarten Tags durch', () => {
+  it('lets only the agreed tags through', () => {
     expect(photoMetaSchema.safeParse({ ...complete, tags: ['Tiere'] }).success).toBe(false)
     expect(photoMetaSchema.safeParse({ ...complete, tags: ['stadt'] }).success).toBe(false)
   })
 
-  it('meldet einen unbekannten Schlüssel, statt ihn zu schlucken', () => {
-    // Ein Tippfehler soll auffallen — eine Auslassung nicht.
+  it('reports an unknown key instead of swallowing it', () => {
+    // A typo should stand out — an omission should not.
     expect(photoMetaSchema.safeParse({ ...complete, feautred: true }).success).toBe(false)
   })
 
-  it('setzt fehlende Felder auf ihren Standardwert', () => {
-    const parsed = photoMetaSchema.parse({ title: 'Ohne alles', date: '2024-01-02' })
+  it('sets missing fields to their default', () => {
+    const parsed = photoMetaSchema.parse({ title: 'Bare minimum', date: '2024-01-02' })
     expect(parsed).toEqual({
-      title: 'Ohne alles',
+      title: 'Bare minimum',
       title_de: null,
       alt: null,
       alt_de: null,
@@ -64,19 +64,19 @@ describe('photoMetaSchema', () => {
   })
 })
 
-describe('YAML-Rundlauf', () => {
-  it('liest zurück, was es geschrieben hat', () => {
+describe('YAML round trip', () => {
+  it('reads back what it wrote', () => {
     const parsed = parseMeta(renderMetaYaml(complete))
     expect(parsed.ok && parsed.value).toEqual(complete)
   })
 
-  it('übersteht Anführungszeichen und Doppelpunkte im Titel', () => {
-    const tricky: PhotoMeta = { ...complete, title: 'Der "Anleger": Licht & Schatten' }
+  it('survives quotes and colons in the title', () => {
+    const tricky: PhotoMeta = { ...complete, title: 'The "Jetty": Light & Shadow' }
     const parsed = parseMeta(renderMetaYaml(tricky))
     expect(parsed.ok && parsed.value.title).toBe(tricky.title)
   })
 
-  it('lässt die Bildbeschreibung weg, wenn keine gesetzt ist', () => {
+  it('leaves out the image description when none is set', () => {
     const parsed = parseMeta(renderMetaYaml({ ...complete, alt: null }))
     expect(parsed.ok && parsed.value.alt).toBeNull()
   })
@@ -87,12 +87,12 @@ describe('YAML-Rundlauf', () => {
     expect(parsed.ok && parsed.value.alt_de).toBeNull()
   })
 
-  it('sortiert Tags in die kanonische Reihenfolge', () => {
+  it('sorts tags into the canonical order', () => {
     const parsed = parseMeta(renderMetaYaml({ ...complete, tags: ['landscape', 'animals'] }))
     expect(parsed.ok && parsed.value.tags).toEqual(['animals', 'landscape'])
   })
 
-  it('nennt den Pfad, wenn etwas nicht stimmt', () => {
+  it('names the path when something is wrong', () => {
     const parsed = parseMeta('title: "x"\ndate: 2024-13-01\n')
     expect(parsed.ok).toBe(false)
     expect(!parsed.ok && parsed.issues.join(' ')).toContain('date')

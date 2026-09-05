@@ -15,16 +15,9 @@ import { ogUrl } from '../../shared/constants/images.ts'
 import type { RenderResult } from './variants.ts'
 
 /**
- * Zusammenbau der beiden Artefakte.
- *
- * `photos.manifest.json` (Projektwurzel) ist vollständig: jede geschriebene
- * Datei mit Pfad und Größe, dazu Quellmaße und Hashes. Es ist ein
- * Build-Protokoll — für Diagnose und für das Aufräumen verwaister Ausgaben.
- *
- * `app/data/photos.index.json` ist der Teil, den das Frontend braucht, und
- * wird in das Bundle importiert. Er enthält keine Dateipfade: die URLs ergeben
- * sich aus der Konvention `/img/<slug>/<breite>.<endung>`. Beide Dateien sind
- * generiert und gitignored.
+ * Assembly of the two generated artefacts: the full build log
+ * `photos.manifest.json` and the client index `app/data/photos.index.json`.
+ * Both are generated and gitignored.
  */
 
 export interface PhotoInput {
@@ -43,7 +36,7 @@ export interface ManifestIssue {
 export interface BuildManifestOptions {
   photos: PhotoInput[]
   sourceMode: SourceMode
-  /** Quellverzeichnis relativ zur Projektwurzel, nur zur Diagnose. */
+  /** Source directory relative to the project root, for diagnostics only. */
   sourceDir: string
   generatedAt?: string
 }
@@ -58,10 +51,8 @@ function year(date: string): number {
 }
 
 /**
- * Neueste zuerst. Bei gleichem Datum entscheidet der Slug alphabetisch — nicht
- * aus Geschmack, sondern damit die Reihenfolge zwischen zwei Builds identisch
- * ist. Eine Galerie, die bei jedem Deploy anders sortiert, sieht wie ein Fehler
- * aus.
+ * Newest first; on equal dates the slug decides alphabetically, so that two
+ * builds produce an identical order.
  */
 export function comparePhotos(
   a: { date: string; slug: string },
@@ -71,7 +62,7 @@ export function comparePhotos(
   return a.slug.localeCompare(b.slug, 'en')
 }
 
-/** Tags in kanonischer Reihenfolge, nur die tatsächlich vergebenen. */
+/** Tags in canonical order, only the ones actually in use. */
 export function countTags(photos: Array<{ tags: Tag[] }>): TagCount[] {
   const counts = new Map<Tag, number>()
   for (const photo of photos) {
@@ -84,11 +75,9 @@ export function countTags(photos: Array<{ tags: Tag[] }>): TagCount[] {
 }
 
 /**
- * Genau ein Foto trägt `hero: true`. Fehlt die Markierung, wählt der Build das
- * neueste hervorgehobene, sonst das neueste Foto überhaupt, und warnt — eine
- * Startseite ohne Hero wäre kaputt, und ein harter Fehler dafür wäre eine
- * unnötige Bremse. Zwei markierte Fotos sind dagegen ein Fehler: hier ist eine
- * Entscheidung nötig, die das Skript nicht treffen darf.
+ * Exactly one photo carries `hero: true`. A missing mark only warns — a home
+ * page without a hero would be broken, so the build picks one. Two marks are an
+ * error: that needs a decision the script must not make.
  */
 export function resolveHero(photos: Array<{ slug: string; meta: PhotoMeta }>): {
   heroSlug: string | null
@@ -103,9 +92,9 @@ export function resolveHero(photos: Array<{ slug: string; meta: PhotoMeta }>): {
     issues.push({
       level: 'error',
       scope: 'hero',
-      message: `${marked.length} Fotos tragen hero: true (${marked
+      message: `${marked.length} photos carry hero: true (${marked
         .map((photo) => photo.slug)
-        .join(', ')}) — genau eines darf es sein`,
+        .join(', ')}) — exactly one may`,
     })
     return { heroSlug: marked[0]?.slug ?? null, issues }
   }
@@ -116,7 +105,7 @@ export function resolveHero(photos: Array<{ slug: string; meta: PhotoMeta }>): {
   issues.push({
     level: 'warn',
     scope: 'hero',
-    message: `kein Foto trägt hero: true — ${fallback.slug} eingesetzt`,
+    message: `no photo carries hero: true — using ${fallback.slug}`,
   })
   return { heroSlug: fallback.slug, issues }
 }
@@ -139,7 +128,7 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
       issues.push({
         level: 'warn',
         scope: 'order',
-        message: `order ${photo.meta.order} ist doppelt vergeben (${previous}, ${photo.slug})`,
+        message: `order ${photo.meta.order} is used twice (${previous}, ${photo.slug})`,
       })
     } else {
       seenOrder.set(photo.meta.order, photo.slug)
@@ -148,8 +137,7 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
       issues.push({
         level: 'warn',
         scope: photo.slug,
-        message:
-          'order gesetzt, aber featured: false — das Foto erscheint nicht auf der Startseite',
+        message: 'order set, but featured: false — the photo will not appear on the home page',
       })
     }
   }
@@ -168,8 +156,8 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
     camera: photo.meta.camera,
     lens: photo.meta.lens,
     featured: photo.meta.featured,
-    // Aufgelöst statt abgeschrieben: `heroSlug` und dieses Feld können nicht
-    // auseinanderlaufen, egal was in den YAML-Dateien steht.
+    // Derived, not copied: this and `heroSlug` cannot drift apart, whatever the
+    // YAML files say.
     hero: photo.slug === heroSlug,
     order: photo.meta.order,
     width: photo.render.width,
@@ -203,7 +191,7 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
   }
 }
 
-/** Der Client-Index: dasselbe Datenmodell ohne die Build-Interna. */
+/** The client index: the same data model without the build internals. */
 export function toIndex(manifest: PhotoManifest): PhotoIndexFile {
   const photos: PhotoIndexEntry[] = manifest.photos.map((photo) => ({
     slug: photo.slug,

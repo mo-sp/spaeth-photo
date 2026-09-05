@@ -31,7 +31,7 @@ Touch only what you must. Clean up only your own mess.
 - Don't refactor things that aren't broken.
 - Match existing style, even if you'd do it differently.
 - If you notice unrelated dead code, mention it – don't delete it.
-- Remove imports/variables/functions that *your* changes made unused; leave pre-existing dead code unless asked.
+- Remove imports/variables/functions that _your_ changes made unused; leave pre-existing dead code unless asked.
 
 The test: every changed line should trace directly to the request.
 
@@ -49,7 +49,7 @@ For multi-step tasks, state a brief plan: `[step] → verify: [check]`.
 
 Code should explain itself; comments explain only what the code cannot.
 
-- Comment the *why* (a non-obvious constraint, a measured number, a rejected alternative), never the *what*.
+- Comment the _why_ (a non-obvious constraint, a measured number, a rejected alternative), never the _what_.
 - One or two lines. No essays, no restating the ruling, no narrative of how the code came to be.
 - Doc comments on exported functions: one sentence. Parameters only when their meaning is not obvious from name and type.
 - Design reasoning belongs in `docs/architecture.md`, not in source comments. Session narrative belongs in the private `SUMMARY.md`.

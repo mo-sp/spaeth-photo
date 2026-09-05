@@ -3,16 +3,9 @@ import { DEFAULT_LOCALE, type Locale } from './i18n.ts'
 import { TAG_ORDER } from './tags.ts'
 
 /**
- * Reine Ableitungen auf dem Client-Index. Kein Nuxt, kein Vue, keine
- * Seiteneffekte — deshalb liegen sie unter `shared/utils/` (Nuxt importiert von
- * dort automatisch) und lassen sich direkt mit vitest prüfen.
- */
-
-/**
- * Neueste zuerst, bei Gleichstand Slug aufsteigend — dieselbe Ordnung, die der
- * Build ins Manifest schreibt. Das Frontend sortiert trotzdem selbst: eine
- * Liste, die nach einem Filter plötzlich anders herum steht, wäre ein Fehler,
- * den niemand im Build bemerkt.
+ * Newest first, ties broken by slug — the same order the build writes into the
+ * manifest. The front end sorts anyway so that a filtered list can never come
+ * out in a different order than an unfiltered one.
  */
 export function sortPhotos(photos: readonly PhotoIndexEntry[]): PhotoIndexEntry[] {
   return [...photos].sort((a, b) => {
@@ -22,10 +15,23 @@ export function sortPhotos(photos: readonly PhotoIndexEntry[]): PhotoIndexEntry[
 }
 
 /**
- * Einfachauswahl wie in der Spec: `null` zeigt den vollen Pool. Läuft ein
- * Filter leer, wird ebenfalls der volle Pool gezeigt (Spec-Fallback) — eine
- * leere Galerie sähe wie ein Defekt aus. Beim aktuellen Bestand tritt der Fall
- * nicht auf, weil die Filterleiste nur tatsächlich vergebene Tags anbietet.
+ * The filter context a photo page may claim. A tag the photo does not carry is
+ * a hand-assembled or stale link: honouring it would show "00 / 04" with no
+ * neighbours and a back link into a gallery the photo is not in.
+ */
+export function effectiveTag(
+  photos: readonly PhotoIndexEntry[],
+  slug: string,
+  wanted: Tag | null,
+): Tag | null {
+  if (wanted === null) return null
+  const current = photos.find((photo) => photo.slug === slug)
+  return current?.tags.includes(wanted) ? wanted : null
+}
+
+/**
+ * Single-select filter; `null` is the full pool. An empty result falls back to
+ * the full pool (spec) — an empty gallery would read as a defect.
  */
 export function filterByTag(
   photos: readonly PhotoIndexEntry[],
@@ -36,7 +42,7 @@ export function filterByTag(
   return filtered.length > 0 ? filtered : [...photos]
 }
 
-/** Tags in kanonischer Reihenfolge, nur die tatsächlich vergebenen. */
+/** Tags in canonical order, only those actually in use. */
 export function tagCounts(photos: readonly PhotoIndexEntry[]): TagCount[] {
   const counts = new Map<Tag, number>()
   for (const photo of photos) {
@@ -49,9 +55,9 @@ export function tagCounts(photos: readonly PhotoIndexEntry[]): TagCount[] {
 }
 
 export interface Neighbours {
-  /** Nullbasierte Position, `-1` wenn der Slug nicht in der Liste steht. */
+  /** Zero-based position, `-1` when the slug is not in the list. */
   index: number
-  /** Einsbasiert für die Anzeige „03 / 14"; `0` bei unbekanntem Slug. */
+  /** One-based, for the "03 / 14" display; `0` for an unknown slug. */
   position: number
   total: number
   current: PhotoIndexEntry | null
@@ -60,12 +66,9 @@ export interface Neighbours {
 }
 
 /**
- * Nachbarn innerhalb der (gefilterten) Liste, zyklisch nach `(i ± 1 + n) % n`.
- *
- * Zwei Sonderfälle weichen von der Formel ab: bei unbekanntem Slug gibt es
- * keine Position, und bei genau einem Bild zeigte die Formel auf das Bild
- * selbst — ein „Vorher"-Link auf die eigene Seite ist kein Navigationsziel,
- * also bleibt er leer.
+ * Neighbours within the (filtered) list, cyclic via `(i ± 1 + n) % n`. With a
+ * single photo the formula would point at the photo itself, so prev/next stay
+ * empty rather than linking to the current page.
  */
 export function neighbours(photos: readonly PhotoIndexEntry[], slug: string): Neighbours {
   const total = photos.length
@@ -85,15 +88,11 @@ export function neighbours(photos: readonly PhotoIndexEntry[], slug: string): Ne
 }
 
 /**
- * Wie viele Kacheln der Galerie ohne `loading="lazy"` geladen werden.
- *
- * Der Lazy-Loader des Browsers entscheidet erst nach dem Layout, und bei einem
- * Masonry aus CSS-Columns steht das Layout spät — die obersten Kacheln würden
- * sichtbar nachladen. Statt einer festen Zahl wird der Spaltenumbruch aus den
- * Seitenverhältnissen simuliert (Kachelhöhe = 1 / aspectRatio bei Breite 1,
- * jede Kachel in die kürzeste Spalte) und alles vorgeladen, bis jede Spalte
- * etwa eine Bildschirmhöhe trägt. Die Klammer hält das Ergebnis unabhängig vom
- * Bestand in der Größenordnung, die die Messung getragen hat.
+ * How many gallery tiles load without `loading="lazy"`. CSS-column masonry
+ * settles its layout too late for the browser's lazy loader, so the column
+ * break is simulated from the aspect ratios and everything above roughly one
+ * screen height is eager. The min/max clamp keeps the count in the range the
+ * measurements covered, whatever the collection size.
  */
 export function eagerCount(
   photos: readonly PhotoIndexEntry[],
@@ -113,27 +112,15 @@ export function eagerCount(
   return Math.min(photos.length, Math.max(Math.min(count, max), Math.min(min, photos.length)))
 }
 
-/**
- * Zweistellige Zähldarstellung: `3` → `„03"`.
- *
- * Die Spec schreibt sie an drei Stellen vor (Galerie-Kopfzeile „14 Bilder",
- * Lightbox-Caption und Detail-Zähler „03 / 14"). Dreimal dasselbe
- * `padStart` wäre dreimal die Gelegenheit, es unterschiedlich zu machen.
- * Ab drei Stellen wächst die Zahl mit — abgeschnitten würde aus 104 sonst 04.
- */
+/** Two-digit counter display (`3` → `03`); three digits and up grow rather than truncate. */
 export function padCounter(value: number): string {
   return String(value).padStart(2, '0')
 }
 
 /**
- * Die kuratierte Auswahl der Startseite.
- *
- * `featured` sagt, welche Bilder überhaupt in Frage kommen, `order` in welcher
- * Reihenfolge — beides steht im YAML und ist damit eine Entscheidung des
- * Fotografen, keine des Codes. Bilder ohne `order` hängen sich hinten an
- * (nach Slug), damit ein vergessenes Feld die Reihe nicht umsortiert. Die
- * Zahl der gezeigten Bilder ist ein Argument, weil sie am Layout hängt: eine
- * volle Reihe des 5-spaltigen Rasters.
+ * The curated home-page selection. `featured` and `order` come from the YAML,
+ * so the choice is the photographer's, not the code's; a missing `order` sorts
+ * last instead of reshuffling the row.
  */
 export function curated(photos: readonly PhotoIndexEntry[], limit = 5): PhotoIndexEntry[] {
   return photos

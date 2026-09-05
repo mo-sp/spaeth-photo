@@ -60,6 +60,7 @@
   "error.404.text": "Diese Adresse gibt es nicht. Vielleicht ist sie vertippt, vielleicht wurde die Seite umbenannt.",
   "error.other.text": "Auf dieser Seite ist etwas schiefgegangen.",
   "error.status": "Fehler {status}",
+  "error.nav.aria": "Wege von hier aus",
   "error.home": "Start",
   "error.gallery": "Galerie"
 }

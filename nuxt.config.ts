@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { LOCALES, localePath } from './shared/utils/i18n.ts'
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
+  LOCALE_TAGS,
+  PREFIXED_LOCALES,
+  localePath,
+} from './shared/utils/i18n.ts'
 
 /**
  * Every route of the site in its canonical (English, unprefixed) form.
@@ -17,7 +23,7 @@ function baseRoutes(): string[] {
   const fixed = ['/', '/gallery', '/about', '/legal-notice', '/privacy']
   if (!existsSync(file)) {
     console.warn(
-      '[nuxt.config] app/data/photos.index.json fehlt — erst `pnpm build-images` laufen lassen',
+      '[nuxt.config] app/data/photos.index.json is missing - run `pnpm build-images` first',
     )
     return fixed
   }
@@ -41,19 +47,24 @@ function prerenderRoutes(): string[] {
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint'],
 
-  // SSG: `nuxt generate` rendert alle über die Navigation erreichbaren Routen
-  // vor. `ssr: true` ist dafür Voraussetzung; ein Nitro-Server wird in Phase 1
-  // nicht deployed (Output ist `.output/public`).
+  // Prerendering requires it; phase 1 deploys `.output/public`, not a server.
   ssr: true,
 
   devtools: { enabled: false },
 
   app: {
     head: {
-      // No `htmlAttrs.lang`: the layout sets it per route.
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1',
       titleTemplate: '%s – Moritz Späth',
+      // Defaults for the shells that have no route: `.output/public/404.html`
+      // is served by the host for any unknown path and 200.html is the SPA
+      // fallback; both would otherwise be untitled, language-less and
+      // indexable. Every real page overrides all three. The title is the bare
+      // word because `titleTemplate` appends the name.
+      htmlAttrs: { lang: LOCALE_TAGS[DEFAULT_LOCALE] },
+      title: 'Photography',
+      meta: [{ name: 'robots', content: 'noindex' }],
     },
   },
 
@@ -61,27 +72,23 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      // Absolute URLs für OpenGraph und sitemap.xml (P7). In Coolify als
-      // BUILD-Variable setzen — zur Laufzeit gibt es bei einer statischen Seite
-      // niemanden mehr, der sie einsetzen könnte.
+      // Absolute URLs for OpenGraph and sitemap.xml. A *build* variable: a
+      // static site has nobody left at runtime to substitute it.
       siteUrl: '',
     },
   },
 
   experimental: {
-    // Der Client-Index steckt bereits im JS-Bundle. Ohne diese Einstellung
-    // legte Nuxt die im HTML gerenderten Daten ein zweites Mal als Payload
-    // daneben. 'client' extrahiert die Payload nur für Client-Navigationen.
+    // The client index is already in the JS bundle; without this Nuxt would
+    // ship the rendered data a second time as a payload.
     payloadExtraction: 'client',
     defaults: {
-      // Prefetch beim Sichtbarwerden lädt in einer Galerie mit 26 Kacheln
-      // sofort jede Detailseite. Beim Hovern/Fokussieren ist die Absicht
-      // belegt, und die Verzögerung bis zum Klick reicht aus.
+      // Prefetch on visibility would pull every detail page at once in a
+      // 26-tile gallery; hover/focus is evidence of intent.
       nuxtLink: { prefetchOn: { visibility: false, interaction: true } },
     },
-    // Macht `definePageMeta({ aside, hasPlaceholders })` zur Buildzeit
-    // auslesbar, damit das Layout Sidebar-Inhalt und robots-Meta ohne Teleport
-    // und ohne Store wählen kann.
+    // Makes both keys readable at build time, so the layout picks sidebar
+    // content and robots meta without a teleport or a store.
     extraPageMetaExtractionKeys: ['aside', 'hasPlaceholders'],
   },
 
@@ -89,16 +96,14 @@ export default defineNuxtConfig({
 
   hooks: {
     /**
-     * The German route tree, cloned from the English one.
-     *
-     * Cloning the *resolved* pages is what keeps `definePageMeta({ aside })`
-     * and every other page meta key intact — a second directory under
-     * `app/pages/de/` would need 26 duplicated files, and a `router.options.ts`
-     * that rewrites paths at runtime would not prerender at all. The clone
-     * shares the same component file, so a page is written once and rendered
-     * twice.
+     * The German route tree, cloned from the resolved English pages so every
+     * `definePageMeta` key survives. A second `app/pages/de/` directory would
+     * duplicate 6 files, and a runtime `router.options.ts` would not prerender.
      */
     'pages:extend'(pages) {
+      // Child routes keep their parent's name, so only the top-level name is
+      // prefixed; there are no nested pages today, and a duplicate child name
+      // would surface as a vue-router warning if that changed.
       const clone = (page: (typeof pages)[number], locale: string): (typeof pages)[number] => ({
         ...page,
         path: page.path === '/' ? `/${locale}` : `/${locale}${page.path}`,
@@ -106,8 +111,7 @@ export default defineNuxtConfig({
         children: page.children?.map((child) => ({ ...child })),
       })
 
-      for (const locale of LOCALES) {
-        if (locale === 'en') continue
+      for (const locale of PREFIXED_LOCALES) {
         // Snapshot: pushing into the array being iterated would clone clones.
         const originals = [...pages]
         pages.push(...originals.map((page) => clone(page, locale)))
@@ -118,11 +122,10 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: true,
-      // Ein Build, der eine kaputte Route stillschweigend überspringt, liefert
-      // eine Seite mit Löchern aus.
+      // A build that silently skips a broken route ships a site with holes.
       failOnError: true,
-      // Query-Varianten (`?foto=…`) sind derselbe Inhalt; sie zu prerendern
-      // würde Dateien mit Fragezeichen im Namen erzeugen.
+      // Query views (`?foto=…`) are the same content, and prerendering them
+      // would create files with a question mark in the name.
       ignore: [/\?/],
       // sitemap.xml and robots.txt are Nitro routes (server/routes/), not
       // files in public/: both need the absolute site URL, which only exists

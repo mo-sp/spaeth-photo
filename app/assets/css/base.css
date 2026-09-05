@@ -1,4 +1,4 @@
-/* Minimaler Reset und Grundtypografie. Alle Werte aus tokens.css. */
+/* Minimal reset and base typography. Every value comes from tokens.css. */
 
 *,
 *::before,
@@ -11,9 +11,8 @@ html {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
-  /* Beide Familien liegen als Variable Font vor und decken alle genutzten
-     Gewichte selbst ab. Ohne diese Zeile fettet der Browser während des
-     Font-Swaps synthetisch nach und die Wortmarke springt in der Breite. */
+  /* Both families are variable fonts and cover every weight used. Without this
+     the browser synthesises bold during the font swap and the wordmark jumps. */
   font-synthesis: none;
 }
 
@@ -36,8 +35,39 @@ a {
   outline-offset: 2px;
 }
 
-/* Sichtbar nur für Screenreader. Vollständige Variante (clip-path + Größe 1px),
-   damit der Text nicht doch irgendwo als Streifen auftaucht. */
+/* Type utilities. The same three declaration blocks were repeated in fifteen
+   scoped stylesheets; a repeated block is a chance to let them drift. Colour,
+   and the occasional line-height or letter-spacing variant, stay at the call
+   site, where a scoped selector outranks these. */
+.t-ui {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: var(--text-ui-size);
+  line-height: var(--text-ui-lh);
+  letter-spacing: var(--text-ui-ls);
+  text-transform: uppercase;
+}
+
+.t-meta {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: var(--text-meta-size);
+  line-height: var(--text-meta-lh);
+  letter-spacing: var(--text-meta-ls);
+  text-transform: uppercase;
+}
+
+.t-title-s {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--text-title-s-size);
+  line-height: var(--text-title-s-lh);
+  letter-spacing: var(--text-title-s-ls);
+  color: var(--color-text);
+}
+
+/* Screen-reader only. The full variant (clip-path plus 1px box) so the text
+   cannot surface as a stray strip. */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -50,8 +80,7 @@ a {
   border: 0;
 }
 
-/* Sprungmarke: liegt außerhalb des Viewports und kommt beim Fokussieren
-   herein. Erste fokussierbare Stelle des Dokuments. */
+/* Skip link: parked outside the viewport, slides in on focus. */
 .skip-link {
   position: fixed;
   top: 0;
@@ -72,30 +101,28 @@ a {
   transform: translateY(0);
 }
 
-/* Das Ziel der Sprungmarke ist programmatisch fokussierbar, soll aber keinen
-   eigenen Ring zeigen — der Sprung ist die Rückmeldung. */
+/* The skip target is programmatically focusable but shows no ring: the jump
+   itself is the feedback. */
 main:focus {
   outline: none;
 }
 
-/* Kachel-Fokusring: nach innen statt außen, sonst schneidet der Nachbar in der
-   Masonry-Spalte ihn ab. Das dunkle Band innen hält den hellen Ring auch über
-   einem hellen Foto lesbar. */
+/* Tile focus ring inside rather than outside, or the neighbouring masonry tile
+   clips it; the dark inset band keeps it readable over a bright photo. */
 .tile-focus:focus-visible {
   outline: 1px solid var(--color-text);
   outline-offset: -4px;
   box-shadow: inset 0 0 0 4px var(--color-bg);
 }
 
-/* Solange ein modaler Dialog offen ist, darf die Seite dahinter nicht
-   mitscrollen. */
+/* The page behind a modal dialog must not scroll along. */
 html:has(dialog[open]) {
   overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Nicht `none`: eine Dauer von 0 verschluckt das `transitionend`-Ereignis in
-     manchen Engines, 0,01 ms ist praktisch sofort und feuert zuverlässig. */
+  /* Not `none`: a duration of 0 swallows `transitionend` in some engines;
+     0.01ms is effectively instant and still fires. */
   *,
   *::before,
   *::after {
@@ -105,10 +132,8 @@ html:has(dialog[open]) {
     scroll-behavior: auto !important;
   }
 
-  /* Der Blur-up ist eine Bewegung im Bild selbst; unter „reduce" bleibt nur
-     die ruhige Durchschnittsfarbe stehen, bis das Bild da ist. Das Einblenden
-     selbst bleibt — es dauert durch die Regel oben 0,01 ms und ist damit
-     praktisch ein Umschalten. */
+  /* The blur-up is motion inside the image; under `reduce` only the calm
+     average colour remains until the photo arrives. */
   [data-lqip]::before {
     display: none !important;
   }

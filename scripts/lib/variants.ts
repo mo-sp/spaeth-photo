@@ -16,49 +16,38 @@ import type {
 } from '../../shared/types/photo.ts'
 
 /**
- * Erzeugung der Auslieferungsvarianten eines Fotos.
- *
- * Farbmanagement: die Pipeline setzt bewusst **kein** `toColorspace`,
- * `keepMetadata` oder `withMetadata`. Die Web-Quellen sind sRGB-getaggt,
- * libvips rechnet intern korrekt und schreibt profillose Ausgaben — und
- * profillos heißt für jeden Browser sRGB. Ein mitgeschriebenes Profil würde
- * jede Datei um rund 500 Byte aufblähen, ohne das Ergebnis zu ändern. Der
- * Integrationstest `tests/integration/color.test.ts` hält das fest: ein reines
- * Rot muss am Ende der Kette 255,0,0 sein.
+ * Delivery variants of one photo. No `toColorspace`, `keepMetadata` or
+ * `withMetadata` on purpose: the web sources are sRGB-tagged and a profileless
+ * output means sRGB to every browser, while an embedded profile would add
+ * roughly 500 bytes per file without changing the result.
  */
 
 export const BASE_WIDTHS = [480, 960, 1600, 2560] as const
 export type BaseWidth = (typeof BASE_WIDTHS)[number]
 
-/** JPEG ist nur der Notnagel für Browser ohne AVIF und WebP — zwei Stufen genügen. */
+/** JPEG is only the fallback for browsers without AVIF and WebP — two steps suffice. */
 export const JPEG_WIDTHS: readonly number[] = [960, 1600]
 
 /**
- * Startqualität je Stufe. Sie sinkt mit der Breite, weil ein großes Bild pro
- * Pixel weniger Bits braucht, um gleich gut auszusehen: es wird im Layout
- * seltener über seine native Größe hinaus vergrößert.
+ * Start quality per step. It falls with width because a large image needs fewer
+ * bits per pixel to look equally good: the layout scales it up less often.
  */
 export const AVIF_QUALITY: Record<BaseWidth, number> = { 480: 60, 960: 57, 1600: 54, 2560: 52 }
 export const WEBP_QUALITY: Record<BaseWidth, number> = { 480: 76, 960: 75, 1600: 74, 2560: 72 }
 
 /**
- * Obergrenze je Stufe in Kilobyte, gemessen an einem Querformat 3:2. Wird sie
- * gerissen, sinkt die Qualität in Fünferschritten bis zur Untergrenze. Der
- * Clamp greift nur bei den wenigen Bildern, die für den Encoder pathologisch
- * sind (Laub, Wellen, Rauschen im Nachthimmel) — genau dort, wo eine feste
- * Qualität sonst ein Vielfaches des Budgets erzeugt.
+ * Ceiling per step in kilobytes, measured on a 3:2 landscape. Exceeding it
+ * lowers the quality in steps of five down to the floor; the clamp only bites
+ * on images that are pathological for the encoder (foliage, waves, noise).
  */
 export const AVIF_BUDGET_KB: Record<BaseWidth, number> = { 480: 20, 960: 48, 1600: 95, 2560: 190 }
 
-/** WebP braucht für dasselbe Ergebnis mehr Platz als AVIF. */
+/** WebP needs more room than AVIF for the same result. */
 export const WEBP_BUDGET_FACTOR = 1.35
 
 export const QUALITY_STEP = 5
 export const AVIF_MIN_QUALITY = 38
-/**
- * WebP zerfällt unterhalb von etwa 60 sichtbar in Blöcke, während AVIF dort
- * noch brauchbar bleibt. Die Untergrenzen unterscheiden sich deshalb.
- */
+/** WebP breaks into visible blocks below about 60, where AVIF still holds up. */
 export const WEBP_MIN_QUALITY = 60
 
 export interface SharpenSettings {
@@ -68,10 +57,9 @@ export interface SharpenSettings {
 }
 
 /**
- * Verkleinern kostet Schärfe, und zwar umso mehr, je stärker verkleinert wird.
- * Die größte erzeugte Stufe bekommt deshalb **kein** Sharpen: sie wird auf
- * großen Bildschirmen nahezu 1:1 dargestellt, und dort fällt Nachschärfen als
- * Halo auf.
+ * Downscaling costs sharpness, the more the stronger it is. The largest step
+ * gets none: it is shown almost 1:1 on large screens, where sharpening would
+ * show up as a halo.
  */
 export const SHARPEN: Record<BaseWidth, SharpenSettings | null> = {
   480: { sigma: 0.6, m1: 0.3, m2: 1.6 },
@@ -88,14 +76,13 @@ export const LQIP_QUALITY = 35
 export const JPEG_QUALITY = 82
 
 /**
- * Alles, was das Aussehen der Ausgaben bestimmt. Der Hash dieses Objekts (plus
- * der libvips-Version) steht im Cache: ändert sich hier eine Zahl oder
- * aktualisiert sich libvips, wird alles neu gerendert, ohne dass jemand daran
- * denken muss.
+ * Everything that determines how the outputs look. The hash of this object
+ * (plus the libvips version) is in the cache, so changing a number here
+ * re-renders everything without anyone having to remember.
  */
 export const RENDER = {
-  // 2: JPEG-Fallback auch für Quellen unter 960 px, Qualitäts-Clamp auf die
-  // Untergrenze, `.autoOrient()` vor dem Verkleinern.
+  // 2: JPEG fallback for sources under 960 px too, quality clamped to the
+  // floor, `.autoOrient()` before downscaling.
   version: 2,
   baseWidths: BASE_WIDTHS,
   jpegWidths: JPEG_WIDTHS,
@@ -116,28 +103,24 @@ export const RENDER = {
 } as const
 
 /**
- * Die Breiten, die für ein Bild wirklich erzeugt werden. Nie größer als die
- * Quelle (hochskalieren ist verboten), und wenn die Quelle über der letzten
- * Regelstufe liegt, kommt ihre native Breite dazu. Das ist der Hochformat-Fall:
- * ein 2560 px hohes Porträt ist nur rund 1707 px breit, bekäme also ohne diese
- * Regel als größte Stufe 1600 px und würde auf der Detailseite unnötig
- * hochgerechnet.
+ * The widths actually generated for an image. Never larger than the source
+ * (upscaling is forbidden); a source above the last regular step contributes
+ * its native width. That is the portrait case: a 2560 px tall portrait is only
+ * about 1707 px wide and would otherwise top out at 1600 px.
  */
 export function widthLadder(sourceWidth: number): number[] {
   const widths = BASE_WIDTHS.filter((width) => width <= sourceWidth) as number[]
   const largest = widths.at(-1) ?? 0
-  // 32 px Abstand, damit nicht zwei praktisch identische Stufen entstehen.
+  // 32 px apart, so two practically identical steps cannot arise.
   if (sourceWidth - largest >= 32) widths.push(sourceWidth)
   if (widths.length === 0) widths.push(sourceWidth)
   return widths
 }
 
 /**
- * Die Breiten, die als JPEG entstehen. Normalerweise die Regelstufen 960 und
- * 1600 — greift davon keine, weil die Quelle schmaler als 960 px ist, springt
- * die größte erzeugte Stufe bis 1600 px ein. Ohne diesen Fall bliebe
- * `variants.jpeg` leer und das `<img>` im Frontend hätte kein `src`: für einen
- * Browser ohne AVIF und WebP wäre das Foto schlicht nicht da.
+ * The widths produced as JPEG: normally 960 and 1600, but if the source is
+ * narrower than 960 px the largest generated step up to 1600 px steps in.
+ * Without that, `variants.jpeg` stays empty and the `<img>` has no `src`.
  */
 export function jpegWidthsFor(widths: readonly number[]): number[] {
   const regular = widths.filter((width) => JPEG_WIDTHS.includes(width))
@@ -146,7 +129,7 @@ export function jpegWidthsFor(widths: readonly number[]): number[] {
   return fallback === undefined ? [] : [fallback]
 }
 
-/** Regelstufe, deren Einstellungen für eine erzeugte Breite gelten. */
+/** The regular step whose settings apply to a generated width. */
 export function stepFor(width: number): BaseWidth {
   for (const base of BASE_WIDTHS) if (width <= base) return base
   return 2560
@@ -158,10 +141,9 @@ export function sharpenFor(width: number, largestWidth: number): SharpenSettings
 }
 
 /**
- * Budget in Byte für eine konkrete Variante. Die Tabellenwerte sind an einem
- * Querformat 3:2 gemessen; ein Hochformat hat bei gleicher Breite deutlich mehr
- * Pixel und bekommt entsprechend mehr Platz. Ohne diese Skalierung würde der
- * Clamp bei Hochformaten dauernd grundlos zuschlagen.
+ * Budget in bytes for one variant. The table values are measured on a 3:2
+ * landscape; a portrait has far more pixels at the same width and gets
+ * proportionally more room, or the clamp would bite it constantly.
  */
 export function budgetBytes(width: number, height: number, factor = 1): number {
   const step = stepFor(width)
@@ -183,7 +165,7 @@ export interface RenderResult {
   files: ManifestFile[]
   ogFile: ManifestFile
   totalBytes: number
-  /** Zahl der tatsächlichen Encodes — zeigt, wie oft der Budget-Clamp zuschlug. */
+  /** Number of actual encodes — shows how often the budget clamp bit. */
   encodes: number
 }
 
@@ -199,7 +181,7 @@ function hex(value: number): string {
     .padStart(2, '0')
 }
 
-/** Durchschnittsfarbe über alle Pixel, als `#rrggbb`. */
+/** Average colour over all pixels, as `#rrggbb`. */
 export async function averageColor(file: string): Promise<string> {
   const stats = await sharp(file).stats()
   const [r, g, b] = stats.channels
@@ -208,9 +190,9 @@ export async function averageColor(file: string): Promise<string> {
 }
 
 /**
- * 20 px breites WebP als Data-URI. 20 px statt der geplanten 24: darunter
- * verliert die Vorschau ihre Form, darüber wächst der Index spürbar, und jedes
- * Byte hier steht im HTML jeder Seite, auf der das Bild vorkommt.
+ * 20 px wide WebP as a data URI — not the planned 24: below that the preview
+ * loses its shape, above it the index grows noticeably, and every byte here
+ * sits in the HTML of every page the image appears on.
  */
 export async function makeLqip(file: string): Promise<string> {
   const buffer = await sharp(file)
@@ -228,10 +210,9 @@ interface EncodeAttempt {
 }
 
 /**
- * Kodiert mit der Startqualität und senkt sie in Fünferschritten, solange das
- * Ergebnis über dem Budget liegt. Der letzte Schritt wird auf die Untergrenze
- * geklemmt statt abgebrochen: sonst wäre sie unerreichbar, weil sie auf keiner
- * Fünferleiter der Startwerte liegt (60 → 40, dann Stopp; 38 nie).
+ * Encodes at the start quality and lowers it in steps of five while the result
+ * exceeds the budget. The last step is clamped to the floor rather than
+ * abandoned: no ladder of fives off the start values ever lands on 38.
  */
 async function encodeWithinBudget(
   encode: (quality: number) => Promise<Buffer>,
@@ -253,7 +234,7 @@ async function encodeWithinBudget(
 export interface RenderOptions {
   sourceFile: string
   slug: string
-  /** Zielverzeichnis dieses Fotos, üblicherweise `public/img/<slug>`. */
+  /** Output directory of this photo, usually `public/img/<slug>`. */
   outDir: string
   write: (file: string, data: Buffer) => Promise<void>
 }
@@ -262,9 +243,9 @@ export async function renderPhoto(options: RenderOptions): Promise<RenderResult>
   const { sourceFile, slug, outDir, write } = options
 
   const metadata = await sharp(sourceFile, { failOn: 'error' }).metadata()
-  // Die Web-Quellen aus `export-sources` sind bereits gedreht und metadatenfrei;
-  // `.autoOrient()` ist dort ein No-op. Für alles andere — ein von Hand
-  // abgelegtes Bild, ein Test-Fixture — sind Maße und Pixel sonst über Kreuz.
+  // `.autoOrient()` is a no-op for the web sources from `export-sources`, which
+  // are already rotated. For anything else — a hand-placed image, a test
+  // fixture — dimensions and pixels would otherwise be crossed.
   const rotated = (metadata.orientation ?? 1) >= 5
   const sourceWidth = rotated ? metadata.height : metadata.width
   const sourceHeight = rotated ? metadata.width : metadata.height
@@ -296,9 +277,9 @@ export async function renderPhoto(options: RenderOptions): Promise<RenderResult>
   }
 
   for (const targetWidth of widths) {
-    // Einmal verkleinern, dann alle Formate aus demselben Rohbild kodieren:
-    // die drei Encoder sehen garantiert identische Pixel, und die teure
-    // Skalierung passiert nur einmal je Breite.
+    // Resize once, then encode all formats from the same raw image: the three
+    // encoders are guaranteed identical pixels, and the expensive scaling
+    // happens once per width.
     let pipeline = sharp(sourceFile, { failOn: 'error' }).autoOrient().resize({
       width: targetWidth,
       fit: 'inside',
@@ -357,9 +338,9 @@ export async function renderPhoto(options: RenderOptions): Promise<RenderResult>
     .autoOrient()
     .resize(OG_WIDTH, OG_HEIGHT, {
       fit: 'cover',
-      // Nicht mittig zuschneiden: `attention` sucht die Bildregion mit der
-      // höchsten Sättigung und Kantendichte. Bei einem Horizont im unteren
-      // Drittel trifft ein zentrierter Schnitt sonst nur Himmel.
+      // Not a centre crop: `attention` finds the region with the highest
+      // saturation and edge density. With a horizon in the lower third, a
+      // centred cut would hit nothing but sky.
       position: 'attention',
       withoutEnlargement: true,
       kernel: 'lanczos3',

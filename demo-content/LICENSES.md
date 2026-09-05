@@ -1,81 +1,79 @@
-# Lizenzen der Demo-Fotos
+# Licences of the demo photographs
 
-Alle drei Bilder stammen von Wikimedia Commons und wurden am 2026-08-29 per
-Commons-API (`action=query&prop=imageinfo&iiprop=url|size|extmetadata`)
-verifiziert (Lizenzfeld `LicenseShortName`, Autor aus `Artist`/`Credit`).
-Download der Originale via `curl -A "spaeth-photo-demo/1.0 (contact:
+All three images come from Wikimedia Commons and were verified on 2026-08-29
+through the Commons API (`action=query&prop=imageinfo&iiprop=url|size|extmetadata`;
+licence field `LicenseShortName`, author from `Artist`/`Credit`). The originals
+were downloaded with `curl -A "spaeth-photo-demo/1.0 (contact:
 github.com/mo-sp)"`.
 
-Die Dateien in `photos/source/` sind **abgeleitete Werke**: aus jedem Original
-wurde mit `scripts/export-sources.ts` eine Web-Quelle erzeugt — auf 2560 px
-lange Kante verkleinert, ohne Metadaten, mit sRGB-Profil, JPEG q82. Die
-Slugs im Repo lauten `demo-bald-eagle`, `demo-fog-over-forest` und
-`demo-sailboat`; die Zuordnung zum jeweiligen Originaldateinamen steht in
-`import-map.json`.
+The files in `photos/source/` are **derivative works**: each original was turned
+into a web source with `scripts/export-sources.ts` — resized to 2560 px on the
+long edge, stripped of metadata, with an sRGB profile, JPEG q82. The slugs in
+this repo are `demo-bald-eagle`, `demo-fog-over-forest` and `demo-sailboat`;
+`import-map.json` records which original file each one came from.
 
-Alle drei Lizenzen erlauben Bearbeitung und Weitergabe ohne Auflagen; die
-Nennung von Autor und Quelle erfolgt hier freiwillig.
+All three licences permit modification and redistribution without conditions;
+naming author and source here is voluntary.
 
 ---
 
-## demo-tier.jpg — Weißkopfseeadler (Bald Eagle)
+## demo-tier.jpg — Bald Eagle
 
-- **Commons-Titel:** File:USFWS bald eagle (23770875811).jpg
-- **Dateiseite:** https://commons.wikimedia.org/wiki/File:USFWS_bald_eagle_(23770875811).jpg
-- **Original-URL:** https://upload.wikimedia.org/wikipedia/commons/8/8c/USFWS_bald_eagle_%2823770875811%29.jpg
-- **Autor:** Peter Pearsall / U.S. Fish and Wildlife Service — Pacific Region
-  (Flickr-Quelle: https://www.flickr.com/photos/usfwspacific/23770875811/)
-- **Lizenz:** Public Domain — Werk der US-Bundesregierung (17 U.S.C. § 105,
-  Kategorie „PD US FWS" auf Commons). Keine Namensnennung erforderlich
-  (`AttributionRequired: false`); Credit-Hinweis der Quelle lautet: „You are
+- **Commons title:** File:USFWS bald eagle (23770875811).jpg
+- **File page:** https://commons.wikimedia.org/wiki/File:USFWS_bald_eagle_(23770875811).jpg
+- **Original URL:** https://upload.wikimedia.org/wikipedia/commons/8/8c/USFWS_bald_eagle_%2823770875811%29.jpg
+- **Author:** Peter Pearsall / U.S. Fish and Wildlife Service — Pacific Region
+  (Flickr source: https://www.flickr.com/photos/usfwspacific/23770875811/)
+- **Licence:** Public Domain — work of the US federal government (17 U.S.C. § 105,
+  category "PD US FWS" on Commons). No attribution required
+  (`AttributionRequired: false`); the source's own credit note reads: "You are
   free to use this image with the following photo credit: Peter
   Pearsall/U.S. Fish and Wildlife Service".
-- **Maße Original:** 4000 × 2667 px (Querformat), JPEG
-- **Änderungen:** verkleinert auf 2560 px lange Kante, alle Metadaten
-  entfernt, sRGB-Profil gesetzt (`pnpm export-sources`, JPEG q82)
+- **Original dimensions:** 4000 × 2667 px (landscape), JPEG
+- **Modifications:** resized to 2560 px on the long edge, all metadata removed,
+  sRGB profile set (`pnpm export-sources`, JPEG q82)
 
 ---
 
-## demo-landschaft.jpg — Nebel über Wald (Fremont-Winema National Forest)
+## demo-landschaft.jpg — Fog over forest (Fremont-Winema National Forest)
 
-- **Commons-Titel:** File:Fog over Forest, Fremont-Winema National Forest (36168540252).jpg
-- **Dateiseite:** https://commons.wikimedia.org/wiki/File:Fog_over_Forest,_Fremont-Winema_National_Forest_(36168540252).jpg
-- **Original-URL:** https://upload.wikimedia.org/wikipedia/commons/5/5d/Fog_over_Forest%2C_Fremont-Winema_National_Forest_%2836168540252%29.jpg
-- **Autor:** U.S. Forest Service – Pacific Northwest Region
-  (Flickr-Quelle: https://www.flickr.com/photos/forestservicenw/36168540252/)
-- **Lizenz:** Public Domain — Werk der US-Bundesregierung (Kategorie „PD US
-  USDA FS" auf Commons). Keine Namensnennung erforderlich
+- **Commons title:** File:Fog over Forest, Fremont-Winema National Forest (36168540252).jpg
+- **File page:** https://commons.wikimedia.org/wiki/File:Fog_over_Forest,_Fremont-Winema_National_Forest_(36168540252).jpg
+- **Original URL:** https://upload.wikimedia.org/wikipedia/commons/5/5d/Fog_over_Forest%2C_Fremont-Winema_National_Forest_%2836168540252%29.jpg
+- **Author:** U.S. Forest Service – Pacific Northwest Region
+  (Flickr source: https://www.flickr.com/photos/forestservicenw/36168540252/)
+- **Licence:** Public Domain — work of the US federal government (category
+  "PD US USDA FS" on Commons). No attribution required
   (`AttributionRequired: false`).
-- **Maße Original:** 5356 × 3596 px (Querformat), JPEG
-- **Änderungen:** verkleinert auf 2560 px lange Kante, alle Metadaten
-  entfernt, sRGB-Profil gesetzt (`pnpm export-sources`, JPEG q82)
+- **Original dimensions:** 5356 × 3596 px (landscape), JPEG
+- **Modifications:** resized to 2560 px on the long edge, all metadata removed,
+  sRGB profile set (`pnpm export-sources`, JPEG q82)
 
 ---
 
-## demo-segeln.jpg — Segelboot von oben (Lost at Sea)
+## demo-segeln.jpg — Sailboat from above (Lost at Sea)
 
-- **Commons-Titel:** File:Lost at Sea (Unsplash).jpg
-- **Dateiseite:** https://commons.wikimedia.org/wiki/File:Lost_at_Sea_(Unsplash).jpg
-- **Original-URL:** https://upload.wikimedia.org/wikipedia/commons/d/d4/Lost_at_Sea_%28Unsplash%29.jpg
-- **Autor:** Lance Asper (Unsplash: https://unsplash.com/@lance_asper),
-  ursprünglich veröffentlicht auf Unsplash: https://unsplash.com/photos/SLf9CvojiPo
-- **Lizenz:** CC0 1.0 Universal (Public Domain Dedication) —
+- **Commons title:** File:Lost at Sea (Unsplash).jpg
+- **File page:** https://commons.wikimedia.org/wiki/File:Lost_at_Sea_(Unsplash).jpg
+- **Original URL:** https://upload.wikimedia.org/wikipedia/commons/d/d4/Lost_at_Sea_%28Unsplash%29.jpg
+- **Author:** Lance Asper (Unsplash: https://unsplash.com/@lance_asper),
+  originally published on Unsplash: https://unsplash.com/photos/SLf9CvojiPo
+- **Licence:** CC0 1.0 Universal (Public Domain Dedication) —
   https://creativecommons.org/publicdomain/zero/1.0/deed.en
-  (`LicenseShortName: CC0`, `AttributionRequired: false`). Da CC0, ist eine
-  Namensnennung nicht erforderlich; sie wird hier trotzdem der guten Ordnung
-  halber dokumentiert.
-- **Maße Original:** 3830 × 2151 px (Querformat), JPEG
-- **Änderungen:** verkleinert auf 2560 px lange Kante, alle Metadaten
-  entfernt, sRGB-Profil gesetzt (`pnpm export-sources`, JPEG q82)
+  (`LicenseShortName: CC0`, `AttributionRequired: false`). Under CC0 attribution
+  is not required; it is documented here anyway, for good order.
+- **Original dimensions:** 3830 × 2151 px (landscape), JPEG
+- **Modifications:** resized to 2560 px on the long edge, all metadata removed,
+  sRGB profile set (`pnpm export-sources`, JPEG q82)
 
 ---
 
-## Prüfkriterien (alle drei erfüllt)
+## Selection criteria (all three met)
 
-- Keine erkennbaren Personen im Bild.
-- Keine Logos/Markenzeichen im Bild.
-- Querformat.
-- Lange Kante ≥ 2560 px im Original.
-- JPEG-Format.
-- Lizenz eindeutig frei (2× Public Domain / US-Government-Work, 1× CC0 1.0),
-  Quelle und Lizenzfeld direkt über die Commons-API verifiziert.
+- No identifiable people in the image.
+- No logos or trademarks in the image.
+- Landscape orientation.
+- Long edge ≥ 2560 px in the original.
+- JPEG format.
+- Unambiguously free licence (2× public domain / US government work, 1× CC0 1.0),
+  source and licence field verified directly through the Commons API.

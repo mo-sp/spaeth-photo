@@ -1,14 +1,24 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-// Schnelle Unit-Tests (`pnpm test`): die Build-Bibliothek unter tests/unit/ und
-// die reinen Frontend-Ableitungen, die neben ihrem Modul in
-// shared/utils/__tests__/ liegen (Nuxt importiert nur `shared/utils/*` direkt
-// automatisch, Unterordner bleiben außen vor). Die Integrationstests unter
-// tests/integration/ laufen separat über vitest.integration.config.ts, weil sie
-// echte Sharp-Encodes ausführen und dafür Sekunden statt Millisekunden brauchen.
+// Fast unit tests (`pnpm test`): the build library under tests/unit/ and the
+// pure derivations that sit next to their module. The alias mirrors Nuxt's `~`
+// so the dictionary lookup can be tested without booting Nuxt. The integration
+// tests under tests/integration/ run separately, because they perform real
+// sharp encodes and take seconds rather than milliseconds.
 export default defineConfig({
+  resolve: {
+    alias: {
+      '~': fileURLToPath(new URL('./app', import.meta.url)),
+      '#shared': fileURLToPath(new URL('./shared', import.meta.url)),
+    },
+  },
   test: {
-    include: ['tests/unit/**/*.test.ts', 'shared/utils/__tests__/**/*.test.ts'],
+    include: [
+      'tests/unit/**/*.test.ts',
+      'shared/utils/__tests__/**/*.test.ts',
+      'app/**/__tests__/**/*.test.ts',
+    ],
     environment: 'node',
   },
 })

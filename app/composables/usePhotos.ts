@@ -2,37 +2,31 @@ import raw from '~/data/photos.index.json'
 import type { PhotoIndexEntry, PhotoIndexFile, Tag } from '#shared/types/photo'
 
 /**
- * Zugriff auf den generierten Client-Index.
- *
- * Der Import steht im Modul-Scope: die Datei wird vom Bundler mitgenommen und
- * ist ohne Netzwerkrunde da — der Index ist eine Build-Konstante, kein
- * Datenabruf. Genau ein Cast bringt das strukturell typlose JSON auf das
- * Datenmodell; das Schema hat der Build bereits mit zod geprüft, ein zweites
- * Mal im Browser wäre bezahlte Arbeit ohne Ertrag.
+ * The generated client index. Imported at module scope, so the bundler inlines
+ * it and there is no network round trip — it is a build constant. Exactly one
+ * cast types the JSON; the build already validated it with zod.
  */
 const index = raw as unknown as PhotoIndexFile
 
-/** Ein Foto oder `null` — die Detailseite macht daraus einen 404. */
-export function usePhoto(slug: string): PhotoIndexEntry | null {
+/** Canonical order: date descending, then slug. Sorted once, not per call. */
+const photos = sortPhotos(index.photos)
+
+/** A photo or `null` — the detail page turns that into a 404. */
+export function findPhoto(slug: string): PhotoIndexEntry | null {
   return index.photos.find((photo) => photo.slug === slug) ?? null
 }
 
 export function usePhotos() {
   return {
     index,
-    /** Alle Fotos in kanonischer Ordnung: Datum absteigend, dann Slug. */
-    photos: sortPhotos(index.photos),
-    /** Nur tatsächlich vergebene Tags, in kanonischer Reihenfolge. */
+    /** All photos in canonical order: date descending, then slug. */
+    photos,
+    /** Only tags actually in use, in canonical order. */
     tags: index.tags,
     heroSlug: index.heroSlug,
-    /**
-     * Das Hero-Foto der Startseite. Der Build hat den Slug bereits aufgelöst
-     * (genau ein `hero: true`, sonst Warnung und Rückfall auf das neueste
-     * Bild); hier bleibt nur das Nachschlagen — und `null`, falls es überhaupt
-     * kein Foto gibt.
-     */
+    /** The home-page hero; the build already resolved the slug. */
     hero: index.photos.find((photo) => photo.slug === index.heroSlug) ?? null,
-    /** Prüft einen Routenparameter gegen den Bestand, nicht nur gegen das Vokabular. */
+    /** Checks a route parameter against the collection, not just the vocabulary. */
     knownTag(value: unknown): Tag | null {
       const tag = parseTag(value)
       if (tag === null) return null

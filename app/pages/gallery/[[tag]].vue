@@ -1,10 +1,10 @@
 <template>
   <div class="page">
     <div class="head">
-      <h1 class="head-title">{{ heading }}</h1>
+      <h1 class="head-title t-title-s">{{ heading }}</h1>
       <p class="head-count">
-        <!-- Sichtbar zweistellig wie in der Spec, gesprochen als ganze Zahl:
-             „null fünf Bilder" wäre eine Vorlesefassung des Layouts. -->
+        <!-- Two digits visually, a plain number when spoken: "zero five photos"
+             would be reading out the layout. -->
         <span aria-hidden="true">{{
           tn('count.photos', visible.length, padCounter(visible.length))
         }}</span>
@@ -14,12 +14,10 @@
 
     <PhotoGrid :photos="visible" @open="onOpen" />
 
-    <!-- Erst laden, wenn jemand sie öffnet: die Galerie ist die Seite, auf der
-         das Bundle am wenigsten Gewicht vertragen kann. Der `hydrated`-Wächter
-         hält den ersten Durchlauf im Browser deckungsgleich mit dem
-         prerenderten HTML: `/galerie?foto=x` ist dieselbe statische Datei wie
-         `/galerie`, und ohne den Wächter hinge es am Zufall des
-         Async-Platzhalters, ob Vue den Baum verwirft. -->
+    <!-- Loaded only when opened; the gallery is where the bundle can carry the
+         least weight. The `hydrated` gate keeps the first client render equal to
+         the prerendered HTML: `/gallery?foto=x` is the same static file as
+         `/gallery`. -->
     <LightboxAsync v-if="hydrated && isOpen" :photos="visible" />
   </div>
 </template>
@@ -33,10 +31,7 @@ const route = useRoute()
 const { photos, knownTag } = usePhotos()
 const { locale, t, tn, tag: tagText } = useI18n()
 
-/**
- * Der Tag steckt im Pfad, nicht in einer Query. Ein unbekannter Tag ist
- * deshalb keine leere Galerie, sondern eine Adresse, die es nicht gibt.
- */
+/** The tag is in the path, so an unknown tag is a missing address, not an empty gallery. */
 const tag = computed(() => knownTag(route.params.tag))
 
 if (route.params.tag && tag.value === null) {
@@ -49,18 +44,13 @@ if (route.params.tag && tag.value === null) {
 
 const visible = computed(() => filterByTag(photos, tag.value))
 
-const heading = computed(() =>
-  tag.value === null ? t('gallery.title') : tagText(tag.value),
-)
+const heading = computed(() => (tag.value === null ? t('gallery.title') : tagText(tag.value)))
 
 const { isOpen, open } = useLightbox(visible)
 
-// Der Deep-Link `?foto=<slug>` darf erst nach der Hydration greifen — die
-// prerenderte Seite kennt keine Query.
-const hydrated = ref(false)
-onMounted(() => {
-  hydrated.value = true
-})
+// The `?foto=<slug>` deep link may only take effect after hydration: the
+// prerendered page has no query.
+const hydrated = useHydrated()
 
 function onOpen(slug: string) {
   void open(slug)
@@ -70,9 +60,7 @@ useSiteSeo({
   // The document title names the section as well; the visible <h1> is just the
   // tag, because the page is already inside the gallery.
   title: () =>
-    tag.value === null
-      ? t('gallery.title')
-      : t('gallery.tagTitle', { tag: tagText(tag.value) }),
+    tag.value === null ? t('gallery.title') : t('gallery.tagTitle', { tag: tagText(tag.value) }),
   description: () =>
     tag.value === null
       ? t('gallery.description.all')
@@ -80,9 +68,7 @@ useSiteSeo({
   // The first photo of the current filter previews the filter, not the site.
   image: () => {
     const first = visible.value[0]
-    return first === undefined
-      ? null
-      : { path: first.og, alt: photoAlt(first, locale.value) }
+    return first === undefined ? null : { path: first.og, alt: photoAlt(first, locale.value) }
   },
 })
 </script>
@@ -99,12 +85,6 @@ useSiteSeo({
 
 .head-title {
   margin: 0;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--text-title-s-size);
-  line-height: var(--text-title-s-lh);
-  letter-spacing: var(--text-title-s-ls);
-  color: var(--color-text);
 }
 
 .head-count {
