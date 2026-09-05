@@ -15,7 +15,7 @@ performance are part of the goal.
   `@nuxt/image`. Tests with vitest.
 - Archivo and JetBrains Mono self-hosted in `public/fonts/`, plus two motto-only cuts
   (Italianno, Archivo 900), subset from `scripts/fonts-src/` (`scripts/subset-fonts.sh`,
-  373 → 62 KB).
+  373 → 63 KB).
 - `sitemap.xml` and `robots.txt` are Nitro routes under `server/routes/`, not static files:
   both need the absolute site URL from `NUXT_PUBLIC_SITE_URL` (a build variable).
 
