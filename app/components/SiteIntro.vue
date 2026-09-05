@@ -224,24 +224,17 @@ html[data-intro] .intro,
    button still answered Enter. `inert` in the template says the same thing to
    the DOM, which a stylesheet cannot. */
 .choice {
+  /* The larger of the two motto scales the canvas fixes. The component reads
+     the property, so no scoped selector has to reach into it. */
+  --motto-size: var(--motto-size-intro);
   opacity: 0;
   visibility: hidden;
   transition: opacity 1200ms ease;
 }
 
-.choice :deep(.motto) {
-  font-size: clamp(32px, 9vw, 88px);
-}
-
 .intro--2 .choice {
   opacity: 1;
   visibility: visible;
-}
-
-/* Over a moving picture a change of colour is not a focus indicator. */
-.choice :deep(.word:focus-visible) {
-  outline: 1px solid var(--color-text);
-  outline-offset: 6px;
 }
 
 .skip {
