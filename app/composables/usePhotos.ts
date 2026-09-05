@@ -25,6 +25,13 @@ export function usePhotos() {
     /** Nur tatsächlich vergebene Tags, in kanonischer Reihenfolge. */
     tags: index.tags,
     heroSlug: index.heroSlug,
+    /**
+     * Das Hero-Foto der Startseite. Der Build hat den Slug bereits aufgelöst
+     * (genau ein `hero: true`, sonst Warnung und Rückfall auf das neueste
+     * Bild); hier bleibt nur das Nachschlagen — und `null`, falls es überhaupt
+     * kein Foto gibt.
+     */
+    hero: index.photos.find((photo) => photo.slug === index.heroSlug) ?? null,
     /** Prüft einen Routenparameter gegen den Bestand, nicht nur gegen das Vokabular. */
     knownTag(value: unknown): Tag | null {
       const tag = parseTag(value)
