@@ -47,6 +47,7 @@ with three freely licensed placeholder images.
 | `pnpm dev`                    | dev server (`predev` renders the images first; cached run ~40 ms)   |
 | `pnpm export-sources`         | originals → web sources + YAML in the content repo                  |
 | `pnpm build-images`           | image variants, `photos.manifest.json`, client index                |
+| `pnpm encode-video`           | start-page clip → renditions + poster in the content repo           |
 | `pnpm check-manifest`         | validates the generated manifest (the CI gate)                      |
 | `pnpm generate`               | builds the static site                                              |
 | `pnpm build`                  | `build-images` + `generate` — the host's build command              |
@@ -59,19 +60,22 @@ with three freely licensed placeholder images.
 
 `build-images` takes `--dry-run`, `--force`, `--only <slug>`, `--strict` and
 `--source-dir <dir>`; `export-sources` takes `--source-dir`, `--map`, `--out`,
-`--quality`, `--only`, `--dry-run` and `--force`. Both know `--help`.
+`--quality`, `--only`, `--dry-run` and `--force`; `encode-video` takes `--source <file>`,
+`--slug`, `--out`, `--start`, `--duration`, `--poster`, `--ffmpeg`, `--dry-run` and
+`--force`. All three know `--help`.
 
 ## Project structure
 
 ```
 app/            Nuxt app: pages, components, composables, CSS tokens, i18n dictionaries
 shared/         pure logic and types, auto-imported by Nuxt and read by the build scripts
-scripts/        the image pipeline (export-sources, build-images, check-manifest) + lib/
+scripts/        the image pipeline (export-sources, build-images, check-manifest),
+                the video encoder (encode-video) + lib/
 server/routes/  sitemap.xml and robots.txt as Nitro routes, not static files
 public/         served as-is: the subset fonts; the generated image variants land here
 tests/          unit tests for the pipeline library, plus the colour integration test
 demo-content/   three freely licensed photos, the fallback when content/ is absent
-content/        private submodule: the actual photographs and their YAML metadata
+content/        private submodule: the photographs, their YAML metadata, the start-page clip
 docs/           architecture and decisions
 ```
 
@@ -93,6 +97,22 @@ image. Orphaned outputs are cleaned up — but only after a complete, error-free
 Image URLs are never stored: they follow the convention `/img/<slug>/<width>.<ext>`, so the
 index only records which widths exist per format. **File name = slug = URL**, and slugs are
 immutable after a deploy.
+
+## Start page
+
+A first visit opens on an intro overlay: the wordmark, then the background clip, then
+"Light / Shadow" as the choice between the dark and the light theme. The choice lives in
+`localStorage` (never a cookie), so everyone who has chosen once lands straight on the
+page; a deep link never shows the intro. The page itself is in the prerendered HTML the
+whole time — the overlay only stops it being painted — so crawlers and readers without
+JavaScript get the plain page.
+
+`encode-video` writes the renditions (1080p/720p H.264, 720p VP9, poster) into
+`content/video/<slug>/`, from a source clip that lives outside every repository. Nitro
+serves that directory as `/video/…` and copies it into the build; without the private
+content repo there is no clip and the home page keeps its hero photograph. Reduced motion
+and a data saver get the poster frame and no video bytes. Details, and the two open design
+questions, in `docs/architecture.md`.
 
 ## Internationalisation
 

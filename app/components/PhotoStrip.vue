@@ -1,11 +1,13 @@
 <template>
   <div
+    ref="strip"
     class="strip"
     :class="{ 'strip--animated': animated }"
     @mouseenter="start"
     @mouseleave="stop"
+    @wheel="onWheel"
   >
-    <ul ref="track" class="track" :style="{ transform: `translateX(${-offset}px)` }">
+    <ul ref="track" class="track">
       <li
         v-for="(photo, position) in photos"
         :key="photo.slug"
@@ -53,15 +55,16 @@
 import type { PhotoIndexEntry } from '#shared/types/photo'
 
 /**
- * Every photo in gallery order as one horizontal row. Where a fine pointer can
- * hover, the row scrolls itself while the pointer is on it; everywhere else it
- * is a row the reader scrolls, one tile at a time.
+ * Every photo in gallery order as one horizontal row, scrolled freely by touch,
+ * trackpad or wheel. Where a fine pointer can hover, the row also drifts by
+ * itself while the pointer rests on it.
  */
 const { photos } = usePhotos()
 const { locale, path } = useI18n()
 
+const strip = useTemplateRef<HTMLElement>('strip')
 const track = useTemplateRef<HTMLElement>('track')
-const { animated, offset, start, stop } = usePhotoStrip(track)
+const { animated, start, stop, onWheel } = usePhotoStrip(strip, track)
 
 /** Tile height in CSS px; mirrors `--curated-h` in `tokens.css`, which JS cannot read. Change both together. */
 const TILE_H = 124
@@ -92,16 +95,17 @@ function tileSizes(photo: PhotoIndexEntry): string {
 </script>
 
 <style scoped>
-/* The default is the version without motion: a row the reader scrolls, snapping
-   tile by tile. `strip--animated` is added only where a fine pointer can hover,
-   reduced motion is not requested and the list is wider than the visible area. */
+/* Free horizontal scrolling, no snapping: the row is something to move through,
+   not a carousel of positions. `overscroll-behavior` keeps a swipe that runs
+   out of row from turning into the browser's back gesture.
+   `strip--animated` is added only where a fine pointer can hover, reduced motion
+   is not requested and the list is wider than the visible area. */
 .strip {
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
 }
 
 .strip--animated {
-  scroll-snap-type: none;
   /* The row moves under the pointer; a scrollbar beneath it would only jitter.
      Focus can still scroll the container, so no tile becomes unreachable. */
   scrollbar-width: none;
@@ -117,7 +121,6 @@ function tileSizes(photo: PhotoIndexEntry): string {
 
 .cell {
   flex: 0 0 auto;
-  scroll-snap-align: start;
 }
 
 .tile {

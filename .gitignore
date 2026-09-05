@@ -26,6 +26,7 @@ logs
 # Generated image variants, manifest, client index and build cache
 # (hard rule in CLAUDE.md — never commit these)
 public/img/
+public/video/
 photos.manifest.json
 app/data/
 .image-cache/

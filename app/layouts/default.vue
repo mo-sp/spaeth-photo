@@ -1,5 +1,5 @@
 <template>
-  <div class="shell" :class="`shell--${asideKind}`">
+  <div class="shell" :class="[`shell--${asideKind}`, { 'shell--behind': behindClip }]">
     <SiteSidebar>
       <template #aside>
         <TagFilter v-if="asideKind === 'gallery'" />
@@ -31,6 +31,14 @@ const { siteUrl } = useRuntimeConfig().public
  * rendering, leaving the sidebar empty until hydration.
  */
 const asideKind = computed(() => route.meta.aside ?? 'none')
+
+/**
+ * With the clip as a full-page background the shell's own background would
+ * simply cover it: the clip lies behind the shell so the page can scroll over
+ * it, and behind means behind the background too.
+ */
+const { active: clipActive, variant: clipVariant } = useSiteVideo()
+const behindClip = computed(() => clipActive.value && clipVariant.value === 'full')
 
 // One instance for the page and both sidebar components, which are siblings of
 // the page rather than its descendants.
@@ -108,6 +116,19 @@ useSeoMeta({
   align-items: start;
   min-height: 100dvh;
   background: var(--color-bg);
+}
+
+.shell--behind {
+  background: none;
+}
+
+/* While the intro overlay is up, the page stays in the document — that is the
+   whole point of an overlay — but is not painted. `visibility`, not `display`:
+   the overlay and the clip sit inside this subtree and undo it for themselves,
+   and a hidden subtree also drops out of the tab order, so the choice on top
+   needs no focus trap. */
+html[data-intro] .shell {
+  visibility: hidden;
 }
 
 .content {

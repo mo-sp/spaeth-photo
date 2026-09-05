@@ -1,5 +1,5 @@
 {
-  "site.title": "Moritz Späth – Photography",
+  "site.title": "MS-Media – Photography",
   "site.description": "Photographs by Moritz Späth from Wedel on the Elbe: animals, nature, landscape and sailing.",
 
   "a11y.skip": "Skip to content",
@@ -26,6 +26,12 @@
   "home.all": "All photos",
   "home.motto.light": "Light",
   "home.motto.shadow": "Shadow",
+
+  "theme.toLight": "switch to the light theme",
+  "theme.toShadow": "switch to the dark theme",
+
+  "intro.aria": "Choose light or shadow",
+  "intro.skip": "Skip",
 
   "gallery.title": "Gallery",
   "gallery.tagTitle": "{tag} – Gallery",
