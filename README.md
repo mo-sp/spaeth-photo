@@ -18,7 +18,8 @@ source of truth for the front end. The reasoning behind each of those is in
   types itself (`node scripts/build-images.ts`).
 - **Own CSS** with custom properties (`app/assets/css/tokens.css`). No Tailwind, no UI kit.
 - **Own image pipeline** on sharp (`scripts/`), not `@nuxt/image`.
-- **Self-hosted fonts**, subset from the originals: Archivo and JetBrains Mono, 114 → 55 KB.
+- **Self-hosted fonts**, subset from the originals: Archivo and JetBrains Mono for the
+  pages, Italianno and Archivo 900 for the two words of the motto, 373 → 62 KB.
 - **vitest** for the pure logic and the pipeline library.
 
 Seven runtime dependencies, four of them chosen: sharp, zod, yaml and exif-reader. The other
