@@ -1,12 +1,8 @@
 <template>
   <article class="page">
-    <!--
-      Der sichtbare Titel steht laut Spec in der Seitenleiste, damit das Bild
-      den Inhaltsbereich allein hat. Die Überschrift der Seite gehört trotzdem
-      in ihren Inhalt: eine <h1> in der seitenübergreifenden Kopfpartie wäre
-      keine Überschrift *dieser* Seite. Beides zusammen geht nur so — sichtbar
-      in der Sidebar (dort als <p>), semantisch hier.
-    -->
+    <!-- The visible title sits in the sidebar so the image owns the content
+         area, but a page's heading belongs to its content: visible as a <p> in
+         the sidebar, semantic here. -->
     <h1 class="sr-only">{{ title }}</h1>
 
     <div class="stage">
@@ -29,7 +25,7 @@ definePageMeta({ aside: 'photo' })
 const route = useRoute()
 const router = useRouter()
 const { locale, t } = useI18n()
-const found = usePhoto(String(route.params.slug))
+const found = findPhoto(String(route.params.slug))
 
 if (!found) {
   throw createError({
@@ -41,22 +37,16 @@ if (!found) {
 
 const photo = found
 
-/**
- * Anzeigebreite und `srcset`-Deckel folgen der Bühnengeometrie: `contain` in
- * einem 820 px hohen Kasten deckelt die Breite auf `820 · aspectRatio`.
- * Beides steht als reine Funktion in `shared/utils/img.ts` und ist dort
- * getestet.
- */
+/** Display width and `srcset` cap follow the stage geometry; both are pure and tested in `shared/utils/img.ts`. */
 const sizes = detailSizes(photo.aspectRatio)
 const variantMax = detailVariantMax(photo.aspectRatio)
 
 const { nav, pathTo } = usePhotoNav()
 
 /**
- * ← und → blättern wie in der Lightbox. Die Wächter sind der eigentliche
- * Inhalt: mit Modifier gehört der Tastendruck dem Browser (Verlauf, Wortsprung),
- * in einem Eingabefeld dem Feld, und solange ein Dialog offen ist, blättert die
- * Lightbox — nicht die Seite dahinter.
+ * ← and → page as in the lightbox. The guards are the point: with a modifier the
+ * key belongs to the browser, in a field to the field, and while a dialog is
+ * open to the lightbox.
  */
 function onKeydown(event: KeyboardEvent) {
   if (event.defaultPrevented) return
@@ -83,19 +73,15 @@ const title = computed(() => photoTitle(photo, locale.value))
 
 useSiteSeo({
   title,
-  description: () =>
-    t('photo.description', { title: title.value, year: photo.year }),
+  description: () => t('photo.description', { title: title.value, year: photo.year }),
   ogType: 'article',
   image: () => ({ path: photo.og, alt: photoAlt(photo, locale.value) }),
 })
 </script>
 
 <style scoped>
-/*
-  Die Bühne ist so hoch wie die Spec sagt und trägt den Seitenhintergrund: das
-  Bild wird nie beschnitten, Hoch- und Querformat sitzen im selben Rahmen.
-  Unter 768 px ist `--detail-h: auto` — dort bestimmt die Breite die Höhe.
-*/
+/* The stage carries the page background so the image is never cropped and both
+   orientations sit in the same frame. Below 768 px width drives the height. */
 .stage {
   display: flex;
   align-items: center;

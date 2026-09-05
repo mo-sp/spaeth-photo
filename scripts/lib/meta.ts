@@ -7,26 +7,22 @@ import { formatIssues, photoMetaSchema } from './schema.ts'
 import { formatExifDate } from './exif.ts'
 
 /**
- * Lesen und Schreiben der `photos/meta/<slug>.yaml`.
- *
- * Geschrieben wird von Hand statt über `YAML.stringify`, weil die Reihenfolge
- * und die Schreibweise der Felder Teil der Konvention sind (content/CLAUDE.md)
- * und ein Diff im privaten Repo lesbar bleiben soll. Gelesen wird über die
- * `yaml`-Bibliothek — das Parsen ist der Teil, den man nicht selbst schreibt.
+ * Reading and writing `photos/meta/<slug>.yaml`. Written by hand rather than
+ * with `YAML.stringify` because field order and spelling are part of the
+ * convention (content/CLAUDE.md); read with the `yaml` library.
  */
 
 export type MetaResult = { ok: true; value: PhotoMeta } | { ok: false; issues: string[] }
 
-/** YAML-Doppelquote-Skalar. JSON-Escapes sind eine Teilmenge der YAML-Escapes. */
+/** YAML double-quoted scalar: JSON escapes are a subset of the YAML ones. */
 export function yamlString(value: string): string {
   return JSON.stringify(value)
 }
 
 /**
- * Tags in der kanonischen Reihenfolge aus `shared/utils/tags.ts`, ohne
- * Dubletten. Nimmt nur bereits geprüfte Tags entgegen — beide Aufrufer haben
- * sie zuvor durch `tagSchema` geschickt, ein zweiter Filter hier wäre toter
- * Code, der Unbekanntes stillschweigend verschlucken würde.
+ * Tags in the canonical order from `shared/utils/tags.ts`, deduplicated. Takes
+ * only pre-validated tags: both callers ran them through `tagSchema`, and a
+ * second filter here would silently swallow anything unknown.
  */
 export function sortTags(tags: readonly Tag[]): Tag[] {
   return [...new Set(tags)].sort((a, b) => TAG_ORDER.indexOf(a) - TAG_ORDER.indexOf(b))
@@ -55,10 +51,9 @@ export function renderMetaYaml(meta: PhotoMeta): string {
 }
 
 /**
- * YAML 1.2 kennt keinen Zeitstempel-Typ, `date: 2020-08-14` kommt also als
- * String zurück. Ältere Parser (und ein von Hand gesetztes `!!timestamp`)
- * liefern ein Date — beides wird hier auf `YYYY-MM-DD` gebracht, bevor das
- * Schema greift.
+ * YAML 1.2 has no timestamp type, so `date: 2020-08-14` comes back as a string;
+ * older parsers and a hand-written `!!timestamp` yield a Date. Both are brought
+ * to `YYYY-MM-DD` before the schema runs.
  */
 export function normalizeMetaInput(raw: unknown): unknown {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw
@@ -72,9 +67,9 @@ export function parseMeta(text: string): MetaResult {
   try {
     raw = parseYaml(text)
   } catch (error) {
-    return { ok: false, issues: [`YAML nicht lesbar: ${(error as Error).message}`] }
+    return { ok: false, issues: [`YAML not readable: ${(error as Error).message}`] }
   }
-  if (raw === null || raw === undefined) return { ok: false, issues: ['Datei ist leer'] }
+  if (raw === null || raw === undefined) return { ok: false, issues: ['file is empty'] }
 
   const parsed = photoMetaSchema.safeParse(normalizeMetaInput(raw))
   if (!parsed.success) return { ok: false, issues: formatIssues(parsed.error) }
@@ -86,14 +81,14 @@ export function readMetaFile(file: string): MetaResult {
   try {
     text = readFileSync(file, 'utf8')
   } catch (error) {
-    return { ok: false, issues: [`Datei nicht lesbar: ${(error as Error).message}`] }
+    return { ok: false, issues: [`file not readable: ${(error as Error).message}`] }
   }
   return parseMeta(text)
 }
 
 /**
- * Fingerabdruck der Metadaten für den Cache. Ändert sich nur der YAML-Inhalt,
- * wird das Manifest neu geschrieben, aber kein Bild neu kodiert.
+ * Fingerprint of the metadata for the cache: when only the YAML changes, the
+ * manifest is rewritten but no image is re-encoded.
  */
 export function metaHash(meta: PhotoMeta): string {
   return createHash('sha256').update(renderMetaYaml(meta)).digest('hex').slice(0, 16)

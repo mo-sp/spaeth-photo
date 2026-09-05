@@ -1,9 +1,9 @@
 {
-  // Build-Skripte und Tests laufen NICHT über Nuxt, sondern direkt unter Node 24
-  // (nativer TypeScript-Strip: `node scripts/x.ts`). Node entfernt Typen nur,
-  // es transformiert nichts — deshalb `erasableSyntaxOnly`: es verbietet genau
-  // die Konstrukte (enum, parameter properties, namespace mit Laufzeitwert),
-  // die eine echte Transformation bräuchten.
+  // Build scripts and tests do NOT run through Nuxt but directly under Node 24
+  // (native type stripping: `node scripts/x.ts`). Node only strips types, it
+  // transforms nothing - hence `erasableSyntaxOnly`, which forbids exactly the
+  // constructs (enum, parameter properties, value namespaces) that would need a
+  // real transformation.
   "compilerOptions": {
     "target": "ES2024",
     "lib": ["ES2024"],

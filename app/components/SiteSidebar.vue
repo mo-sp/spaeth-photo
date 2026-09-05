@@ -1,31 +1,20 @@
 <template>
-  <!--
-    Die linke Spalte ist auf dem Desktop ein einziger klebender Block. Unter
-    768 px löst `display: contents` diesen Block auf, und die drei Teile werden
-    zu eigenen Feldern des Shell-Grids: Kopfleiste oben, Sidebar-Inhalt
-    darunter (oder unter dem Bild), Fuß aus. Der Wrapper ist bewusst ein
-    <div> — er verliert durch `display: contents` keine Semantik, die
-    Landmarken sitzen auf den Teilen darin.
-  -->
+  <!-- One sticky block on the desktop; below 768 px `display: contents`
+       dissolves it so the three parts become their own shell-grid areas. A
+       <div> on purpose: `display: contents` would strip it of semantics, and
+       the landmarks sit on the parts inside. -->
   <div class="side" :class="{ 'side--photo': isPhotoPage }">
     <header class="side-top" @keydown.escape="closeMenu">
-      <NuxtLink to="/" class="wordmark">
+      <NuxtLink :to="path('/')" class="wordmark">
         <span>Moritz</span>
         <span>Späth</span>
       </NuxtLink>
 
-      <!--
-        Unter 768 px ist die Navigation ein aufklappbares Menü, oberhalb davon
-        eine dauerhaft sichtbare Liste. Das <details> trägt nur den Schalter,
-        die Liste steht als Geschwisterelement daneben und wird über
-        `[open] ~ .nav` eingeblendet. Grund: ein geschlossenes <details>
-        versteckt seine Kinder je nach Engine über `display: none` auf einem
-        Shadow-Slot oder über `content-visibility` auf ::details-content —
-        beides lässt sich nicht in allen Browsern zuverlässig wieder
-        aufheben, und eine Navigation, die im falschen Browser verschwindet,
-        ist kein akzeptabler Ausfall. Die Zustandsanzeige (aria-expanded)
-        liefert <summary> weiterhin selbst.
-      -->
+      <!-- The <details> carries only the toggle; the list is a sibling shown
+           via `[open] ~ .panel`. A closed <details> hides its children through
+           a shadow slot or ::details-content depending on the engine, and
+           neither can be undone reliably in every browser. <summary> still
+           provides aria-expanded itself. -->
       <details ref="menu" class="menu">
         <summary class="menu-toggle" aria-controls="main-navigation">
           <span aria-hidden="true">≡</span>
@@ -41,7 +30,7 @@
             v-for="item in navigation"
             :key="item.to"
             :to="path(item.to)"
-            class="nav-item"
+            class="nav-item t-ui"
             :aria-current="currentState(item.to)"
           >
             {{ item.label }}
@@ -51,12 +40,8 @@
       </div>
     </header>
 
-    <!--
-      Der Mittelteil trägt beides: den Sidebar-Inhalt oben und den Sidebar-Fuß
-      der Seite (Prev/Next) unten. Er ist ein eigenes Element, weil er unter
-      768 px als ein Grid-Feld an eine andere Stelle wandert — zwei Geschwister
-      landeten dort im selben Feld übereinander.
-    -->
+    <!-- One element rather than two siblings: below 768 px this moves as a
+         single grid area, and siblings would stack inside it. -->
     <div class="side-main">
       <div class="side-extra">
         <slot name="aside" />
@@ -66,10 +51,8 @@
       </div>
     </div>
 
-    <!-- Auf der Detailseite steht im Sidebar-Fuß Prev/Next samt Rechtslinks
-         (`PhotoAsideFoot`); Ort und Koordinaten sind laut Handoff ohnehin eine
-         Zutat der Startseite. Zwei Füße übereinander wären zwei Mal
-         „Impressum" auf derselben Seite. -->
+    <!-- On the detail page `PhotoAsideFoot` takes this slot and brings the
+         legal links with it; two feet would mean two "Impressum" links on one page. -->
     <SiteFoot v-if="!isPhotoPage" class="side-foot" />
   </div>
 </template>
@@ -87,26 +70,17 @@ const navigation = computed(() => [
 const menu = useTemplateRef<HTMLDetailsElement>('menu')
 const route = useRoute()
 
-/**
- * Auf der Detailseite trägt die Seitenleiste die Bildmetadaten; die
- * Navigationsliste entfällt dort und der Fuß gehört Prev/Next. Woran die Seite
- * das erkennt, steht schon in den Routen-Metadaten — dieselbe Quelle, aus der
- * das Layout den Sidebar-Inhalt wählt.
- */
+/** Read from the route meta the layout already uses to pick the sidebar content. */
 const isPhotoPage = computed(() => route.meta.aside === 'photo')
 
 /**
- * Der Aktivzustand der Navigation deckt den ganzen Abschnitt ab, nicht nur die
- * genaue Adresse: `/galerie/segeln` ist eine Galerie-Seite. `NuxtLink` setzt
- * `aria-current` von sich aus nur bei exakter Übereinstimmung — deshalb hier
- * ausgeschrieben. `page` bleibt der genauen Seite vorbehalten, der Abschnitt
- * bekommt das allgemeine `true`; sonst gäbe es auf `/galerie/segeln` zwei
- * „aktuelle Seiten" (die Navigation und den Filter-Chip).
+ * Section-wide active state: `/gallery/sailing` is a gallery page, but NuxtLink
+ * sets `aria-current` only on an exact match. `page` stays reserved for the
+ * exact page so a filtered gallery does not report two current pages.
  */
 function currentState(to: string): 'page' | 'true' | undefined {
-  // Compared in the unprefixed form, never on the raw path: `/de` is the
-  // German home page, and a prefix test against it would mark „Home" as the
-  // current section on every German page.
+  // Compared unprefixed: `/de` is the German home page, and a prefix test
+  // against the raw path would mark Home as current on every German page.
   const raw = stripLocale(route.path)
   const current = raw.length > 1 ? raw.replace(/\/$/, '') : raw
   if (current === to) return 'page'
@@ -117,8 +91,8 @@ function closeMenu() {
   if (menu.value) menu.value.open = false
 }
 
-// Ein <details> schließt sich nach einem Klick nicht von selbst; ohne diesen
-// Wächter bliebe das Menü über der neuen Seite stehen.
+// A <details> does not close itself after a click; without this the menu
+// would stay open over the new page.
 watch(() => route.fullPath, closeMenu)
 </script>
 
@@ -127,9 +101,8 @@ watch(() => route.fullPath, closeMenu)
   grid-area: brand;
   display: flex;
   flex-direction: column;
-  /* Die Spalte klebt über die volle Viewporthöhe, statt mit dem Inhalt zu
-     wandern. `align-self` verhindert, dass das Grid sie auf die Höhe der
-     Galerie streckt — sonst hätte `position: sticky` nichts, woran es klebt. */
+  /* `align-self` keeps the grid from stretching the column to gallery height —
+     otherwise `position: sticky` would have nothing to stick to. */
   align-self: flex-start;
   position: sticky;
   top: 0;
@@ -149,8 +122,8 @@ watch(() => route.fullPath, closeMenu)
   color: var(--color-text);
 }
 
-/* Zwei Spans statt <br>: auf dem Desktop stehen sie untereinander, in der
-   mobilen Kopfleiste nebeneinander — ohne dass das Markup sich ändert. */
+/* Two spans rather than a <br>: stacked on the desktop, side by side in the
+   mobile top bar, with no markup change. */
 .wordmark span {
   display: block;
 }
@@ -180,12 +153,6 @@ watch(() => route.fullPath, closeMenu)
 .nav-item {
   padding: 12px var(--space-3);
   border-left: var(--nav-marker) solid transparent;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  line-height: var(--text-ui-lh);
-  letter-spacing: var(--text-ui-ls);
-  text-transform: uppercase;
   color: var(--color-text-muted);
   transition:
     color var(--t-fast),
@@ -197,10 +164,8 @@ watch(() => route.fullPath, closeMenu)
   color: var(--color-text);
 }
 
-/* Abschnitts-Aktivzustand, nicht nur exakte Adresse: auf `/galerie/segeln`
-   bleibt „Galerie" markiert. `router-link-active` trifft für „/" nur die
-   Startseite selbst — vue-router vergleicht die getroffenen Routen, nicht das
-   Pfad-Präfix. */
+/* Section active state, not just the exact address. For `/` the rule still
+   matches only the home page: vue-router compares matched routes, not path prefixes. */
 .nav-item.router-link-active {
   color: var(--color-text);
   border-left-color: var(--color-text);
@@ -209,16 +174,14 @@ watch(() => route.fullPath, closeMenu)
 .side-main {
   display: flex;
   flex-direction: column;
-  /* Nimmt den freien Platz, damit `.side-bottom` unten kleben kann und der
-     Seitenfuß darunter bleibt. */
+  /* Takes the free space so `.side-bottom` can sit at the bottom. */
   flex: 1 1 auto;
   min-height: 0;
   margin-top: var(--space-brand);
 }
 
 .side-extra {
-  /* Der Filterblock darf scrollen, wenn die Liste einmal länger wird als die
-     Sidebar hoch ist; der Fuß bleibt dabei sichtbar. */
+  /* Lets the filter scroll if the list outgrows the sidebar, keeping the foot visible. */
   min-height: 0;
   overflow-y: auto;
 }
@@ -227,8 +190,7 @@ watch(() => route.fullPath, closeMenu)
   margin-top: auto;
 }
 
-/* `:empty` griffe hier nicht: ein nicht befüllter Slot hinterlässt einen
-   Kommentarknoten. `:has(*)` fragt nach echten Elementen. */
+/* `:empty` would not match: an unfilled slot leaves a comment node behind. */
 .side-extra:not(:has(*)),
 .side-bottom:not(:has(*)) {
   display: none;
@@ -239,10 +201,8 @@ watch(() => route.fullPath, closeMenu)
   padding: var(--space-3) var(--space-3) 0;
 }
 
-/* Die Navigationsliste entfällt auf der Detailseite — nur oberhalb von 768 px:
-   mobil ist sie das Menü der Kopfleiste und damit der einzige Weg zu den
-   übrigen Seiten. Die Wortmarke bleibt in beiden Fällen als Weg zur
-   Startseite. */
+/* The nav list goes away on the detail page, but only above 768 px: on mobile
+   it is the top-bar menu and the only way to the other pages. */
 @media (min-width: 768px) {
   .side--photo .nav {
     display: none;
@@ -257,7 +217,7 @@ watch(() => route.fullPath, closeMenu)
   .side-top {
     grid-area: brand;
     position: sticky;
-    /* Bezugsrahmen für das ausgeklappte Menü. */
+    /* Containing block for the drop-down menu. */
     top: 0;
     z-index: 20;
     display: flex;
@@ -267,7 +227,7 @@ watch(() => route.fullPath, closeMenu)
     min-height: var(--topbar-h);
     padding: 0 var(--space-1) 0 0;
     isolation: isolate;
-    /* Deckend, sonst scrollen die Kacheln sichtbar hindurch. */
+    /* Opaque, or the tiles show through while scrolling. */
     background: var(--color-bg);
     border-bottom: var(--border);
   }
@@ -349,7 +309,7 @@ watch(() => route.fullPath, closeMenu)
     overflow: visible;
   }
 
-  /* Ort und Rechtliches stehen mobil im Seitenfuß (Layout), nicht hier. */
+  /* On mobile, place and legal links live in the page foot (layout), not here. */
   .side-foot {
     display: none;
   }

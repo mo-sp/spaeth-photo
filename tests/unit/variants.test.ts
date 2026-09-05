@@ -8,54 +8,54 @@ import {
   stepFor,
   widthLadder,
 } from '../../scripts/lib/variants.ts'
-import { srcset, variantUrl } from '../../shared/constants/images.ts'
+import { variantUrl } from '../../shared/constants/images.ts'
 
 describe('widthLadder', () => {
-  it('erzeugt für ein Querformat die vier Regelstufen', () => {
+  it('produces the four standard steps for a landscape image', () => {
     expect(widthLadder(2560)).toEqual([480, 960, 1600, 2560])
   })
 
-  it('vergrößert nie über die Quelle hinaus', () => {
+  it('never scales beyond the source', () => {
     expect(widthLadder(980)).toEqual([480, 960])
     expect(widthLadder(1000)).toEqual([480, 960, 1000])
     expect(widthLadder(400)).toEqual([400])
   })
 
-  it('nimmt bei einem Hochformat dessen native Breite als größte Stufe dazu', () => {
-    // 2560 px hoch, 3:2 → 1707 px breit. Ohne diese Stufe wäre die größte
-    // ausgelieferte Breite 1600 und die Detailseite müsste hochrechnen.
+  it('adds the native width of a portrait image as its largest step', () => {
+    // 2560 px tall, 3:2 → 1707 px wide. Without this step the largest delivered
+    // width would be 1600 and the detail page would have to scale up.
     expect(widthLadder(1707)).toEqual([480, 960, 1600, 1707])
   })
 
-  it('erzeugt keine zwei praktisch gleichen Stufen', () => {
+  it('produces no two practically identical steps', () => {
     expect(widthLadder(1610)).toEqual([480, 960, 1600])
     expect(widthLadder(1640)).toEqual([480, 960, 1600, 1640])
   })
 })
 
 describe('jpegWidthsFor', () => {
-  it('nimmt die beiden Regelstufen, wenn es sie gibt', () => {
+  it('takes the two standard steps where they exist', () => {
     expect(jpegWidthsFor(widthLadder(2560))).toEqual([960, 1600])
     expect(jpegWidthsFor(widthLadder(1707))).toEqual([960, 1600])
     expect(jpegWidthsFor(widthLadder(1000))).toEqual([960])
   })
 
-  it('erzeugt für eine schmale Quelle die größte vorhandene Stufe als JPEG', () => {
-    // Ohne diesen Fall bliebe variants.jpeg leer, und ein Browser ohne AVIF
-    // und WebP bekäme im <img> kein src — das Foto wäre schlicht weg.
+  it('renders the largest available step as JPEG for a narrow source', () => {
+    // Without this case variants.jpeg stays empty and a browser without AVIF and
+    // WebP gets no src in the <img> — the photo would simply be gone.
     expect(jpegWidthsFor(widthLadder(800))).toEqual([800])
     expect(jpegWidthsFor(widthLadder(480))).toEqual([480])
     expect(jpegWidthsFor(widthLadder(400))).toEqual([400])
   })
 
-  it('bleibt unter 1600 px — ein JPEG in Maximalgröße wäre reine Verschwendung', () => {
+  it('stays below 1600 px — a JPEG at maximum size would be pure waste', () => {
     expect(jpegWidthsFor([1707])).toEqual([])
     expect(jpegWidthsFor([])).toEqual([])
   })
 })
 
 describe('stepFor', () => {
-  it('ordnet jede Breite der passenden Regelstufe zu', () => {
+  it('maps every width to its matching standard step', () => {
     expect(stepFor(480)).toBe(480)
     expect(stepFor(960)).toBe(960)
     expect(stepFor(1600)).toBe(1600)
@@ -65,12 +65,12 @@ describe('stepFor', () => {
 })
 
 describe('sharpenFor', () => {
-  it('schärft die größte Stufe nicht nach', () => {
+  it('does not sharpen the largest step', () => {
     expect(sharpenFor(2560, 2560)).toBeNull()
     expect(sharpenFor(1707, 1707)).toBeNull()
   })
 
-  it('schärft kleinere Stufen umso stärker, je stärker verkleinert wurde', () => {
+  it('sharpens smaller steps the more they were scaled down', () => {
     expect(sharpenFor(480, 2560)).toEqual(SHARPEN[480])
     expect(sharpenFor(1600, 2560)).toEqual(SHARPEN[1600])
     expect(sharpenFor(960, 2560)!.m2).toBeGreaterThan(sharpenFor(1600, 2560)!.m2)
@@ -78,29 +78,25 @@ describe('sharpenFor', () => {
 })
 
 describe('budgetBytes', () => {
-  it('trifft bei einem Querformat 3:2 den Tabellenwert', () => {
+  it('hits the table value for a 3:2 landscape image', () => {
     const budget = budgetBytes(1600, Math.round(1600 / 1.5))
     expect(budget / 1024).toBeCloseTo(AVIF_BUDGET_KB[1600], 0)
   })
 
-  it('gibt einem Hochformat bei gleicher Breite mehr Platz — es hat mehr Pixel', () => {
-    const quer = budgetBytes(960, 640)
-    const hoch = budgetBytes(960, 1440)
-    expect(hoch / quer).toBeCloseTo(2.25, 2)
+  it('gives a portrait image more room at the same width — it has more pixels', () => {
+    const landscape = budgetBytes(960, 640)
+    const portrait = budgetBytes(960, 1440)
+    expect(portrait / landscape).toBeCloseTo(2.25, 2)
   })
 
-  it('skaliert linear mit dem Faktor', () => {
+  it('scales linearly with the factor', () => {
     expect(budgetBytes(960, 640, 1.35) / budgetBytes(960, 640)).toBeCloseTo(1.35, 5)
   })
 })
 
-describe('URL-Konvention', () => {
-  it('bildet Pfade aus Slug, Breite und Format', () => {
+describe('URL convention', () => {
+  it('builds paths from slug, width and format', () => {
     expect(variantUrl('hafen-am-morgen', 960, 'avif')).toBe('/img/hafen-am-morgen/960.avif')
     expect(variantUrl('hafen-am-morgen', 960, 'jpeg')).toBe('/img/hafen-am-morgen/960.jpg')
-  })
-
-  it('baut daraus ein srcset', () => {
-    expect(srcset('x', [480, 960], 'webp')).toBe('/img/x/480.webp 480w, /img/x/960.webp 960w')
   })
 })

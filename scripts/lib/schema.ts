@@ -13,12 +13,9 @@ import type {
 import { SLUG_PATTERN } from './slug.ts'
 
 /**
- * Laufzeit-Validierung der Metadaten und der erzeugten Artefakte.
- *
- * Die Schemata sind **bidirektional** an `shared/types/photo.ts` geklammert:
- * `AssertExact` erzwingt Gleichheit in beide Richtungen. Wer ein Feld nur im
- * Typ oder nur im Schema ändert, bekommt einen Typfehler statt einer stillen
- * Abweichung zwischen Compile- und Laufzeit.
+ * Runtime validation of the metadata and the generated artefacts. `AssertExact`
+ * clamps each schema to `shared/types/photo.ts` in both directions: changing a
+ * field on only one side is a type error, not a silent compile/runtime drift.
  */
 
 type Identical<A, B> =
@@ -32,29 +29,28 @@ export const tagSchema = z.enum(TAG_ORDER)
 
 export const slugSchema = z
   .string()
-  .regex(SLUG_PATTERN, 'Slug muss kleingeschrieben, kebab-case und ASCII sein')
+  .regex(SLUG_PATTERN, 'slug must be lowercase, kebab-case and ASCII')
 
 export const dateSchema = z
   .string()
-  .regex(DATE_PATTERN, 'Datum muss YYYY-MM-DD sein')
+  .regex(DATE_PATTERN, 'date must be YYYY-MM-DD')
   .refine((value) => {
     const parsed = new Date(`${value}T00:00:00Z`)
     return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
-  }, 'Datum existiert nicht')
+  }, 'date does not exist')
 
-/** Schema einer `photos/meta/<slug>.yaml`. */
+/** Schema of a `photos/meta/<slug>.yaml`. */
 export const photoMetaSchema = z
   .object({
     // `title` is English and primary; the `_de` fields may be missing.
-    title: z.string().trim().min(1, 'title darf nicht leer sein'),
+    title: z.string().trim().min(1, 'title must not be empty'),
     title_de: z.string().trim().min(1).nullable().default(null),
     alt: z.string().trim().min(1).nullable().default(null),
     alt_de: z.string().trim().min(1).nullable().default(null),
     date: dateSchema,
-    // Alles außer Titel und Datum darf in einer handgeschriebenen Datei fehlen
-    // und wird auf den dokumentierten Standardwert gesetzt. Unbekannte
-    // Schlüssel bleiben dank `.strict()` trotzdem ein Fehler — ein Tippfehler
-    // soll auffallen, eine Auslassung nicht stören.
+    // Everything but title and date may be omitted from a hand-written file.
+    // Unknown keys stay an error via `.strict()`: a typo should be noticed, an
+    // omission should not get in the way.
     tags: z.array(tagSchema).default([]),
     collection: z.string().min(1).nullable().default(null),
     camera: z.string().min(1).nullable().default(null),
@@ -102,7 +98,7 @@ const indexEntryShape = {
   height: z.int().positive(),
   aspectRatio: z.number().positive(),
   orientation: z.enum(['landscape', 'portrait', 'square']),
-  color: z.string().regex(/^#[0-9a-f]{6}$/, 'Farbe muss #rrggbb sein'),
+  color: z.string().regex(/^#[0-9a-f]{6}$/, 'colour must be #rrggbb'),
   lqip: z.string().startsWith('data:image/webp;base64,'),
   variants: variantsSchema,
   og: z.string().startsWith('/img/'),
@@ -178,10 +174,10 @@ export const photoManifestTypeCheck: AssertExact<
   PhotoManifest
 > = true
 
-/** Ein zod-Fehler als eine Zeile: `tags.1: Ungültiger Wert`. */
+/** A zod error as a single line: `tags.1: Invalid value`. */
 export function formatIssues(error: z.ZodError): string[] {
   return error.issues.map((issue) => {
-    const where = issue.path.length > 0 ? issue.path.join('.') : '(Wurzel)'
+    const where = issue.path.length > 0 ? issue.path.join('.') : '(root)'
     return `${where}: ${issue.message}`
   })
 }

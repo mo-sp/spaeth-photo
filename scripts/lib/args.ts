@@ -1,14 +1,14 @@
 import { parseArgs } from 'node:util'
 
 /**
- * Dünne Hülle um `node:util.parseArgs`. Kein commander: die beiden CLIs haben
- * zusammen ein Dutzend Flags, und die Standardbibliothek deckt das ab.
+ * Thin wrapper around `node:util.parseArgs`. Not commander: the two CLIs have a
+ * dozen flags between them, which the standard library covers.
  */
 
 export interface OptionSpec {
   type: 'string' | 'boolean'
   short?: string
-  /** Platzhalter für die Hilfe, z. B. `<dir>`. */
+  /** Placeholder for the help text, e.g. `<dir>`. */
   placeholder?: string
   description: string
 }
@@ -16,9 +16,9 @@ export interface OptionSpec {
 export type OptionSpecs = Record<string, OptionSpec>
 
 export interface ParsedFlags {
-  /** Boolescher Schalter; nicht gesetzt = false. */
+  /** Boolean switch; unset = false. */
   bool(name: string): boolean
-  /** Wert eines `--name <wert>`-Flags; nicht gesetzt = undefined. */
+  /** Value of a `--name <value>` flag; unset = undefined. */
   str(name: string): string | undefined
   positionals: string[]
 }
@@ -58,7 +58,7 @@ export function parseFlags(
   }
 }
 
-/** Hilfetext aus derselben Spezifikation, damit beides nicht auseinanderläuft. */
+/** Help text built from the same spec, so the two cannot drift apart. */
 export function formatHelp(usage: string, specs: OptionSpecs): string {
   const rows = Object.entries(specs).map(([name, spec]) => {
     const flag = `--${name}${spec.placeholder ? ' ' + spec.placeholder : ''}`
@@ -66,12 +66,10 @@ export function formatHelp(usage: string, specs: OptionSpecs): string {
   })
   const width = Math.max(...rows.map(([left]) => left.length))
   const lines = rows.map(([left, right]) => `  ${left.padEnd(width)}  ${right}`)
-  return [usage, '', 'Optionen:', ...lines, `  ${'    --help'.padEnd(width)}  Diese Hilfe`].join(
-    '\n',
-  )
+  return [usage, '', 'Options:', ...lines, `  ${'    --help'.padEnd(width)}  This help`].join('\n')
 }
 
-/** true, wenn `--help` gesetzt ist (vor dem Zugriff auf andere Flags prüfen). */
+/** true if `--help` is set; check this before touching any other flag. */
 export function wantsHelp(argv: string[] = process.argv.slice(2)): boolean {
   return argv.includes('--help') || argv.includes('-h')
 }

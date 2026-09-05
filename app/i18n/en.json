@@ -60,6 +60,7 @@
   "error.404.text": "This address does not exist. It may have been mistyped, or the page may have been renamed.",
   "error.other.text": "Something went wrong on this page.",
   "error.status": "Error {status}",
+  "error.nav.aria": "Ways on from here",
   "error.home": "Home",
   "error.gallery": "Gallery"
 }

@@ -1,11 +1,11 @@
 <template>
   <dialog ref="dialog" class="box" :aria-labelledby="titleId" @cancel.prevent="close()">
     <div class="head">
-      <NuxtLink class="head-link" :to="detailPath">
+      <NuxtLink class="head-link t-ui" :to="detailPath">
         {{ t('lightbox.details') }}
         <span aria-hidden="true">→</span>
       </NuxtLink>
-      <button ref="escape" type="button" class="head-link" autofocus @click="close()">
+      <button ref="escape" type="button" class="head-link t-ui" autofocus @click="close()">
         <span aria-hidden="true">Esc</span>
         <span class="sr-only">{{ t('lightbox.close') }}</span>
       </button>
@@ -39,9 +39,7 @@
         <span>{{ photo.year }}</span>
         <span aria-hidden="true"> · </span>
         <span aria-hidden="true">{{ padCounter(nav.position) }} / {{ padCounter(nav.total) }}</span>
-        <span class="sr-only">{{
-          t('photo.counter', { n: nav.position, total: nav.total })
-        }}</span>
+        <span class="sr-only">{{ t('photo.counter', { n: nav.position, total: nav.total }) }}</span>
       </span>
     </p>
   </dialog>
@@ -51,12 +49,8 @@
 import type { PhotoIndexEntry } from '#shared/types/photo'
 
 /**
- * Die Vollbildansicht als natives `<dialog>` mit `showModal()`.
- *
- * Damit übernimmt der Browser Fokusfalle, Inertisierung des Hintergrunds, die
- * Esc-Taste und die Rolle im Accessibility-Baum. Alles davon von Hand
- * nachzubauen, ist der klassische Weg zu einer Lightbox, aus der man mit der
- * Tastatur nicht mehr herauskommt.
+ * Full-screen view as a native `<dialog>` with `showModal()`, so the browser
+ * owns the focus trap, background inertness, Esc and the accessibility role.
  */
 const props = defineProps<{ photos: PhotoIndexEntry[] }>()
 
@@ -64,21 +58,16 @@ const route = useRoute()
 const { locale, t, path } = useI18n()
 const { current, nav, go, close } = useLightbox(() => props.photos)
 
-// Das v-if der Seite hängt an isOpen; solange dieses Bauteil lebt, gibt es ein
-// Bild. Der Fallback hält TypeScript und den Moment des Schließens ruhig.
+// The page's v-if is bound to isOpen, so a photo always exists while this
+// component lives; the fallback only covers the closing frame.
 const photo = computed(() => current.value ?? props.photos[0]!)
 
 const titleId = useId()
 
 /**
- * Die Bühne ist so breit wie der Viewport minus der beiden Pfeilspalten und des
- * Bildrands: mobil 2×44 px Pfeil und 2×8 px Rand, auf dem Desktop 2×72 px
- * Pfeil und 2×32 px Rand.
- *
- * Ein `variantMax` gibt es hier nicht: anders als auf der Detailseite hat die
- * Bühne keine feste Höhe, aus der sich eine Höchstbreite ableiten ließe — sie
- * ist so hoch wie das Fenster. Ein geratener Deckel machte auf einem großen
- * Bildschirm genau das Bild unscharf, für das die Lightbox da ist.
+ * Viewport minus the two arrow columns and the image margin. No `variantMax`
+ * here: the stage is as tall as the window, so there is no height to derive a
+ * cap from, and a guessed one would blur the image on a large screen.
  */
 const STAGE_SIZES = '(max-width: 767px) calc(100vw - 104px), calc(100vw - 208px)'
 
@@ -86,23 +75,22 @@ const detailPath = computed(() => {
   const tag = route.params.tag
   return {
     path: path(`/photo/${photo.value.slug}`),
-    // Der Filterkontext reist als weicher Zustand mit, damit Prev/Next auf der
-    // Detailseite in derselben Auswahl bleiben.
+    // The filter context travels along so prev/next on the detail page stay
+    // inside the same selection.
     query: typeof tag === 'string' && tag !== '' ? { tag } : {},
   }
 })
-
 
 function step(direction: -1 | 1) {
   const target = direction === 1 ? nav.value.next : nav.value.prev
   if (target) void go(target.slug)
 }
 
-/* ---- Dialog öffnen und schließen ------------------------------------- */
+/* ---- Opening and closing --------------------------------------------- */
 
 const dialog = useTemplateRef<HTMLDialogElement>('dialog')
 
-/** Woher der Fokus kam — beim Schließen geht er dorthin zurück. */
+/** Where focus came from; closing returns it there. */
 const openedFrom = ref<string | null>(null)
 
 onMounted(() => {
@@ -114,15 +102,14 @@ onBeforeUnmount(() => {
   const slug = openedFrom.value
   if (dialog.value?.open) dialog.value.close()
   if (!slug) return
-  // Nach dem Schließen steht der Fokus sonst am Dokumentanfang. Die Kachel
-  // trägt ihren Slug als Datenattribut, damit sie wiederzufinden ist.
+  // Otherwise focus lands at the top of the document. The tile carries its
+  // slug as a data attribute so it can be found again.
   nextTick(() => {
     document.querySelector<HTMLElement>(`[data-slug="${CSS.escape(slug)}"]`)?.focus()
   })
 })
 
-// Der Fokusanker folgt dem Blättern: wer im Dialog weiterblättert und dann
-// schließt, landet auf der Kachel, die er zuletzt gesehen hat.
+// The focus anchor follows paging, so closing returns to the tile last seen.
 watch(
   () => photo.value.slug,
   (slug) => {
@@ -130,7 +117,7 @@ watch(
   },
 )
 
-/* ---- Tastatur und Wischen -------------------------------------------- */
+/* ---- Keyboard and swipe ---------------------------------------------- */
 
 function onKey(event: KeyboardEvent) {
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
@@ -158,7 +145,7 @@ function onTouchEnd(event: TouchEvent) {
   if (!start || !touch) return
   const dx = touch.clientX - start.x
   const dy = touch.clientY - start.y
-  // Nur waagerechte Gesten; senkrecht bleibt Scrollen und Zoomen.
+  // Horizontal gestures only; vertical stays scroll and zoom.
   if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) <= Math.abs(dy)) return
   step(dx < 0 ? 1 : -1)
 }
@@ -175,13 +162,9 @@ onBeforeUnmount(() => {
   dialog.value?.removeEventListener('touchend', onTouchEnd)
 })
 
-/* ---- Nachbarn vorwärmen ---------------------------------------------- */
+/* ---- Prewarming neighbours ------------------------------------------- */
 
-/**
- * Blättern soll nicht auf einen Ladebalken warten. Vorgewärmt wird die Stufe,
- * die die Bühne mit `variantMax` ohnehin höchstens anfordert — mehr wäre
- * geraten und im Zweifel umsonst geladen.
- */
+/** Prewarms only the step the stage would request at most; more would be a guess. */
 function prewarm(entry: PhotoIndexEntry | null) {
   if (!import.meta.client || !entry) return
   const widths = variantWidths(entry.variants.avif, 1600)
@@ -216,9 +199,8 @@ watch(
   transition: opacity var(--t-slow);
 }
 
-/* `display` erst im geöffneten Zustand, sonst überschriebe es die
-   UA-Regel `dialog:not([open]) { display: none }` und der Dialog stünde
-   für einen Frame als normaler Kasten in der Seite. */
+/* `display` only when open, or it would override the UA rule
+   `dialog:not([open]) { display: none }` and flash as a normal box. */
 .box[open] {
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -228,8 +210,8 @@ watch(
   background: var(--color-bg);
 }
 
-/* Nur Deckkraft, wie die Spec es erlaubt. @starting-style gibt dem geöffneten
-   Dialog einen Anfangswert, ohne den es keinen Übergang gäbe. */
+/* Opacity only. @starting-style gives the open dialog a start value; without
+   it there would be no transition at all. */
 @starting-style {
   .box[open] {
     opacity: 0;
@@ -254,12 +236,6 @@ watch(
   padding: 0 var(--space-1);
   background: none;
   border: 0;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  line-height: var(--text-ui-lh);
-  letter-spacing: var(--text-ui-ls);
-  text-transform: uppercase;
   color: var(--color-text-muted);
   cursor: pointer;
   transition: color var(--t-fast);
@@ -275,8 +251,7 @@ watch(
   grid-template-columns: 72px minmax(0, 1fr) 72px;
   align-items: center;
   min-height: 0;
-  /* Senkrecht scrollen und zoomen bleibt dem Browser, waagerecht werten wir
-     als Wischgeste aus. */
+  /* Vertical scroll and zoom stay with the browser; horizontal is our swipe. */
   touch-action: pan-y pinch-zoom;
 }
 

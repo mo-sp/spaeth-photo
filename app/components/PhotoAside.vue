@@ -1,15 +1,12 @@
 <template>
   <div v-if="photo" class="aside">
-    <NuxtLink class="back" :to="backTo">
+    <NuxtLink class="back t-ui" :to="backTo">
       <span aria-hidden="true">←</span>
       {{ t('photo.back') }}
     </NuxtLink>
 
-    <!--
-      Der Titel steht sichtbar hier, die <h1> der Seite steht unsichtbar im
-      <main> (siehe pages/foto/[slug].vue): die Überschrift einer Seite gehört
-      in ihren Inhaltsbereich, das Design will sie aber in der Seitenleiste.
-    -->
+    <!-- Visible title here, the page's <h1> hidden in <main>: a heading belongs
+         to its content area, but the design wants it in the sidebar. -->
     <p class="title">{{ photoTitle(photo, locale) }}</p>
     <p class="year">{{ photo.year }}</p>
 
@@ -17,22 +14,18 @@
       <li v-for="tag in photo.tags" :key="tag">{{ tagText(tag) }}</li>
     </ul>
 
-    <!-- Kamera und Objektiv kommen aus dem EXIF und fehlen bei einigen
-         Bildern; dann fällt die Zeile ganz weg statt leer dazustehen. -->
+    <!-- Camera and lens come from EXIF and are missing on some photos; the
+         line then disappears rather than standing empty. -->
     <p v-if="gear" class="gear">{{ gear }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
-/**
- * Die Metadaten des Fotos in der Seitenleiste: Rückweg, Titel, Jahr, Tags und
- * — wenn vorhanden — Kamera und Objektiv. Prev/Next und der Zähler stehen im
- * Sidebar-Fuß (`PhotoAsideFoot`), weil sie dort unten kleben sollen.
- */
+/** Photo metadata in the sidebar; prev/next and the counter live in `PhotoAsideFoot` so they can stick to the bottom. */
 const { slug, backTo } = usePhotoNav()
 const { locale, t, tag: tagText } = useI18n()
 
-const photo = computed(() => usePhoto(slug.value))
+const photo = computed(() => findPhoto(slug.value))
 
 const gear = computed(() => {
   const parts = [photo.value?.camera, photo.value?.lens].filter(Boolean)
@@ -50,12 +43,6 @@ const gear = computed(() => {
   align-items: center;
   gap: var(--space-1);
   min-height: 24px;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  line-height: var(--text-ui-lh);
-  letter-spacing: var(--text-ui-ls);
-  text-transform: uppercase;
   color: var(--color-text-muted);
   transition: color var(--t-fast);
 }
@@ -66,7 +53,7 @@ const gear = computed(() => {
 }
 
 .title {
-  /* Der Abstand des Rückwegs zum Titel ist in der Spec eigens genannt. */
+  /* The gap between back link and title is specified explicitly. */
   margin: var(--space-back) 0 0;
   font-family: var(--font-sans);
   font-weight: 500;
@@ -74,9 +61,8 @@ const gear = computed(() => {
   line-height: var(--text-title-lh);
   letter-spacing: var(--text-title-ls);
   color: var(--color-text);
-  /* 220 px sind schmal: `pretty` verhindert Schusterjungen, `hyphens` und
-     `overflow-wrap` halten lange Wörter („Weihnachtsmarktbeleuchtung") in
-     der Spalte, statt sie herausragen zu lassen. */
+  /* 220 px is narrow: these keep a long German compound inside the column
+     instead of letting it stick out. */
   text-wrap: pretty;
   hyphens: auto;
   overflow-wrap: break-word;

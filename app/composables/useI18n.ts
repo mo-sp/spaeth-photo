@@ -3,9 +3,9 @@ import de from '~/i18n/de.json'
 import type { Locale } from '#shared/utils/i18n'
 
 /**
- * Two dictionaries, a lookup and a path helper; @nuxtjs/i18n was rejected
- * (docs/architecture.md). The locale is derived from `route.path` on every
- * render and never stored, so no state can disagree with the URL.
+ * Two dictionaries, a lookup and a path helper; @nuxtjs/i18n was rejected (see
+ * docs/architecture.md). The locale is derived from `route.path` every render
+ * and never stored, so no state can disagree with the URL.
  */
 
 export type MessageKey = keyof typeof en
@@ -16,11 +16,7 @@ const DICTIONARIES = { en, de } satisfies Record<Locale, Record<MessageKey, stri
 /** Values are interpolated into `{name}` placeholders. */
 export type MessageParams = Record<string, string | number>
 
-export function translate(
-  locale: Locale,
-  key: MessageKey,
-  params?: MessageParams,
-): string {
+export function translate(locale: Locale, key: MessageKey, params?: MessageParams): string {
   const template = DICTIONARIES[locale][key]
   if (params === undefined) return template
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>

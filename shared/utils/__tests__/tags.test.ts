@@ -2,17 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { LOCALES } from '../i18n.ts'
 import { TAG_LABELS, TAG_ORDER, parseTag, tagLabel } from '../tags.ts'
 
-/**
- * `parseTag` ist der einzige Torwächter zwischen einem Routenparameter und dem
- * Datenmodell: was hier durchkommt, gilt im Rest des Frontends als gültiger
- * Tag. Deshalb wird jede Eingabeform geprüft, nicht nur der Gutfall.
- */
+// `parseTag` is the only gatekeeper between a route parameter and the data model:
+// whatever passes here counts as a valid tag everywhere else in the frontend.
 describe('parseTag', () => {
-  it('nimmt jeden Tag des Vokabulars an', () => {
+  it('accepts every tag of the vocabulary', () => {
     for (const tag of TAG_ORDER) expect(parseTag(tag)).toBe(tag)
   })
 
-  it('weist unbekannte Werte ab', () => {
+  it('rejects unknown values', () => {
     expect(parseTag('stadt')).toBeNull()
     expect(parseTag('Sailing')).toBeNull()
     // The German keys of P4-P7 are not an alias for the English ones.
@@ -20,14 +17,14 @@ describe('parseTag', () => {
     expect(parseTag('schwarzweiss')).toBeNull()
   })
 
-  it('weist Leerwerte ab', () => {
+  it('rejects empty values', () => {
     expect(parseTag('')).toBeNull()
     expect(parseTag(undefined)).toBeNull()
     expect(parseTag(null)).toBeNull()
   })
 
-  it('weist alles ab, was kein String ist', () => {
-    // Mehrfache Query-Parameter (`?tag=a&tag=b`) erreichen die Route als Array.
+  it('rejects everything that is not a string', () => {
+    // Multiple query parameters (`?tag=a&tag=b`) reach the route as an array.
     expect(parseTag(['sailing'])).toBeNull()
     expect(parseTag(42)).toBeNull()
     expect(parseTag({ tag: 'sailing' })).toBeNull()
@@ -45,11 +42,11 @@ describe('tagLabel', () => {
     expect(tagLabel('animals')).toBe('Animals')
   })
 
-  it('fällt bei Unbekanntem auf den Wert selbst zurück', () => {
+  it('falls back to the value itself for something unknown', () => {
     expect(tagLabel('stadt')).toBe('stadt')
   })
 
-  it('kennt für jeden Tag der Reihenfolge ein Label', () => {
+  it('knows a label for every tag in the order', () => {
     for (const locale of LOCALES) {
       for (const tag of TAG_ORDER) expect(TAG_LABELS[locale][tag]).toBeTruthy()
     }

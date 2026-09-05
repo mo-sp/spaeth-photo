@@ -38,12 +38,12 @@ const base = {
 }
 
 describe('decide', () => {
-  it('rendert, was es noch nicht kennt', async () => {
-    const result = await decide({ ...base, entry: undefined, readHash: async () => 'hash-neu' })
-    expect(result).toMatchObject({ verdict: 'neu', render: true, sourceHash: 'hash-neu' })
+  it('renders what it does not know yet', async () => {
+    const result = await decide({ ...base, entry: undefined, readHash: async () => 'hash-new' })
+    expect(result).toMatchObject({ verdict: 'new', render: true, sourceHash: 'hash-new' })
   })
 
-  it('liest den Inhalt gar nicht erst, wenn mtime und Größe stimmen', async () => {
+  it('does not read the content at all when mtime and size match', async () => {
     const readHash = vi.fn(async () => 'hash-alt')
     const result = await decide({ ...base, readHash })
     expect(result.verdict).toBe('cache')
@@ -51,8 +51,8 @@ describe('decide', () => {
     expect(readHash).not.toHaveBeenCalled()
   })
 
-  it('vertraut bei abweichender mtime dem Inhalt, nicht dem Zeitstempel', async () => {
-    // Ein frischer Checkout setzt neue mtimes, ohne eine Datei zu ändern.
+  it('trusts the content over the timestamp when the mtime differs', async () => {
+    // A fresh checkout sets new mtimes without changing a file.
     const readHash = vi.fn(async () => 'hash-alt')
     const result = await decide({ ...base, stat: { mtimeMs: 9999, size: 500 }, readHash })
     expect(readHash).toHaveBeenCalledOnce()
@@ -60,74 +60,74 @@ describe('decide', () => {
     expect(result.render).toBe(false)
   })
 
-  it('rendert neu, wenn sich der Inhalt geändert hat', async () => {
+  it('re-renders when the content has changed', async () => {
     const result = await decide({
       ...base,
       stat: { mtimeMs: 9999, size: 501 },
-      readHash: async () => 'hash-neu',
+      readHash: async () => 'hash-new',
     })
-    expect(result).toMatchObject({ verdict: 'geändert', render: true })
+    expect(result).toMatchObject({ verdict: 'changed', render: true })
   })
 
-  it('schreibt bei geänderter YAML das Manifest neu, kodiert aber kein Bild', async () => {
+  it('rewrites the manifest on changed YAML but encodes no image', async () => {
     const result = await decide({ ...base, metaHash: 'meta-neu', readHash: async () => 'hash-alt' })
-    expect(result).toMatchObject({ verdict: 'metadaten', render: false })
+    expect(result).toMatchObject({ verdict: 'metadata', render: false })
   })
 
-  it('rendert neu, wenn eine Ausgabedatei fehlt', async () => {
+  it('re-renders when an output file is missing', async () => {
     const result = await decide({
       ...base,
       outputsPresent: () => false,
       readHash: async () => 'hash-alt',
     })
-    expect(result).toMatchObject({ verdict: 'ausgabe fehlt', render: true })
+    expect(result).toMatchObject({ verdict: 'output missing', render: true })
   })
 
-  it('rendert bei --force ohne jede Prüfung', async () => {
+  it('renders on --force without any check', async () => {
     const outputsPresent = vi.fn(() => true)
     const result = await decide({ ...base, force: true, outputsPresent, readHash: async () => 'h' })
-    expect(result).toMatchObject({ verdict: 'erzwungen', render: true })
+    expect(result).toMatchObject({ verdict: 'forced', render: true })
     expect(outputsPresent).not.toHaveBeenCalled()
   })
 })
 
 describe('loadCache', () => {
-  it('verwirft einen Cache, der zu anderen Einstellungen gehört', () => {
+  it('discards a cache that belongs to different settings', () => {
     const file = path.join(dir, 'settings.json')
     const cache = emptyCache()
     cache.entries.x = entry
     saveCache(file, cache)
 
     expect(Object.keys(loadCache(file, cache.settingsHash).entries)).toEqual(['x'])
-    expect(loadCache(file, 'ein-anderer-hash').entries).toEqual({})
+    expect(loadCache(file, 'a-different-hash').entries).toEqual({})
   })
 
-  it('verwirft einen kaputten Cache, statt daran zu scheitern', () => {
-    const file = path.join(dir, 'kaputt.json')
-    writeFileSync(file, '{ das ist kein JSON')
+  it('discards a broken cache instead of failing on it', () => {
+    const file = path.join(dir, 'broken.json')
+    writeFileSync(file, '{ this is not JSON')
     expect(loadCache(file).entries).toEqual({})
   })
 
-  it('kommt ohne vorhandene Datei aus', () => {
-    expect(loadCache(path.join(dir, 'gibt-es-nicht.json')).entries).toEqual({})
+  it('copes with a missing file', () => {
+    expect(loadCache(path.join(dir, 'does-not-exist.json')).entries).toEqual({})
   })
 })
 
 describe('settingsHash', () => {
-  it('ist stabil über mehrere Aufrufe', () => {
+  it('is stable across calls', () => {
     expect(settingsHash()).toBe(settingsHash())
   })
 })
 
 describe('hashFile', () => {
-  it('hängt am Inhalt, nicht am Namen', async () => {
+  it('depends on the content, not on the name', async () => {
     const a = path.join(dir, 'a.bin')
     const b = path.join(dir, 'b.bin')
-    writeFileSync(a, 'gleicher Inhalt')
-    writeFileSync(b, 'gleicher Inhalt')
+    writeFileSync(a, 'same content')
+    writeFileSync(b, 'same content')
     expect(await hashFile(a)).toBe(await hashFile(b))
 
-    writeFileSync(b, 'anderer Inhalt')
+    writeFileSync(b, 'different content')
     expect(await hashFile(a)).not.toBe(await hashFile(b))
   })
 })

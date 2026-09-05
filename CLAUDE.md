@@ -1,109 +1,99 @@
 # spaeth-photo — CLAUDE.md
 
-Statische Foto-Portfolio-Website (Hobby-Fotografie: Tiere, Natur, Landschaft, Segeln).
-Phase 1 ist reine Präsentation; Phase 2 (Print-Verkauf) wird nur strukturell vorbereitet,
-aber **nicht** gebaut. Die Seite ist zugleich Entwickler-Showcase: sauberer Code, gute
-Doku und messbare Performance sind Teil des Ziels.
+Static photo-portfolio site (hobby photography: animals, nature, landscape, sailing).
+Phase 1 is presentation only; phase 2 (print sales) is prepared structurally but **not**
+built. The site doubles as a developer showcase: clean code, good docs and measurable
+performance are part of the goal.
 
 ## Stack
 
-- Nuxt 4 + TypeScript, Rendering SSG über `nuxt generate` (Output `.output/public`).
-- pnpm, Node ≥ 24 (`.nvmrc`: 24). Die Skripte unter `scripts/` laufen ohne Runner:
-  Node entfernt die Typen selbst (`node scripts/x.ts`), `tsconfig.scripts.json` erzwingt
-  dafür `erasableSyntaxOnly`.
-- Eigenes CSS mit Custom Properties (`app/assets/css/tokens.css`). Kein Tailwind, kein UI-Framework.
-- Bildverarbeitung: eigene Sharp-Skripte (`scripts/export-sources.ts`, `scripts/build-images.ts`),
-  kein @nuxt/image. Tests mit vitest.
-- Schriften Archivo und JetBrains Mono selbst gehostet in `public/fonts/`, subgesetzt aus
+- Nuxt 4 + TypeScript, rendered statically via `nuxt generate` (output `.output/public`).
+- pnpm, Node ≥ 24 (`.nvmrc`). `scripts/` runs without a runner — Node strips the types
+  itself, and `tsconfig.scripts.json` enforces `erasableSyntaxOnly` for that.
+- Own CSS with custom properties (`app/assets/css/tokens.css`). No Tailwind, no UI kit.
+- Image processing: own sharp scripts (`export-sources.ts`, `build-images.ts`), not
+  `@nuxt/image`. Tests with vitest.
+- Archivo and JetBrains Mono self-hosted in `public/fonts/`, subset from
   `scripts/fonts-src/` (`scripts/subset-fonts.sh`, 114 → 55 KB).
-- `sitemap.xml` und `robots.txt` sind Nitro-Routen unter `server/routes/`, keine statischen
-  Dateien: beide brauchen die absolute Site-URL aus `NUXT_PUBLIC_SITE_URL` (Build-Variable).
+- `sitemap.xml` and `robots.txt` are Nitro routes under `server/routes/`, not static files:
+  both need the absolute site URL from `NUXT_PUBLIC_SITE_URL` (a build variable).
 
-## Kommandos
+## Commands
 
-| Befehl                        | Wirkung                                                                    |
-| ----------------------------- | -------------------------------------------------------------------------- |
-| `pnpm dev`                    | Dev-Server (`predev` baut vorher die Bilder, Cache: ~40 ms)                |
-| `pnpm export-sources`         | Originale → Web-Quellen + YAML im Content-Repo (siehe unten)               |
-| `pnpm build-images`           | Bild-Varianten, `photos.manifest.json`, Client-Index                       |
-| `pnpm check-manifest`         | erzeugtes Manifest prüfen (CI-Torwächter)                                  |
-| `pnpm generate`               | statische Seite bauen                                                      |
-| `pnpm build`                  | `build-images` + `generate` (Coolify-Build-Befehl)                         |
-| `pnpm preview`                | gebaute Seite lokal ansehen                                                |
-| `pnpm lint` / `pnpm lint:fix` | ESLint (Flat Config über @nuxt/eslint)                                     |
-| `pnpm typecheck`              | `nuxt typecheck` + `tsc -p tsconfig.scripts.json` (baut vorher die Bilder) |
-| `pnpm test`                   | vitest, nur Unit-Tests (< 1 s)                                             |
-| `pnpm test:integration`       | Farb-Regressionstest der Bild-Pipeline (kodiert echte Bilder)              |
-| `scripts/subset-fonts.sh`     | Schriften neu subsetten (nur nötig, wenn Zeichenvorrat/Gewicht sich ändern) |
-| `scripts/subset-fonts.sh --check` | dasselbe prüfen, ohne zu schreiben; Exit ≠ 0 bei fehlendem Zeichen |
+| Command                       | Effect                                                            |
+| ----------------------------- | ----------------------------------------------------------------- |
+| `pnpm dev`                    | dev server (`predev` renders the images first; cached run ~40 ms) |
+| `pnpm export-sources`         | originals → web sources + YAML in the content repo (see below)    |
+| `pnpm build-images`           | image variants, `photos.manifest.json`, client index              |
+| `pnpm check-manifest`         | validates the generated manifest (the CI gate)                    |
+| `pnpm generate`               | builds the static site                                            |
+| `pnpm build`                  | `build-images` + `generate` (the host's build command)            |
+| `pnpm preview`                | serves the built site locally                                     |
+| `pnpm lint` / `pnpm lint:fix` | ESLint (flat config via `@nuxt/eslint`) + `prettier --check`      |
+| `pnpm typecheck`              | `nuxt typecheck` + `tsc -p tsconfig.scripts.json` (renders first) |
+| `pnpm test`                   | vitest, unit tests only (< 1 s)                                   |
+| `pnpm test:integration`       | colour regression test of the pipeline (encodes real images)      |
+| `scripts/subset-fonts.sh`     | re-subset the fonts (`--check` verifies without writing)          |
 
-Flags von `build-images`: `--dry-run` (nichts schreiben oder löschen), `--force` (Cache
-ignorieren), `--only <slug>`, `--strict` (Warnungen als Fehler, für CI), `--source-dir <dir>`
-(andere Content-Wurzel; die Ausgabe geht immer nach `public/img`).
-`export-sources`: `--source-dir <dir>` (Originale, sonst `$PHOTO_SOURCE_DIR`),
-`--map <json>`, `--out <dir>`, `--quality <1-100>`, `--only <slug>`, `--dry-run`,
-`--force` (vorhandene Web-Quellen überschreiben; ohne das Flag bleiben sie stehen).
-Beide Skripte kennen `--help`.
+`build-images` flags: `--dry-run`, `--force`, `--only <slug>`, `--strict` (warnings are
+errors, for CI), `--source-dir <dir>` (output always goes to `public/img`).
+`export-sources`: `--source-dir` (else `$PHOTO_SOURCE_DIR`), `--map`, `--out`,
+`--quality`, `--only`, `--dry-run`, `--force` (without it, existing web sources stay).
+Both know `--help`.
 
-## Kernkonventionen
+## Core conventions
 
-- **Der generierte Client-Index (`app/data/photos.index.json`) ist die einzige Datenquelle
-  des Frontends.** Kein direkter Dateisystem-Zugriff aus Komponenten. Bild-URLs stehen
-  nicht darin, sondern folgen der Konvention `/img/<slug>/<breite>.<endung>`
-  (`shared/constants/images.ts`).
-- **Dateiname = Slug = URL** (`/photo/<slug>`): englisch, kleingeschrieben, kebab-case,
-  ASCII. Slugs sind nach dem Deploy unveränderlich — sie werden in Phase 2 Produkt-URLs.
-- **Content kommt aus dem privaten Submodule `content/`** (`content/photos/source|meta`).
-  Fehlt es (fremder Clone ohne Zugriff), greift der Fallback auf `demo-content/`.
-  Der Build darf dadurch **nie** fehlschlagen.
-- **Reine Logik gehört nach `shared/utils/`** (`photos.ts`, `img.ts`, `tags.ts`): Nuxt
-  importiert von dort — und aus `shared/types/` — automatisch, die Build-Skripte greifen
-  mit relativem Pfad auf dieselben Dateien zu. Nur die oberste Ebene wird
-  auto-importiert; die Tests liegen deshalb in `shared/utils/__tests__/`.
-- **Der Tag-Filter ist eine Pfadroute** (`/gallery/sailing`), nicht `?tag=`; der
-  Sidebar-Inhalt kommt aus `definePageMeta({ aside })`, nicht aus einem Teleport oder
-  Store. Begründungen in `docs/architecture.md`, Abschnitt „Frontend".
-- **Zweisprachig: Englisch primär, Deutsch unter `/de` mit denselben Pfadsegmenten.** UI-Texte
-  stehen in `app/i18n/{en,de}.json` und werden über `useI18n()` geholt — kein Klartext in
-  Komponenten. Links immer über `path('/gallery')`, damit sie in der aktuellen Sprache
-  bleiben. Foto-Titel kommen aus dem Index (`photoTitle`/`photoAlt`), nicht aus dem
-  Wörterbuch. Abschnitt „Internationalisation" in `docs/architecture.md`.
-- Keine Farbwerte hart in Vue-Dateien — nur Tokens aus `tokens.css` (die einzige
-  Farbkorrektur steht im Projekt-Block dort).
-- **`AGENTS.md` vor jeder Änderung lesen.**
+- **The generated client index (`app/data/photos.index.json`) is the front end's only data
+  source.** No file-system access from components. Image URLs are not in it: they follow
+  the convention `/img/<slug>/<width>.<ext>` (`shared/constants/images.ts`).
+- **File name = slug = URL** (`/photo/<slug>`): English, lowercase, kebab-case, ASCII.
+  Slugs are immutable after a deploy — they become product URLs in phase 2.
+- **Content comes from the private submodule `content/`** (`photos/source|meta`); without
+  it the fallback is `demo-content/`, and the build must **never** fail because of that.
+- **Pure logic belongs in `shared/utils/`** (`photos`, `img`, `tags`, `i18n`, `sitemap`,
+  `legacy`, `url`): Nuxt auto-imports from there and from `shared/types/`, the build scripts
+  reach the same files by relative path. Only the top level is auto-imported, so tests live
+  in `shared/utils/__tests__/` (and, for app-side derivations, `app/**/__tests__/`).
+- **The tag filter is a path route** (`/gallery/sailing`), not `?tag=`; sidebar content
+  comes from `definePageMeta({ aside })`, not a teleport or a store (see "Frontend").
+- **Bilingual: English primary, German under `/de`, same path segments.** UI strings live
+  in `app/i18n/{en,de}.json`, read through `useI18n()` — no plain text in components. Link
+  through `path('/gallery')` so links stay in the current language; photo titles come from
+  the index (`photoTitle`/`photoAlt`). See "Internationalisation".
+- No colour values hard-coded in Vue files — only tokens from `tokens.css` (the one colour
+  correction lives in the project block there).
+- **Read `AGENTS.md` before every change.**
 
-## Harte Regeln (PLAN.md §9)
+## Hard rules
 
-- `public/img/`, `photos.manifest.json`, `app/data/` und `.image-cache/` niemals committen.
-- Bilder niemals hochskalieren.
-- Niemals EXIF/Metadaten in ausgelieferte Bilder schreiben.
-- Slugs nach dem Deploy nie ändern.
-- Keine Vollauflösungs-Dateien ins Repo oder auf den Server (Quellen max. 2560 px);
-  die Originale liegen außerhalb jedes Repositorys und werden nur gelesen.
-- Keine externen Tracker, kein Analytics, keine Cookies (daher kein Banner).
-- Keine schweren Dependencies ohne Not; jede neue Dependency in `docs/architecture.md`
-  begründen.
-- Secrets nur in `.env` / Coolify-Env, nie im Repo.
-- In Phase 1 **nicht** bauen: Shop/Checkout, Blog, Kommentare, Newsletter, CMS, Auth.
-- Nicht ohne Rückfrage: Domainkauf, Coolify-Deploy, Löschen von Nutzerdaten, Force-Push.
+- Never commit `public/img/`, `photos.manifest.json`, `app/data/` or `.image-cache/`.
+- Never upscale an image.
+- Never write EXIF or other metadata into a delivered image.
+- Never change a slug after the deploy.
+- No full-resolution files in the repo or on the server (web sources max 2560 px); the
+  originals live outside every repo and are only ever read.
+- No external trackers, no analytics, no cookies (hence no banner).
+- No heavy dependencies without need; justify every new one in `docs/architecture.md`.
+- Secrets only in `.env` or the host's environment, never in the repo.
+- **Not** to be built in phase 1: shop/checkout, blog, comments, newsletter, CMS, auth.
+- Not without asking: buying a domain, deploying, deleting user data, force-pushing.
 
-## Arbeitsweise
+## Way of working
 
-- Umsetzung in Arbeitspaketen laut `WORKPLAN.md` (P1–P9), ein Commit je Paket
-  (`feat(Pn): …`, im privaten Repo `content: …`).
-- Nach jedem Paket ein Eintrag in `content/SUMMARY.md` (privat): Erledigt /
-  Entscheidungen / Offen. Offene Fragen zusätzlich nach `content/OFFEN.md`.
-- Größere Coding-Aufgaben an einen Opus-Subagenten delegieren.
-- Vor und nach Entscheidungen von Tragweite ein Tribunal (Gegenprüfung) durchführen.
-- Abweichungen vom Plan sind erlaubt, wenn technisch begründet — dann aber mit
-  Begründung in `docs/architecture.md` dokumentieren.
-- Öffentliche Artefakte (Repo-Dateien, Commit-Messages, PRs): **Mechanismus, kein
-  Inventar.** Operatives und Persönliches gehört ins private Repo.
+- One commit per work package (`feat(Pn): …`, `fix(Pn): …`), Conventional style, subject
+  ≤ 72 characters. Work goes through pull requests against `main`.
+- Deviating from a documented decision is allowed when justified — record the reason in
+  `docs/architecture.md`.
+- Public artefacts (repo files, commit messages, PRs): **mechanism, not inventory.**
+  Operational and personal detail belongs in the private content repo.
+- Language: English everywhere in this repo. German remains only in the UI strings of
+  `de.json`, the `*De.vue` page bodies and quoted German UI examples.
+- The owner's session workflow (planning documents, session log, open questions) lives in
+  the private repo and in the gitignored `CLAUDE.local.md`.
 
-## Weiterführend
+## Further reading
 
-- `docs/architecture.md` — Stack-Entscheidungen, Abweichungen, Bild-Pipeline, Datenmodell,
-  Phase-2-Vorgriff.
-- `PLAN.md` — Gesamtplan; **§13** enthält die verbindlichen Entscheidungen vom 2026-08-29
-  (Name/Marke, Nuxt 4, Design-Handoff 1C, Bild-Quellen).
-- `content/CLAUDE.md` — Namenskonvention und YAML-Schema des privaten Content-Repos.
+- `README.md` — what the site is, quick start, structure, deployment.
+- `docs/architecture.md` — the plan and its binding decisions, stack decisions,
+  deviations, pipeline, data model, phase 2.
+- `content/CLAUDE.md` — naming convention and YAML schema of the private content repo.

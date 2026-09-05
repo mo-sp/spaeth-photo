@@ -1,8 +1,8 @@
 <template>
   <div class="page">
     <div class="head">
-      <h1 class="head-title">{{ title }}</h1>
-      <p v-if="note" class="head-note">{{ note }}</p>
+      <h1 class="head-title t-title-s">{{ title }}</h1>
+      <p v-if="note" class="head-note t-ui">{{ note }}</p>
     </div>
 
     <div class="doc">
@@ -13,18 +13,13 @@
 
 <script setup lang="ts">
 /**
- * Rahmen der drei Textseiten (Über, Impressum, Datenschutz).
- *
- * Die Seiten unterscheiden sich nur im Text; Kopfleiste, Zeilenlänge und die
- * Typografie von Überschriften, Absätzen und Listen sind dieselben. Dreimal
- * dasselbe CSS wäre dreimal die Gelegenheit, es auseinanderlaufen zu lassen.
- * Die Regeln greifen über `:deep()` in den Slot-Inhalt hinein — die Seiten
- * schreiben deshalb einfaches HTML ohne Klassen; die einzige Klasse, die sie
- * kennen, ist `.todo` für offene Angaben.
+ * Frame for the three text pages. The rules reach into the slot via `:deep()`,
+ * so the pages write plain HTML without classes; `.todo` is the only class they
+ * know.
  */
 defineProps<{
   title: string
-  /** Kurzer Zusatz rechts in der Kopfleiste, z. B. ein Stand-Datum. */
+  /** Short addendum on the right of the header, e.g. a revision date. */
   note?: string
 }>()
 </script>
@@ -41,28 +36,15 @@ defineProps<{
 
 .head-title {
   margin: 0;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--text-title-s-size);
-  line-height: var(--text-title-s-lh);
-  letter-spacing: var(--text-title-s-ls);
-  color: var(--color-text);
 }
 
 .head-note {
   flex: 0 0 auto;
   margin: 0;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  line-height: var(--text-ui-lh);
-  letter-spacing: var(--text-ui-ls);
-  text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
-/* 62 Zeichen: die Spanne, in der eine Zeile ohne Springen gelesen wird. Die
-   Spalte steht links, nicht zentriert — die Seite ist links ausgerichtet. */
+/* 62 characters: the span a line is read across without the eye jumping. */
 .doc {
   max-width: 62ch;
   padding: var(--space-5) var(--space-4) var(--space-6);
@@ -72,8 +54,8 @@ defineProps<{
   color: var(--color-text);
 }
 
-/* Abschnittsüberschriften sind Mikro-Labels wie überall sonst in der Seite,
-   kein zweiter Titelgrad: Mono, 11 px, Versalien, mit Hairline darüber. */
+/* Section headings are micro-labels like everywhere else on the site, not a
+   second title size. */
 .doc :deep(h2) {
   margin: var(--space-5) 0 var(--space-2);
   padding-top: var(--space-2);
@@ -113,7 +95,7 @@ defineProps<{
   border-top: var(--border);
 }
 
-/* Angaben mit Bezeichnung: das Label in Mono, der Wert im Fließtext. */
+/* Labelled entries: label in mono, value in body type. */
 .doc :deep(dl) {
   display: grid;
   grid-template-columns: 12ch minmax(0, 1fr);
@@ -148,11 +130,8 @@ defineProps<{
   text-decoration-color: var(--color-text);
 }
 
-/*
-  Offene Angaben stehen als sichtbarer Text „TODO: …" auf der Seite, nicht als
-  Kommentar im Quelltext: was fehlt, soll auffallen — beim Lesen wie beim
-  Durchsuchen des erzeugten HTML.
-*/
+/* Open items are visible "TODO: …" text rather than a source comment, so a gap
+   shows up both when reading and when grepping the generated HTML. */
 .doc :deep(.todo) {
   display: inline-block;
   padding: 2px var(--space-1);

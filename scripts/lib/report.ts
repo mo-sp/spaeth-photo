@@ -1,20 +1,18 @@
 import { styleText } from 'node:util'
 
 /**
- * Ausgabe und Fehlersammlung der CLIs. Kein chalk: `node:util.styleText` kann
- * dasselbe und prüft selbst, ob der Zielstream Farbe unterstützt (NO_COLOR,
- * Pipe in eine Datei, CI ohne TTY).
+ * Output and error collection for the CLIs. Not chalk: `node:util.styleText`
+ * does the same and checks by itself whether the target stream supports colour
+ * (NO_COLOR, pipe into a file, CI without a TTY).
  *
- * Grundsatz der Ausgabe: **eine Zeile je Änderung**, unveränderte Bilder
- * schweigen. Am Ende eine Summenzeile und, falls etwas anzumerken war, eine
- * Tabelle aus WARN- und ERROR-Zeilen.
+ * One line per change; unchanged photos stay silent.
  */
 
 export type IssueLevel = 'error' | 'warn'
 
 export interface Issue {
   level: IssueLevel
-  /** Bezugspunkt, meist ein Slug oder ein Dateiname. */
+  /** What the message is about, usually a slug or a file name. */
   scope: string
   message: string
 }
@@ -26,10 +24,7 @@ export interface Reporter {
   error(scope: string, message: string): void
   issues: Issue[]
   counts(): { errors: number; warnings: number }
-  /**
-   * Gibt die gesammelten Meldungen aus und setzt `process.exitCode`:
-   * Fehler immer, Warnungen nur mit `--strict`.
-   */
+  /** Prints the collected messages; exits non-zero on errors, on warnings only with `--strict`. */
   finish(options?: { strict?: boolean }): void
 }
 
@@ -83,7 +78,7 @@ export function createReporter(): Reporter {
         process.exitCode = 1
       } else if (warnings > 0 && options.strict) {
         console.log('')
-        console.log(color(`  --strict: ${warnings} Warnung(en) gelten als Fehler.`, 'yellow'))
+        console.log(color(`  --strict: ${warnings} warning(s) count as errors.`, 'yellow'))
         process.exitCode = 1
       }
     },
@@ -92,16 +87,16 @@ export function createReporter(): Reporter {
   return reporter
 }
 
-/** `1536000` → `1,5 MB`. Deutsche Schreibweise, weil alle Ausgaben deutsch sind. */
+/** `1536000` → `1.5 MB`. */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   const kb = bytes / 1024
-  if (kb < 1024) return `${kb.toFixed(kb < 10 ? 1 : 0).replace('.', ',')} KB`
-  return `${(kb / 1024).toFixed(1).replace('.', ',')} MB`
+  if (kb < 1024) return `${kb.toFixed(kb < 10 ? 1 : 0)} KB`
+  return `${(kb / 1024).toFixed(1)} MB`
 }
 
-/** `2345` → `2,3 s`. */
+/** `2345` → `2.3 s`. */
 export function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`
-  return `${(ms / 1000).toFixed(1).replace('.', ',')} s`
+  return `${(ms / 1000).toFixed(1)} s`
 }

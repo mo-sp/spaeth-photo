@@ -5,6 +5,7 @@ import {
   LOCALE_NAMES,
   LOCALE_TAGS,
   OG_LOCALES,
+  localeLinks,
   localeOf,
   localePath,
   stripLocale,
@@ -85,5 +86,35 @@ describe('locale tables', () => {
 
   it('has the default locale in the list', () => {
     expect(LOCALES).toContain(DEFAULT_LOCALE)
+  })
+})
+
+describe('localeLinks', () => {
+  it('offers every locale and marks the current one', () => {
+    expect(localeLinks('/gallery', 'en')).toEqual([
+      { locale: 'en', tag: 'en', name: 'English', to: '/gallery', active: true },
+      { locale: 'de', tag: 'de', name: 'Deutsch', to: '/de/gallery', active: false },
+    ])
+  })
+
+  it('drops the query - a filter or an open lightbox is a view, not a page', () => {
+    expect(localeLinks('/gallery/sailing?foto=x', 'en').map((link) => link.to)).toEqual([
+      '/gallery/sailing',
+      '/de/gallery/sailing',
+    ])
+  })
+
+  it('drops the hash too', () => {
+    expect(localeLinks('/about#contact', 'de').map((link) => link.to)).toEqual([
+      '/about',
+      '/de/about',
+    ])
+  })
+
+  it('stays on the same page when given a German path', () => {
+    expect(localeLinks('/de/photo/a', 'de').map((link) => link.to)).toEqual([
+      '/photo/a',
+      '/de/photo/a',
+    ])
   })
 })

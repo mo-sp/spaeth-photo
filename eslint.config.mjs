@@ -3,10 +3,10 @@ import withNuxt from './.nuxt/eslint.config.mjs'
 
 export default withNuxt({
   rules: {
-    // Prettier übernimmt die Formatierung (.prettierrc); ESLint prüft nur Regeln.
+    // Prettier owns formatting (.prettierrc); ESLint only checks rules.
     'vue/max-attributes-per-line': 'off',
-    // Prettier schreibt void-Elemente selbstschließend (<br />); die
-    // gegenteilige Vue-Regel würde dagegen arbeiten.
+    // Prettier writes void elements self-closing (<br />); the opposite Vue
+    // rule would fight it.
     'vue/html-self-closing': 'off',
     'vue/singleline-html-element-content-newline': 'off',
   },

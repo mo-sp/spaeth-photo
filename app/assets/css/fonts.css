@@ -1,7 +1,6 @@
-/* Selbst gehostete Schriften — kein Request an Dritte (Datenschutz, PLAN.md §9).
-   Quelle: Google Fonts API, 2026-08-29, nur das `latin`-Subset (U+0000–00FF u. a.,
-   deckt die deutschen Umlaute und ß ab). Lizenz beider Familien: SIL OFL 1.1,
-   siehe public/fonts/LICENSE-OFL.txt.
+/* Self-hosted fonts — no request to a third party (hard rule in CLAUDE.md). Source: Google
+   Fonts API, 2026-08-29, `latin` subset only (covers the German umlauts and ß).
+   Licence of both families: SIL OFL 1.1, see public/fonts/LICENSE-OFL.txt.
 
    The three files are subset further, to the characters this site renders and
    to the weight range declared below: 105 KB -> 53 KB. `scripts/subset-fonts.sh`
@@ -12,12 +11,10 @@
    ranges below are now the literal capability of the files, not a subset of a
    wider axis.
 
-   Hinweis: Google liefert für beide Familien Variable Fonts aus — pro Familie und
-   Stil genau eine Datei, die den ganzen Gewichtsbereich abdeckt. Statt fünf bzw.
-   zwei Einzelschnitten liegen deshalb drei Dateien in public/fonts/; die
-   @font-face-Regeln geben den Gewichtsbereich per `font-weight: 400 600` an.
-   Genutzte Gewichte: Archivo 400/500/600 normal, 400/500 kursiv (Theme
-   „Licht / Schatten"), JetBrains Mono 400/500. */
+   Both families ship as variable fonts, one file per family and style covering
+   the whole weight range, so three files replace seven cuts and the @font-face
+   rules state the range as `font-weight: 400 600`. Weights in use: Archivo
+   400/500/600 upright, 400/500 italic, JetBrains Mono 400/500. */
 
 @font-face {
   font-family: 'Archivo';
@@ -50,7 +47,7 @@
 
    `font-display: swap` shows the fallback font first and repaints once the
    webfont arrives. If the two differ in width or line height, that repaint
-   moves text: Lighthouse measured CLS 0.129 on /ueber, blamed on exactly these
+   moves text: Lighthouse measured CLS 0.129 on the About page, blamed on exactly these
    two font loads, on a page whose layout is otherwise perfectly stable.
 
    The fix is not to remove `swap` (invisible text is worse than moved text)
@@ -59,14 +56,16 @@
    override descriptors scale a *local* font to the webfont's metrics, so the
    swap changes the shape of the letters and nothing else.
 
-   How the numbers were derived - `size-adjust` is the ratio of mean advance
-   width between the webfont and the fallback, weighted by how often each
-   character actually occurs in the generated pages; the three overrides are
-   the webfont's own ascent/descent/line-gap (OS/2 sTypo*, upem 1000) divided
-   by that ratio, so the line box matches too. Measured with fontTools against
-   Liberation Sans and DejaVu Sans Mono, which are metrically compatible with
-   Arial and Menlo respectively. Re-derive them if a font is replaced; the
-   recipe is in docs/architecture.md, section "Fonts".
+   How the numbers were derived - `size-adjust` is the webfont's mean advance
+   width over the fallback's, in em, each character weighted by how often it
+   occurs in the rendered text of the generated pages (all of .output/public,
+   both languages); a character either font of a pair lacks is skipped in both.
+   The overrides are the webfont's OS/2 sTypo ascent/descent/line-gap over upem
+   divided by that ratio, so the line box matches too. Measured with fontTools
+   against Liberation Sans and DejaVu Sans Mono - Arial and Menlo metrics - and
+   for Archivo at wght 400, the body weight: its variable default instance is
+   600, so the axis has to be pinned before `hmtx` means anything. The script
+   is in docs/architecture.md, section "Fonts"; re-run it if a font changes.
 
    The families are referenced from the `--font-sans` / `--font-mono` stacks in
    tokens.css. They carry no `src` URL - `local()` only, so they cost no
@@ -83,21 +82,18 @@
    unadjusted, and the site behaves exactly as it did before - the adjustment
    can help or do nothing, but it cannot hurt.
 
-   Measured: /ueber on emulated mobile went from CLS 0.133 to 0.003 once an
+   Measured: the About page on emulated mobile went from CLS 0.133 to 0.003 once an
    Arial-metric font was present, which is also worth ~5 Lighthouse points. */
 
 @font-face {
   font-family: 'Archivo Fallback';
   font-style: normal;
   src:
-    local('Arial'),
-    local('Helvetica Neue'),
-    local('Helvetica'),
-    local('Liberation Sans'),
+    local('Arial'), local('Helvetica Neue'), local('Helvetica'), local('Liberation Sans'),
     local('Arimo');
-  size-adjust: 95.77%;
-  ascent-override: 91.68%;
-  descent-override: 21.93%;
+  size-adjust: 98.58%;
+  ascent-override: 89.06%;
+  descent-override: 21.3%;
   line-gap-override: 0%;
 }
 
@@ -105,25 +101,18 @@
   font-family: 'Archivo Fallback';
   font-style: italic;
   src:
-    local('Arial Italic'),
-    local('Helvetica Neue Italic'),
-    local('Helvetica Oblique'),
-    local('Liberation Sans Italic'),
-    local('Arimo Italic');
-  size-adjust: 95.01%;
-  ascent-override: 92.41%;
-  descent-override: 22.1%;
+    local('Arial Italic'), local('Helvetica Neue Italic'), local('Helvetica Oblique'),
+    local('Liberation Sans Italic'), local('Arimo Italic');
+  size-adjust: 98.73%;
+  ascent-override: 88.93%;
+  descent-override: 21.27%;
   line-gap-override: 0%;
 }
 
 @font-face {
   font-family: 'JetBrains Mono Fallback';
   font-style: normal;
-  src:
-    local('Menlo'),
-    local('DejaVu Sans Mono'),
-    local('Liberation Mono'),
-    local('Cascadia Mono');
+  src: local('Menlo'), local('DejaVu Sans Mono'), local('Liberation Mono'), local('Cascadia Mono');
   size-adjust: 99.66%;
   ascent-override: 102.35%;
   descent-override: 30.1%;

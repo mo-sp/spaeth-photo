@@ -3,7 +3,7 @@
     <!-- A filter can hold a single photo (`schwarzweiss` does). There are no
          neighbours then, and a landmark with nothing in it is a promise the
          page does not keep. -->
-    <nav v-if="prevTo || nextTo" class="steps" :aria-label="t('photo.nav.aria')">
+    <nav v-if="prevTo || nextTo" class="steps t-ui" :aria-label="t('photo.nav.aria')">
       <NuxtLink v-if="prevTo" class="step" :to="prevTo" rel="prev">
         <span aria-hidden="true">←</span>
         {{ t('photo.prev') }}
@@ -17,19 +17,14 @@
     </nav>
 
     <p class="counter">
-      <!-- Sichtbar bleibt die Kurzform; die gesprochene Fassung steht als
-           eigener Text daneben. Ein `aria-label` auf einem Absatz wird von
-           vielen Screenreadern ignoriert. -->
+      <!-- Short form visible, spoken form as its own text: many screen readers
+           ignore an `aria-label` on a paragraph. -->
       <span aria-hidden="true">{{ padCounter(nav.position) }} / {{ padCounter(nav.total) }}</span>
-      <span class="sr-only">{{
-        t('photo.counter', { n: nav.position, total: nav.total })
-      }}</span>
+      <span class="sr-only">{{ t('photo.counter', { n: nav.position, total: nav.total }) }}</span>
     </p>
 
-    <!-- Der Sidebar-Fuß dieser Seite ersetzt `SiteFoot`, trägt Sprachwahl und
-         Rechtslinks also selbst. Unter 768 px stehen sie im Seitenfuß des
-         Layouts, hier also nicht — sonst stünden sie zweimal auf derselben
-         Seite. -->
+    <!-- This foot replaces `SiteFoot`, so it carries the language switch and
+         legal links itself; below 768 px the layout's page foot has them. -->
     <SiteLang class="lang" />
     <SiteLegal class="legal" />
   </div>
@@ -37,13 +32,9 @@
 
 <script setup lang="ts">
 /**
- * Der Fuß der Detail-Seitenleiste: Prev/Next in der aktuell gefilterten Liste,
- * der Positionszähler und die Rechtslinks.
- *
- * Die Nachbarn kommen aus derselben Ableitung wie auf der Seite selbst
- * (`usePhotoNav`) — inklusive des Filterkontexts, der erst nach der Hydration
- * zieht. Vor der Hydration zeigt der Fuß die Nachbarn im ungefilterten Bestand;
- * genau das steht auch im prerenderten HTML.
+ * Prev/next, the position counter and the legal links. Neighbours come from the
+ * same derivation as the page (`usePhotoNav`), filter context included, so the
+ * pre-hydration render matches the prerendered HTML.
  */
 const { nav, pathTo } = usePhotoNav()
 const { locale, t } = useI18n()
@@ -61,12 +52,6 @@ const nextTo = computed(() => pathTo(nav.value.next))
   display: flex;
   flex-direction: column;
   gap: 14px;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  line-height: var(--text-ui-lh);
-  letter-spacing: var(--text-ui-ls);
-  text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
@@ -74,7 +59,7 @@ const nextTo = computed(() => pathTo(nav.value.next))
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  /* Mindest-Zielgröße; die 11-px-Zeile allein wäre halb so hoch. */
+  /* Minimum target size; the 11 px line alone would be half as tall. */
   min-height: 24px;
   transition: color var(--t-fast);
 }
@@ -92,7 +77,7 @@ const nextTo = computed(() => pathTo(nav.value.next))
   font-size: var(--text-meta-size);
   line-height: var(--text-meta-lh);
   letter-spacing: var(--text-foot-ls);
-  /* Ohne tabular-nums springt der Zähler beim Blättern in der Breite. */
+  /* Without tabular-nums the counter changes width while paging. */
   font-variant-numeric: tabular-nums;
   color: var(--color-text-faint);
 }

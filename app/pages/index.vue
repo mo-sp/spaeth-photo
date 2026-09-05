@@ -13,17 +13,14 @@
       </div>
 
       <div class="hero-caption">
-        <p class="hero-title">{{ photoTitle(hero, locale) }}</p>
+        <p class="hero-title t-title-s">{{ photoTitle(hero, locale) }}</p>
         <p class="hero-year">{{ hero.year }}</p>
       </div>
     </template>
 
-    <!--
-      Die Dualität, die dem Projekt den Namen gibt: Licht kursiv und hell,
-      Schatten aufrecht und gedämpft, dazwischen ein Mono-Schrägstrich als
-      Scharnier. Das ist die Überschrift der Startseite — die Wortmarke in der
-      Seitenleiste ist ein Link, keine Überschrift.
-    -->
+    <!-- The duality the project is named for: light italic and bright, shadow
+         upright and muted, a mono slash as the hinge. This is the home page's
+         heading — the wordmark in the sidebar is a link, not a heading. -->
     <h1 class="motto">
       <em>{{ t('home.motto.light') }}</em>
       <span class="slash" aria-hidden="true">/</span>
@@ -35,24 +32,21 @@
       <ul class="tiles">
         <li v-for="photo in selection" :key="photo.slug">
           <NuxtLink class="tile tile-focus" :to="path(`/photo/${photo.slug}`)">
-            <PhotoImage
-              :photo="photo"
-              :alt="photoAlt(photo, locale)"
-              :sizes="TILE_SIZES"
-              eager
-            />
+            <PhotoImage :photo="photo" :alt="photoAlt(photo, locale)" :sizes="TILE_SIZES" eager />
           </NuxtLink>
         </li>
       </ul>
     </section>
 
-    <div class="all">
+    <div class="all t-ui">
       <NuxtLink class="all-link" :to="path('/gallery')">
         {{ t('home.all') }}
         <span aria-hidden="true">→</span>
       </NuxtLink>
       <p class="all-count">
-        <span aria-hidden="true">{{ tn('count.photos', photos.length, padCounter(photos.length)) }}</span>
+        <span aria-hidden="true">{{
+          tn('count.photos', photos.length, padCounter(photos.length))
+        }}</span>
         <span class="sr-only">{{ tn('count.photos', photos.length) }}</span>
       </p>
     </div>
@@ -63,18 +57,13 @@
 const { photos, hero } = usePhotos()
 const { locale, t, tn, path } = useI18n()
 
-/** Eine volle Reihe des fünfspaltigen Rasters. */
+/** One full row of the five-column grid. */
 const selection = curated(photos, 5)
 
 /**
- * Der Hero ist so breit wie der Inhaltsbereich: Viewport minus Seitenleiste
- * (220 bzw. 180 px), mobil die volle Breite.
- *
- * Abweichung vom Urteil, das hier 66vw vorsah: die 66vw stammen aus der
- * Fassung, in der der Hero mobil 60vh hoch war und `cover` die Breite vom
- * Viewport entkoppelte. Seit er breitengetrieben ist (3:2), ist die
- * Anzeigebreite exakt 100vw — 66vw ließe den Browser eine zu kleine Stufe
- * wählen, ausgerechnet für das LCP-Bild.
+ * The hero is as wide as the content area, full width on mobile. Not 66vw as
+ * originally planned: since the hero became width-driven (3:2) its display
+ * width is exactly 100vw, and 66vw would pick too small a step for the LCP image.
  */
 const HERO_SIZES = [
   '(max-width: 767px) 100vw',
@@ -82,11 +71,7 @@ const HERO_SIZES = [
   'calc(100vw - 220px)',
 ].join(', ')
 
-/**
- * Fünf Kacheln: Contentbreite (Viewport minus Seitenleiste) minus dem Padding
- * des Blocks (2×32, mobil 2×14) minus vier Lücken à 8 px, geteilt durch fünf.
- * Mobil ist es eine Spalte über die volle Breite.
- */
+/** Five tiles: content width minus block padding and four 8 px gaps, divided by five. */
 const TILE_SIZES = [
   '(max-width: 767px) calc(100vw - 28px)',
   '(max-width: 1023px) calc((100vw - 276px) / 5)',
@@ -96,20 +81,16 @@ const TILE_SIZES = [
 useSiteSeo({ description: () => t('site.description'), ogType: 'website' })
 
 useHead({
-  // Die Startseite trägt den Namen selbst; die Vorlage „%s – Moritz Späth"
-  // machte daraus „Start – Moritz Späth" oder eine Wiederholung.
+  // The home page carries the name itself; the `%s – Moritz Späth` template
+  // would either repeat it or produce "Home – Moritz Späth".
   titleTemplate: null,
   title: () => t('site.title'),
 })
 </script>
 
 <style scoped>
-/*
-  Der Hero füllt den Inhaltsbereich in voller Breite und fester Höhe. Unter
-  768 px ist `--hero-h: auto` und das Bild breitengetrieben (3:2): eine Höhe in
-  vh ließe sich in `sizes` nicht ausdrücken, und der Browser lüde die falsche
-  Stufe.
-*/
+/* Below 768 px `--hero-h: auto` makes the image width-driven (3:2): a height in
+   vh cannot be expressed in `sizes`, and the browser would load the wrong step. */
 .hero :deep(img) {
   height: var(--hero-h);
   aspect-ratio: 3 / 2;
@@ -127,12 +108,6 @@ useHead({
 
 .hero-title {
   margin: 0;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--text-title-s-size);
-  line-height: var(--text-title-s-lh);
-  letter-spacing: var(--text-title-s-ls);
-  color: var(--color-text);
 }
 
 .hero-year {
@@ -183,9 +158,8 @@ useHead({
 .curated {
   display: flex;
   flex-direction: column;
-  /* 24 px stehen so in der Spec und liegen nicht auf der 8/14/28-Leiter der
-     Tokens; ein eigenes Token für genau eine Stelle wäre mehr Aufwand als
-     Nutzen. */
+  /* 24 px per spec; off the 8/14/28 token ladder, and a token for one place
+     would cost more than it saves. */
   gap: 24px;
   padding: var(--space-5) var(--space-4) var(--space-6);
 }
@@ -214,8 +188,7 @@ useHead({
   display: block;
 }
 
-/* Wie im Hero: feste Höhe, solange es eine gibt — mobil bestimmt die Breite
-   das Format. */
+/* As in the hero: fixed height where there is one, width-driven on mobile. */
 .tile :deep(img) {
   height: var(--curated-h);
   aspect-ratio: 3 / 2;
@@ -229,12 +202,6 @@ useHead({
   gap: var(--space-2);
   padding: var(--space-4);
   border-top: var(--border);
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  line-height: var(--text-ui-lh);
-  letter-spacing: var(--text-ui-ls);
-  text-transform: uppercase;
 }
 
 .all-link {

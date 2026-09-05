@@ -11,7 +11,7 @@ import type { RenderResult } from '../../scripts/lib/variants.ts'
 
 function meta(overrides: Partial<PhotoMeta> = {}): PhotoMeta {
   return {
-    title: 'Titel',
+    title: 'Title',
     title_de: null,
     alt: null,
     alt_de: null,
@@ -54,16 +54,16 @@ function render(): RenderResult {
 }
 
 describe('comparePhotos', () => {
-  it('sortiert nach Datum absteigend', () => {
+  it('sorts by date, newest first', () => {
     const list = [
-      { date: '2020-01-01', slug: 'alt' },
-      { date: '2024-06-01', slug: 'neu' },
-      { date: '2022-03-03', slug: 'mittel' },
+      { date: '2020-01-01', slug: 'old' },
+      { date: '2024-06-01', slug: 'new' },
+      { date: '2022-03-03', slug: 'middle' },
     ]
-    expect([...list].sort(comparePhotos).map((p) => p.slug)).toEqual(['neu', 'mittel', 'alt'])
+    expect([...list].sort(comparePhotos).map((p) => p.slug)).toEqual(['new', 'middle', 'old'])
   })
 
-  it('macht die Reihenfolge bei gleichem Datum über den Slug eindeutig', () => {
+  it('breaks a tie on the same date by slug', () => {
     const list = [
       { date: '2024-01-01', slug: 'beta' },
       { date: '2024-01-01', slug: 'alpha' },
@@ -73,9 +73,13 @@ describe('comparePhotos', () => {
 })
 
 describe('countTags', () => {
-  it('zählt und behält die kanonische Reihenfolge, nicht die Fundreihenfolge', () => {
+  it('counts and keeps the canonical order, not the order of appearance', () => {
     expect(
-      countTags([{ tags: ['landscape', 'nature'] }, { tags: ['animals'] }, { tags: ['landscape'] }]),
+      countTags([
+        { tags: ['landscape', 'nature'] },
+        { tags: ['animals'] },
+        { tags: ['landscape'] },
+      ]),
     ).toEqual([
       { tag: 'animals', count: 1 },
       { tag: 'nature', count: 1 },
@@ -83,13 +87,13 @@ describe('countTags', () => {
     ])
   })
 
-  it('nennt keine Tags, die niemand vergeben hat', () => {
+  it('does not name tags nobody has assigned', () => {
     expect(countTags([{ tags: ['sailing'] }])).toEqual([{ tag: 'sailing', count: 1 }])
   })
 })
 
 describe('resolveHero', () => {
-  it('nimmt das markierte Foto', () => {
+  it('takes the marked photo', () => {
     const result = resolveHero([
       { slug: 'a', meta: meta() },
       { slug: 'b', meta: meta({ hero: true }) },
@@ -98,16 +102,16 @@ describe('resolveHero', () => {
     expect(result.issues).toEqual([])
   })
 
-  it('fällt ohne Markierung auf das erste hervorgehobene Foto zurück und warnt', () => {
+  it('falls back to the first featured photo without a marker, and warns', () => {
     const result = resolveHero([
-      { slug: 'neu', meta: meta() },
+      { slug: 'new', meta: meta() },
       { slug: 'gewaehlt', meta: meta({ featured: true }) },
     ])
     expect(result.heroSlug).toBe('gewaehlt')
     expect(result.issues[0]?.level).toBe('warn')
   })
 
-  it('nimmt ohne jedes featured das erste Foto der Liste', () => {
+  it('takes the first photo of the list when nothing is featured', () => {
     const result = resolveHero([
       { slug: 'erstes', meta: meta() },
       { slug: 'zweites', meta: meta() },
@@ -116,7 +120,7 @@ describe('resolveHero', () => {
     expect(result.issues[0]?.level).toBe('warn')
   })
 
-  it('behandelt zwei Hero-Markierungen als Fehler', () => {
+  it('treats two hero markers as an error', () => {
     const result = resolveHero([
       { slug: 'a', meta: meta({ hero: true }) },
       { slug: 'b', meta: meta({ hero: true }) },
@@ -124,36 +128,36 @@ describe('resolveHero', () => {
     expect(result.issues[0]?.level).toBe('error')
   })
 
-  it('kommt mit einem leeren Bestand zurecht', () => {
+  it('copes with an empty set', () => {
     expect(resolveHero([]).heroSlug).toBeNull()
   })
 })
 
 describe('buildManifest', () => {
   const photos = [
-    { slug: 'alt', meta: meta({ date: '2020-05-05' }), render: render(), sourceHash: 'aaaa1111' },
+    { slug: 'old', meta: meta({ date: '2020-05-05' }), render: render(), sourceHash: 'aaaa1111' },
     {
-      slug: 'neu',
+      slug: 'new',
       meta: meta({ date: '2024-05-05', hero: true, featured: true, order: 1, tags: ['sailing'] }),
       render: render(),
       sourceHash: 'bbbb2222',
     },
   ]
 
-  it('sortiert, löst den Hero auf und zählt die Tags', () => {
+  it('sorts, resolves the hero and counts the tags', () => {
     const { manifest, issues } = buildManifest({
       photos,
       sourceMode: 'content',
       sourceDir: 'content/photos/source',
       generatedAt: '2026-08-29T00:00:00.000Z',
     })
-    expect(manifest.photos.map((p) => p.slug)).toEqual(['neu', 'alt'])
-    expect(manifest.heroSlug).toBe('neu')
+    expect(manifest.photos.map((p) => p.slug)).toEqual(['new', 'old'])
+    expect(manifest.heroSlug).toBe('new')
     expect(manifest.tags).toEqual([{ tag: 'sailing', count: 1 }])
     expect(issues).toEqual([])
   })
 
-  it('hält das Feld hero und heroSlug zusammen, egal was in der YAML stand', () => {
+  it('keeps the hero field and heroSlug in step, whatever the YAML said', () => {
     const { manifest } = buildManifest({
       photos: [{ ...photos[0]!, meta: meta({ hero: true }) }, photos[1]!],
       sourceMode: 'demo',
@@ -164,7 +168,7 @@ describe('buildManifest', () => {
     expect(flagged[0]?.slug).toBe(manifest.heroSlug)
   })
 
-  it('warnt, wenn order ohne featured gesetzt ist', () => {
+  it('warns when order is set without featured', () => {
     const { issues } = buildManifest({
       photos: [{ ...photos[0]!, meta: meta({ order: 2, hero: true }) }],
       sourceMode: 'demo',
@@ -173,7 +177,7 @@ describe('buildManifest', () => {
     expect(issues.some((issue) => issue.message.includes('featured: false'))).toBe(true)
   })
 
-  it('warnt bei doppelt vergebener order', () => {
+  it('warns about a duplicate order', () => {
     const { issues } = buildManifest({
       photos: [
         { ...photos[0]!, meta: meta({ order: 1, featured: true, hero: true }) },
@@ -182,12 +186,12 @@ describe('buildManifest', () => {
       sourceMode: 'demo',
       sourceDir: 'x',
     })
-    expect(issues.some((issue) => issue.message.includes('doppelt'))).toBe(true)
+    expect(issues.some((issue) => issue.message.includes('is used twice'))).toBe(true)
   })
 })
 
 describe('toIndex', () => {
-  it('lässt die Build-Interna weg und behält alles, was das Frontend braucht', () => {
+  it('drops the build internals and keeps everything the frontend needs', () => {
     const { manifest } = buildManifest({
       photos: [{ slug: 'x', meta: meta({ hero: true }), render: render(), sourceHash: 'cccc3333' }],
       sourceMode: 'demo',

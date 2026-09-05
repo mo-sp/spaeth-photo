@@ -1,531 +1,582 @@
-# Architektur & Entscheidungen
+# Architecture & decisions
 
-Ergänzt `PLAN.md`. Hier stehen die getroffenen Entscheidungen mit Begründung — und
-insbesondere jede Abweichung vom Plan. Grundsatz für dieses öffentliche Repo:
-Mechanismus beschreiben, kein Inventar von Hosts, Skripten oder Personen.
+This is where the decisions live, with their reasoning — the plan the site was built from,
+and in particular every deviation from it. Guiding rule for this public repo: describe the
+mechanism, never an inventory of hosts, scripts or people.
 
-## Stack-Entscheidungen
+## Stack decisions
 
-- **SSG statt SSR.** Phase 1 ist reine Präsentation; ein statisches Verzeichnis ist
-  billiger, schneller und sicherer zu betreiben. `nuxt generate` mit
-  `nitro.prerender.crawlLinks` rendert alle über die Navigation erreichbaren Routen vor;
-  Output ist `.output/public`. `ssr: true` bleibt gesetzt, weil Prerendering es
-  voraussetzt — und weil sich damit später ohne Umbau hybrid (statisch + Nitro-Routen)
-  fahren lässt, was Phase 2 braucht.
-- **Eigenes Sharp-Skript statt @nuxt/image.** Das Prerendering von @nuxt/image im
-  SSG-Modus ist unzuverlässig; ein eigenes Prebuild-Skript erzeugt die Varianten
-  deterministisch vor dem Generate und legt sie als reine statische Dateien ab.
-- **Generierte Daten als Single Source of Truth.** Beim Build entstehen das vollständige
-  `photos.manifest.json` und daraus der schlanke Client-Index `app/data/photos.index.json`.
-  Das Frontend liest ausschließlich den Index; Komponenten greifen nie auf das Dateisystem
-  zu. Das hält den Wechsel des Rendering-Modus offen und macht die Daten testbar. Details
-  unter „Datenmodell".
-- **Zwei Repos, Fotos als Submodule.** Code steht unter MIT und ist öffentlich; die Fotos
-  sind es nicht. Die Trennung Code/Rechte ist dadurch strukturell und nicht bloß eine
-  Absprache. Ein fremder Clone ohne Submodule-Zugriff baut über den Demo-Fallback durch.
-- **Kein Tailwind, kein UI-Framework.** Die Seite ist klein und die Bilder dominieren; die
-  Design-Tokens aus dem Handoff liegen als CSS Custom Properties in einer Datei und sind
-  die verbindliche Quelle.
-- **Toolchain-Postinstalls freigegeben.** `pnpm-workspace.yaml` erlaubt die nativen
-  Postinstall-Skripte von `esbuild` und `unrs-resolver` (Bestandteile der Nuxt- bzw.
-  ESLint-Toolchain). Ohne diese Freigabe fehlt die plattformspezifische Binärdatei und der
-  Build schlägt fehl — relevant auch für die Build-Umgebung des Hosters.
+- **SSG instead of SSR.** Phase 1 is pure presentation; a static directory is cheaper,
+  faster and safer to operate. `nuxt generate` with `nitro.prerender.crawlLinks` prerenders
+  every route reachable through the navigation; the output is `.output/public`. `ssr: true`
+  stays on, because prerendering requires it — and because it keeps a hybrid setup (static
+  plus Nitro routes) available later without a rebuild, which is what phase 2 needs.
+- **Own sharp script instead of @nuxt/image.** @nuxt/image's prerendering in SSG mode is
+  unreliable; a dedicated prebuild script generates the variants deterministically before
+  the generate step and drops them as plain static files.
+- **Generated data as the single source of truth.** The build produces the complete
+  `photos.manifest.json` and, from it, the slim client index `app/data/photos.index.json`.
+  The frontend reads the index only; components never touch the file system. That keeps a
+  change of rendering mode open and makes the data testable. Details under "Data model".
+- **Two repos, photos as a submodule.** The code is MIT and public; the photos are not. The
+  split between code and rights is therefore structural rather than merely an agreement. A
+  foreign clone without submodule access builds through the demo fallback.
+- **No Tailwind, no UI framework.** The site is small and the images dominate; the design
+  tokens from the handoff live as CSS custom properties in one file and are the binding
+  source.
+- **Toolchain postinstalls allowed.** `pnpm-workspace.yaml` permits the native postinstall
+  scripts of `esbuild` and `unrs-resolver` (parts of the Nuxt and ESLint toolchains
+  respectively). Without that allowance the platform-specific binary is missing and the
+  build fails — which matters for the host's build environment too.
 
-## Dependencies und warum
+## Dependencies, and why
 
-Jede Abhängigkeit kostet Angriffsfläche, Updates und Lesezeit. Diese fünf verdienen ihren
-Platz:
+Every dependency costs attack surface, updates and reading time. `package.json` lists seven
+runtime dependencies, but only four of them were chosen: `nuxt`, `vue` and `vue-router` are
+the framework decision itself, declared explicitly rather than relied on transitively. The
+four chosen ones, plus the two development dependencies that are not toolchain, earn their
+place like this:
 
-- **sharp** (Laufzeit) — die Bildverarbeitung selbst, Bindung an libvips. Ohne sie gäbe es
-  kein Projekt; eine Alternative in reinem JavaScript wäre um Größenordnungen langsamer.
-  Sie steht bewusst unter `dependencies` und nicht unter `devDependencies`, weil
-  `build-images` Teil des Build-Befehls ist.
-- **zod** (Laufzeit) — Validierung der YAML-Metadaten und der erzeugten Artefakte gegen ein
-  Schema, das zugleich die TypeScript-Typen klammert. Von Hand geschriebene Prüfungen
-  wären länger und würden mit den Typen auseinanderlaufen.
-- **yaml** (Laufzeit) — parst die Metadatendateien. Geschrieben werden sie von Hand, weil
-  Feldreihenfolge und Schreibweise Teil der Konvention sind; Parsen ist der Teil, den man
-  nicht selbst schreibt.
-- **exif-reader** (Laufzeit) — liest den EXIF-Block, den sharp als Rohpuffer liefert.
-  Klein, ohne eigene Abhängigkeiten, genau eine Aufgabe.
-- **vitest** (Entwicklung) — Testlauf. Teilt sich die Vite-Toolchain mit Nuxt, bringt also
-  keine zweite Transformationskette ins Projekt.
-- **@types/node** (Entwicklung) — reine Typdeklarationen; ohne sie kann `tsc` die
-  Node-Skripte nicht prüfen. Kein Laufzeit-Fußabdruck.
+- **sharp** (runtime) — the image processing itself, bound to libvips. Without it there
+  would be no project; a pure-JavaScript alternative would be orders of magnitude slower.
+  It sits under `dependencies` rather than `devDependencies` on purpose, because
+  `build-images` is part of the build command.
+- **zod** (runtime) — validation of the YAML metadata and of the generated artefacts
+  against a schema that also pins the TypeScript types. Hand-written checks would be longer
+  and would drift away from the types.
+- **yaml** (runtime) — parses the metadata files. They are written by hand, because field
+  order and spelling are part of the convention; parsing is the part one does not write
+  oneself.
+- **exif-reader** (runtime) — reads the EXIF block that sharp hands over as a raw buffer.
+  Small, no dependencies of its own, exactly one job.
+- **vitest** (development) — the test runner. It shares the Vite toolchain with Nuxt, so it
+  brings no second transformation chain into the project.
+- **@types/node** (development) — type declarations only; without them `tsc` cannot check
+  the Node scripts. No runtime footprint.
 
-Bewusst **nicht** hinzugekommen: ein CLI-Framework (`node:util.parseArgs` reicht für ein
-Dutzend Flags), eine Farbbibliothek (`node:util.styleText` prüft selbst, ob der Zielstream
-Farbe kann) und ein TypeScript-Runner — siehe unten.
+Deliberately **not** added: a CLI framework (`node:util.parseArgs` is enough for a dozen
+flags), a colour library (`node:util.styleText` works out for itself whether the target
+stream can do colour) and a TypeScript runner — see below.
 
-## Abweichungen vom Plan
+## The plan
 
-- **Nuxt 4 statt Nuxt 3** (PLAN.md §2). Nuxt 4 ist die aktuelle Major-Version, bringt die
-  `app/`-Verzeichnisstruktur und dieselben SSG-Fähigkeiten. Für ein neues Projekt gibt es
-  keinen Grund, auf der Vorgängerversion zu starten.
-- **Selbst gehostete Schriften statt Google Fonts** (Empfehlung des Design-Handoffs). Die
-  woff2-Dateien liegen in `public/fonts/`, eingebunden über eigene `@font-face`-Regeln.
-  Damit entsteht beim Seitenaufruf kein Request an Dritte — das ist Datenschutz (kein
-  IP-Abfluss, konsistent mit „keine Tracker, keine Cookies") und zugleich schneller, weil
-  eine Verbindung zu einer fremden Domain entfällt. Google liefert für beide Familien
-  Variable Fonts aus: pro Familie und Stil eine Datei über den ganzen Gewichtsbereich,
-  statt je einer Datei pro Schnitt. Die `@font-face`-Regeln geben den Bereich deshalb als
-  `font-weight: 400 600` an. Lizenz beider Familien: SIL OFL 1.1, Nachweis in
-  `public/fonts/LICENSE-OFL.txt`.
-- **Repo-Name ≠ Domain.** Das Repo heißt `spaeth-photo`; `spaeth-photo.de` ist bereits
-  vergeben, die Domain wird eine andere. Der Repo-Name ist bewusst kein Markenversprechen,
-  und die Seite trägt ihren Namen im Inhalt, nicht in der Repository-URL.
-- **Design-Integration sofort statt in einer Folge-Session** (PLAN.md §8). Der Handoff lag
-  zu Beginn vor; die Tokens sind unverändert übernommen, ergänzt nur um die im Handoff
-  empfohlenen responsiven Overrides.
-- **Node 24 führt die Build-Skripte aus, `tsx` ist entfallen** (PLAN.md §12). Node entfernt
-  seit Version 22 TypeScript-Typen selbst und führt `node scripts/build-images.ts` direkt
-  aus; ab 24 ist das der Standardpfad. Ein zusätzlicher Runner im Build ist damit
-  überflüssig. Node _entfernt_ dabei nur Typen, es transformiert nichts — deshalb setzt
-  `tsconfig.scripts.json` `erasableSyntaxOnly` und verbietet genau die Konstrukte
-  (`enum`, Parameter-Properties), die eine echte Transformation bräuchten. `engines.node`
-  steht entsprechend auf `>= 24`.
-- **Der Demo-Content wird mit geringerer Qualität exportiert** als die privaten
-  Web-Quellen (q82 statt q95). Er ist kein Archiv, sondern der Beleg, dass ein Clone ohne
-  Zugriff auf das private Submodule durchbaut; q95 hätte 4,4 statt 1,8 MB dauerhaft in
-  dieses Repo gelegt.
-- **Der Farb-Regressionstest erlaubt drei Stufen Abweichung je Kanal** statt exakter
-  Gleichheit. Verlustbehaftete Encoder runden: reines Rot kommt als 254 statt 255 aus AVIF
-  zurück. Eine falsche Farbraumkonvertierung läge um Dutzende Stufen daneben, der Test
-  bleibt also scharf genug.
-- **Prettier und ESLint teilen sich die Zuständigkeit.** Prettier formatiert, ESLint prüft.
-  Wo beide dieselbe Stelle beanspruchten (`vue/html-self-closing`), ist die ESLint-Regel
-  abgeschaltet; die aus dem Handoff übernommene `tokens.css` ist von Prettier ausgenommen,
-  damit sie 1:1 der Vorlage entspricht.
+The site was planned in one session on 2026-08-29 and built in nine work packages
+(sources, pipeline, gallery, detail page, pages, SEO, internationalisation, documentation,
+wrap-up). The planning documents themselves are working notes and live in the private
+content repo; what they decided is recorded here, because the deviations below refer to it.
 
-## Bild-Pipeline
+**Goal.** A personal photo portfolio (animals, nature, landscape, sailing — no people).
+Phase 1 is presentation only; phase 2 (fine-art prints via a print-on-demand API and Stripe
+Checkout) is prepared structurally — data model, stable URLs, a switchable rendering mode —
+but not built. The site doubles as a developer showcase, so clean code, documentation and
+measured performance are part of the goal.
 
-Zwei Skripte, klar getrennt. `export-sources` läuft von Hand und erzeugt aus den
-Originalen (volle Auflösung, mit EXIF, außerhalb jedes Repositorys) die Web-Quellen des
-Content-Repos. `build-images` läuft im Build und erzeugt daraus die Auslieferungsvarianten
-unter `public/img/`. Alle Zahlen unten sind auf dem Bestand dieses Projekts gemessen
-(26 Fotos, sharp 0.35 / libvips 8.18).
+**Stack as planned.** Nuxt 3 + TypeScript, statically generated; own prebuild script with
+sharp instead of `@nuxt/image`; hand-written CSS with custom properties as design tokens;
+two repositories, the photos as a private submodule; Coolify as the static-site host.
+The design integration was planned as a follow-up session with a neutral placeholder theme
+until then.
 
-**Bestehende Web-Quellen werden nie ungefragt überschrieben.** `export-sources` behandelt
-die Web-Quelle wie die YAML-Datei: existiert sie, wird sie übersprungen und als
-„übersprungen, existiert" gemeldet. Nur `--force` schreibt sie neu. Die Quelle ist die
-Vorlage aller Varianten und kann von Hand nachbearbeitet worden sein; ein zweiter Lauf mit
-anderer `--quality` würde diese Arbeit sonst stillschweigend verwerfen.
+**Binding decisions of 2026-08-29.**
 
-**Die Web-Quelle ist ein Archiv, kein Auslieferungsformat.** 2560 px lange Kante, JPEG
-q95, und ausdrücklich `chromaSubsampling: 4:4:4`. 4:2:0 wirft drei Viertel der
-Farbauflösung weg, bevor der eigentliche Encoder überhaupt anfängt; dieser Verlust
-vererbt sich in jede AVIF- und WebP-Stufe und ist nicht rückholbar. Als einzige Datei im
-Projekt trägt die Web-Quelle ein ICC-Profil (`withIccProfile('srgb')`) — ein Archiv soll
-sich selbst beschreiben.
+- Wordmark "MORITZ / SPÄTH", ASCII spelling `spaeth` everywhere else. Theme "Licht /
+  Schatten" as a typographic duality in the home-page hero, not in the sidebar. Sidebar
+  footer with the place name and coordinates.
+- Design handoff "1C full-bleed" integrated immediately: sidebar layout (220 px), tokens
+  adopted unchanged, fonts Archivo and JetBrains Mono self-hosted as woff2.
+- Originals live outside every repository and are only ever read (`$PHOTO_SOURCE_DIR`). A
+  generic export script reads their EXIF, writes 2560 px sRGB web sources without metadata
+  into the private repo and creates the YAML side files. The public repo carries three
+  freely licensed demo images so that a clone without the submodule still builds.
+- English is the primary language, German the translation under `/de` with the same English
+  path segments; `x-default` points to English. Slugs and tag keys are English. Pages that
+  still carry `TODO:` placeholders are `noindex` and stay out of the sitemap. The Impressum
+  stays German (§ 5 DDG).
+- Not without asking first: buying a domain, deploying, deleting user data, force-pushing.
 
-**4:4:4 auch in den Varianten.** Bei AVIF kostet volle Farbauflösung gegenüber 4:2:0
-rund 4 % Dateigröße (104,9 statt 100,7 KB in der 1600er-Stufe eines typischen Fotos).
-Dafür bleiben gesättigte Kanten — Takelage vor Himmel, Schilf im Gegenlicht — frei von
-Farbsäumen. Vier Prozent sind der Preis wert; sichtbare Artefakte auf einer Fotoseite
-sind es nicht.
+## Deviations from the plan
 
-**AVIF mit 10 Bit Farbtiefe.** Das ist kein Aufpreis, sondern ein Rabatt: dieselbe Stufe
-misst mit `bitdepth: 10` 104,9 KB und mit 8 Bit 110,0 KB. Der Encoder rechnet intern
-ohnehin mit höherer Präzision; 10 Bit vermeidet zusätzlich die Streifenbildung in weichen
-Verläufen (Morgenhimmel, Nebel), die bei 8 Bit sichtbar wird.
+- **Nuxt 4 instead of Nuxt 3.** Nuxt 4 is the current major version, brings
+  the `app/` directory layout and the same SSG capabilities. For a new project there is no
+  reason to start on the previous version.
+- **Self-hosted fonts instead of Google Fonts** (recommendation of the design handoff). The
+  woff2 files live in `public/fonts/`, wired up through our own `@font-face` rules. That
+  way a page view makes no request to a third party — which is data protection (no IP
+  leaking out, consistent with "no trackers, no cookies") and at the same time faster,
+  because a connection to a foreign domain is avoided. Google ships variable fonts for both
+  families: one file per family and style covering the whole weight range, instead of one
+  file per cut. The `@font-face` rules therefore state the range as `font-weight: 400 600`.
+  Licence of both families: SIL OFL 1.1, recorded in `public/fonts/LICENSE-OFL.txt`.
+- **Repo name ≠ domain.** The repo is called `spaeth-photo`; `spaeth-photo.de` is already
+  taken, so the domain will be a different one. The repo name is deliberately not a brand
+  promise, and the site carries its name in its content, not in the repository URL.
+- **Design integration right away instead of in a follow-up session.** The
+  handoff was available from the start; the tokens are adopted unchanged, extended only by
+  the responsive overrides the handoff recommends.
+- **Node 24 runs the build scripts, `tsx` is gone.** Since version 22 Node
+  strips TypeScript types itself and runs `node scripts/build-images.ts` directly; from 24
+  on that is the default path. An additional runner in the build is therefore redundant.
+  Node only _strips_ types, it transforms nothing — which is why `tsconfig.scripts.json`
+  sets `erasableSyntaxOnly` and forbids exactly the constructs (`enum`, parameter
+  properties) that would need a real transformation. `engines.node` is set to `>= 24`
+  accordingly.
+- **The demo content is exported at lower quality** than the private web sources (q82
+  instead of q95). It is not an archive but the proof that a clone without access to the
+  private submodule builds through; q95 would have parked 4.4 MB instead of 1.8 MB in this
+  repo permanently.
+- **The colour regression test allows three steps of deviation per channel** instead of
+  exact equality. Lossy encoders round: pure red comes back out of AVIF as 254 rather
+  than 255. A wrong colour space conversion would be dozens of steps off, so the test stays
+  sharp enough.
+- **Prettier and ESLint share the responsibility.** Prettier formats, ESLint checks. Where
+  both claimed the same spot (`vue/html-self-closing`), the ESLint rule is switched off;
+  the `tokens.css` adopted from the handoff is excluded from Prettier so that it matches
+  the original 1:1.
 
-**AVIF mit `effort: 3`.** Zwischen Stufe 3 und Stufe 6 liegen 1,6 % Dateigröße
-(104,9 gegenüber 103,2 KB) und Faktor 12 an Rechenzeit (1,8 gegenüber 22,2 Sekunden für
-ein einziges Bild einer einzigen Stufe). Bei 26 Fotos mal vier Stufen wäre Stufe 6 die
-Differenz zwischen sechs Minuten und über einer Stunde Buildzeit. WebP steht mit
-`effort: 5` aus demselben Grund eine Stufe unter dem Maximum.
+## Image pipeline
 
-**Qualitätsleiter mit Budget-Deckel.** Jede Stufe startet mit einer festen Qualität
-(AVIF 60/57/54/52 von 480 bis 2560 px), und wenn das Ergebnis ein Größenbudget reißt,
-sinkt die Qualität in Fünferschritten bis zu einer Untergrenze. Der Deckel greift nur bei
-den Bildern, die für einen Encoder pathologisch sind — Laub, Wellen, Rauschen im
-Nachthimmel. Das schlimmste Bild im Bestand (Feuerwerk über Bäumen) misst in der
-2560er-Stufe mit Deckel 372 KB statt 573 KB ohne, ein Drittel weniger; 11 der 26 Fotos
-lösen ihn überhaupt aus. Die Budgets sind an einem Querformat 3:2 gemessen und werden
-nach Pixelzahl skaliert, sonst schlüge der Deckel bei jedem Hochformat grundlos zu.
+Two scripts, cleanly separated. `export-sources` is run by hand and turns the originals
+(full resolution, with EXIF, outside any repository) into the web sources of the content
+repo. `build-images` runs during the build and turns those into the delivery variants under
+`public/img/`. All the numbers below are measured against this project's own set
+(26 photos, sharp 0.35 / libvips 8.18).
 
-**Kein Nachschärfen auf der größten Stufe.** Verkleinern kostet Schärfe, und zwar umso
-mehr, je stärker verkleinert wird — die 480er-Stufe wird deshalb kräftiger nachgeschärft
-als die 1600er. Die größte erzeugte Stufe wird auf großen Bildschirmen nahezu 1:1
-dargestellt; dort erzeugt Nachschärfen nur Halos um Kanten.
+**Existing web sources are never overwritten unasked.** `export-sources` treats the web
+source like the YAML file: if it exists, it is skipped and reported as
+"skipped, exists". Only `--force` writes it again. The source is the template
+for every variant and may have been retouched by hand; a second run with a different
+`--quality` would otherwise silently discard that work.
 
-**Native Breite als zusätzliche Stufe.** Ein Hochformat mit 2560 px Höhe ist nur rund
-1707 px breit. Ohne Sonderregel wäre seine größte ausgelieferte Stufe 1600 px, und die
-Detailseite müsste hochrechnen. Deshalb kommt die native Quellbreite als Stufe dazu,
-sobald sie mehr als 32 px über der letzten Regelstufe liegt. Das Manifest führt die
-tatsächlich erzeugten Breiten je Foto — ein `srcset` darf nie aus der Konstante gebaut
-werden.
+**The web source is an archive, not a delivery format.** 2560 px on the long edge, JPEG
+q95, and explicitly `chromaSubsampling: 4:4:4`. 4:2:0 throws away three quarters of the
+colour resolution before the actual encoder even starts; that loss is inherited by every
+AVIF and WebP step and cannot be recovered. As the only file in the project the web source
+carries an ICC profile (`withIccProfile('srgb')`) — an archive should describe itself.
 
-**LQIP: 20 px breites WebP plus Durchschnittsfarbe.** Das Base64-WebP misst rund 190 Byte
-und steht im Client-Index, also im ausgelieferten JavaScript jeder Seite, auf der das Bild
-vorkommt. Unter 20 px verliert die Vorschau ihre Form, darüber wächst der Index spürbar.
-Zusätzlich steht die Durchschnittsfarbe als Hex im Index: in der Galerie ist ein einfarbiger
-Kachelhintergrund ruhiger als zwanzig gleichzeitig aufblitzende Blur-Bilder, der
-Blur-up bleibt dem Hero und der Detailseite vorbehalten.
+**4:4:4 in the variants too.** With AVIF, full colour resolution costs about 4 % in file
+size compared to 4:2:0 (104.9 instead of 100.7 KB in the 1600 step of a typical photo). In
+return, saturated edges — rigging against the sky, reeds backlit — stay free of colour
+fringes. Four percent is worth the price; visible artefacts on a photography site are not.
 
-**Farbmanagement über den Default, nicht dagegen.** Die Pipeline setzt bewusst kein
-`toColorspace`, kein `keepMetadata`, kein `withMetadata`. Die Web-Quellen sind sRGB, libvips
-rechnet intern korrekt, und die Ausgaben bleiben profillos — was jeder Browser als sRGB
-liest und je Datei rund 500 Byte spart. Festgehalten wird das durch einen
-Regressionstest (`pnpm test:integration`): ein Testbild aus vier Farbflächen, darunter ein
-Mittelgrau, muss alle Formate mit einer Abweichung von höchstens drei Stufen je Kanal
-überstehen. Eine falsche Farbraumkonvertierung läge um Dutzende Stufen daneben, gerade in
-den mittleren Tönen.
+**AVIF at 10 bit colour depth.** That is not a surcharge but a discount: the same step
+measures 104.9 KB with `bitdepth: 10` and 110.0 KB at 8 bit. The encoder computes at higher
+precision internally anyway; 10 bit additionally avoids the banding in soft gradients
+(morning sky, fog) that becomes visible at 8 bit.
 
-**OpenGraph-Bild mit `position: attention`.** Das 1200×630-Bild wird nicht mittig
-zugeschnitten, sondern auf die Region mit der höchsten Sättigung und Kantendichte. Bei
-einem Horizont im unteren Drittel trifft ein zentrierter Schnitt sonst nur Himmel.
+**AVIF with `effort: 3`.** Between level 3 and level 6 lie 1.6 % of file size
+(104.9 against 103.2 KB) and a factor of 12 in compute time (1.8 against 22.2 seconds for a
+single image at a single step). At 26 photos times four steps, level 6 would be the
+difference between six minutes and over an hour of build time. WebP sits one step below the
+maximum at `effort: 5` for the same reason.
 
-**Inkrementell über Inhalt, nicht über Zeitstempel.** Der Cache
-(`.image-cache/manifest-cache.json`) merkt sich je Foto den Inhaltshash der Quelle, mtime
-und Größe als Schnellpfad sowie einen Hash der Metadaten. Stimmen mtime und Größe, wird
-der Inhalt gar nicht erst gelesen; weichen sie ab, entscheidet der Hash — ein frischer
-Checkout setzt neue Zeitstempel, ohne eine Datei zu ändern. Ändert sich nur die
-YAML-Datei, wird das Manifest neu geschrieben, aber kein Bild neu kodiert. Über allem
-steht ein Hash aller Render-Einstellungen plus der libvips-Version: verschiebt sich dort
-etwas, entsteht alles neu, statt dass sich in `public/img/` zwei Konfigurationen mischen.
-Gemessen: erster Lauf 354 s für 26 Fotos und 286 Dateien (32,9 MB), zweiter Lauf 37 ms.
+**Quality ladder with a budget cap.** Every step starts at a fixed quality (AVIF 60/57/54/52
+from 480 to 2560 px), and if the result busts a size budget, the quality drops in steps of
+five down to a floor. The cap only bites on the images that are pathological for an
+encoder — foliage, waves, noise in a night sky. The worst image in the set (fireworks over
+trees) measures 372 KB with the cap in the 2560 step instead of 573 KB without it, a third
+less; 11 of the 26 photos trigger it at all. The budgets are measured on a 3:2 landscape
+and scaled by pixel count, otherwise the cap would fire on every portrait for no reason.
 
-**Aufräumen ist die gefährlichste Operation im Projekt** und entsprechend abgesichert:
-gelöscht wird ausschließlich unterhalb von `public/img` (jeder Pfad läuft durch
-`assertInside`), ausschließlich in Verzeichnissen mit gültigem Slug-Namen und
-ausschließlich Dateien, deren Name dem Muster der erzeugten Varianten entspricht. Alles
-andere — `README.md`, `.gitkeep`, Symlinks, fremde Ordner — wird gemeldet und liegen
-gelassen. Ohne Quellbilder wird überhaupt nicht aufgeräumt — ein leeres Quellverzeichnis
-ist viel wahrscheinlicher ein Konfigurationsfehler als die Ansage, alles zu löschen.
+**No sharpening on the largest step.** Downscaling costs sharpness, and the more so the
+stronger the reduction — which is why the 480 step is sharpened more heavily than the
+1600 one. The largest generated step is displayed close to 1:1 on large screens; there,
+sharpening only produces halos around edges.
 
-**Aufgeräumt wird nur nach einem vollständigen, fehlerfreien Lauf.** Das Löschen richtet
-sich nach dem Sollzustand des Laufs, und der ist in zwei Fällen unvollständig, obwohl die
-Ausgaben auf der Platte gültig sind. **Erstens `--only`:** ein Teillauf betrachtet einen
-Slug: alle anderen stehen nur dann im Sollzustand, wenn der Cache sie kennt — bei kaltem
-Cache also gar nicht. Deshalb räumt ein Lauf mit `--only` überhaupt nicht auf und sagt das
-in einer Zeile; die ausgelassenen Slugs gelten als unangetastet. **Zweitens Fehler:** ein
-Foto mit kaputter YAML-Datei fällt aus dem Sollzustand heraus, und der Lauf schreibt wegen
-des Fehlers ohnehin weder Manifest noch Index noch Cache — dann darf er erst recht nichts
-löschen. Der Fehlerpfad ist nie destruktiv. Zusätzlich stehen die betroffenen Slugs auf
-einer Schutzliste. **`--dry-run` durchläuft dieselbe Entscheidungslogik wie ein echter
-Lauf** und hält nur vor jedem Schreiben und Löschen an: die Vorschau zeigt damit dieselben
-Verdikte und dieselben Löschungen, die der echte Lauf vornähme. Die Funktion selbst liegt
-in `scripts/lib/cleanup.ts` und wird gegen ein temporäres Verzeichnis getestet — ein
-Löschpfad, den man nicht testen kann, ist ein Löschpfad, dem man nicht trauen sollte.
+**Native width as an additional step.** A portrait 2560 px high is only about 1707 px wide.
+Without a special rule its largest delivered step would be 1600 px, and the detail page
+would have to upscale. So the native source width is added as a step as soon as it exceeds
+the last regular step by more than 32 px. The manifest records the widths actually generated
+per photo — a `srcset` must never be built from the constant.
 
-**JPEG-Untergrenze: kein Foto ohne `src`.** Der JPEG-Fallback entsteht auf den Stufen 960
-und 1600. Bei einer Quelle unter 960 px greift keine davon, und `variants.jpeg` bliebe
-leer — ein Browser ohne AVIF und WebP bekäme dann im `<img>` kein `src` und zeigte nichts.
-Deshalb springt in diesem Fall die größte erzeugte Stufe bis 1600 px als JPEG ein.
+**LQIP: 20 px wide WebP plus average colour.** The base64 WebP measures about 190 bytes and
+sits in the client index, that is, in the delivered JavaScript of every page the image
+appears on. Below 20 px the preview loses its shape, above it the index grows noticeably.
+In addition the average colour is in the index as hex: in the gallery a flat tile background
+is calmer than twenty blur images flashing up at once, so the blur-up is reserved for the
+hero and the detail page.
 
-**Sequenziell, nicht parallel.** libvips parallelisiert innerhalb einer Operation bereits
-über alle Kerne; ein zusätzlicher Parallelismus auf Bildebene bringt kaum Durchsatz, macht
-aber die Ausgabe unlesbar und den Speicherbedarf unvorhersehbar.
+**Colour management with the default, not against it.** The pipeline deliberately sets no
+`toColorspace`, no `keepMetadata`, no `withMetadata`. The web sources are sRGB, libvips
+computes correctly internally, and the outputs stay profile-free — which every browser reads
+as sRGB and which saves about 500 bytes per file. This is pinned down by a regression test
+(`pnpm test:integration`): a test image of four colour patches, one of them a mid grey, has
+to survive every format with a deviation of at most three steps per channel. A wrong colour
+space conversion would be dozens of steps off, especially in the mid tones.
 
-## Datenmodell
+**OpenGraph image with `position: attention`.** The 1200×630 image is not cropped centrally
+but onto the region with the highest saturation and edge density. With a horizon in the
+lower third, a centred crop would otherwise catch nothing but sky.
 
-Je Foto eine `photos/meta/<slug>.yaml`, beim Build gegen ein zod-Schema validiert. Fehlender
-Titel, ungültiges Datum, unbekanntes Tag oder ein unbekannter Schlüssel sind harte Fehler:
-ein Tippfehler soll auffallen. Eine Auslassung dagegen stört nicht — alles außer Titel und
-Datum hat einen dokumentierten Standardwert. Dateiname = Slug = URL; Slugs sind nach dem
-Deploy unveränderlich, weil sie in Phase 2 zu Produkt-URLs werden.
+**Incremental by content, not by timestamp.** The cache
+(`.image-cache/manifest-cache.json`) remembers per photo the content hash of the source,
+mtime and size as a fast path, plus a hash of the metadata. If mtime and size match, the
+content is not read at all; if they differ, the hash decides — a fresh checkout sets new
+timestamps without changing a file. If only the YAML file changes, the manifest is rewritten
+but no image is re-encoded. Above all of it sits a hash of all render settings plus the
+libvips version: if anything shifts there, everything is regenerated instead of two
+configurations mixing in `public/img/`. Measured: first run 354 s for 26 photos and
+286 files (32.9 MB), second run 37 ms.
 
-**Zwei Artefakte statt einem, beide generiert und gitignored.**
-`photos.manifest.json` in der Projektwurzel ist vollständig: jede geschriebene Datei mit
-Pfad, Maßen und Größe, dazu Quellmaße und Inhaltshash. Es ist ein Build-Protokoll — für
-Diagnose, für die Plausibilitätsprüfung in der CI und für das Aufräumen.
-`app/data/photos.index.json` ist der Teil, den das Frontend braucht, und wird ins Bundle
-importiert. Für 26 Fotos stehen 82 KB Manifest 17 KB Index gegenüber; das Frontend soll
-kein Build-Protokoll ausliefern.
+**Cleanup is the most dangerous operation in the project** and is secured accordingly:
+deletion happens exclusively below `public/img` (every path runs through `assertInside`),
+exclusively in directories with a valid slug name, and exclusively for files whose name
+matches the pattern of the generated variants. Everything else — `README.md`, `.gitkeep`,
+symlinks, foreign folders — is reported and left alone. Without source images nothing is
+cleaned up at all — an empty source directory is far more likely a configuration error than
+an instruction to delete everything.
 
-**Bild-URLs stehen nicht im Index, sie folgen einer Konvention:**
-`/img/<slug>/<breite>.<endung>`, dazu `/img/<slug>/og.jpg`. Der Index führt nur die
-tatsächlich erzeugten Breiten je Format (`variants: { avif: [...], webp: [...], jpeg: [...] }`).
-Das spart gegenüber ausgeschriebenen Pfaden den größten Teil der Bytes und macht eine
-Umbenennung zu einer Änderung an genau einer Stelle (`shared/constants/images.ts`).
+**Cleanup only happens after a complete, error-free run.** Deletion follows the run's target
+state, and that state is incomplete in two cases even though the outputs on disk are valid.
+**First, `--only`:** a partial run looks at one slug; all the others are only in the target
+state if the cache knows them — with a cold cache, therefore, not at all. So a run with
+`--only` does not clean up at all and says so in one line; the skipped slugs count as
+untouched. **Second, errors:** a photo with a broken YAML file drops out of the target
+state, and because of the error the run writes neither manifest nor index nor cache anyway —
+in which case it must certainly not delete anything. The error path is never destructive. In
+addition, the affected slugs are put on a protection list. **`--dry-run` goes through the
+same decision logic as a real run** and only stops short of every write and delete: the
+preview therefore shows the same verdicts and the same deletions the real run would perform.
+The function itself lives in `scripts/lib/cleanup.ts` and is tested against a temporary
+directory — a deletion path one cannot test is a deletion path one should not trust.
 
-**Typen und Schema klammern sich gegenseitig.** `shared/types/photo.ts` enthält
-ausschließlich Typen und wird von den Build-Skripten wie vom Frontend importiert. Die
-zod-Schemata in `scripts/lib/schema.ts` sind über eine `AssertExact`-Hilfe bidirektional
-daran gebunden: wer nur eine Seite ändert, bekommt einen Typfehler, statt dass Compile- und
-Laufzeitmodell still auseinanderlaufen.
+**JPEG floor: no photo without a `src`.** The JPEG fallback is generated at the 960 and 1600
+steps. For a source below 960 px neither applies, and `variants.jpeg` would stay empty — a
+browser without AVIF and WebP would then get no `src` in the `<img>` and show nothing. So in
+that case the largest generated step up to 1600 px steps in as JPEG.
 
-**Sortierung: Datum absteigend, bei Gleichstand Slug aufsteigend.** Der zweite Schlüssel ist
-keine Geschmacksfrage, sondern Determinismus — eine Galerie, die sich zwischen zwei Deploys
-umsortiert, sieht wie ein Fehler aus.
+**Sequential, not parallel.** libvips already parallelises across all cores within a single
+operation; additional parallelism at the image level buys almost no throughput but makes the
+output unreadable and the memory requirement unpredictable.
 
-**Hero-Regel.** Genau ein Foto trägt `hero: true`. Sind es zwei, ist das ein Fehler: hier
-ist eine Entscheidung nötig, die das Skript nicht treffen darf. Ist es keines, wählt der
-Build das neueste hervorgehobene Foto (sonst das neueste überhaupt) und warnt — eine
-Startseite ohne Hero wäre kaputt, und ein harter Fehler dafür wäre eine unnötige Bremse.
-Der aufgelöste Slug steht als `heroSlug` im Kopf, und das Feld `hero` je Foto wird aus der
-Auflösung gesetzt statt aus der YAML abgeschrieben; beide können damit nicht auseinanderlaufen.
-`featured` markiert die Kandidaten für die Startseiten-Auswahl, `order` ihre Reihenfolge dort.
+## Data model
 
-**Tags** sind ein geschlossener Satz (`animals`, `nature`, `landscape`, `sailing`, `fire`,
-`architecture`, `black-and-white`), im Datenmodell kleingeschrieben und ASCII, weil sie in
-URLs auftauchen (`/gallery/black-and-white`). Reihenfolge und die Anzeige-Label beider
-Sprachen stehen in `shared/utils/tags.ts`. Der Index führt nur die tatsächlich vergebenen
-Tags mit ihrer Anzahl.
+One `photos/meta/<slug>.yaml` per photo, validated against a zod schema at build time. A
+missing title, an invalid date, an unknown tag or an unknown key are hard errors: a typo
+should be noticed. An omission, by contrast, does no harm — everything except title and date
+has a documented default. File name = slug = URL; slugs are immutable after the deploy,
+because they become product URLs in phase 2.
 
-**Titel und Bildbeschreibung sind zweisprachig.** `title` ist englisch und Pflicht,
-`title_de` und `alt_de` sind optional; im Index heißen sie `titleDe`/`altDe` und fehlen,
-wenn es keine Übersetzung gibt. Auflösung über `photoTitle`/`photoAlt` in
-`shared/utils/photos.ts` — Details unter „Internationalisation".
+**Two artefacts instead of one, both generated and gitignored.**
+`photos.manifest.json` in the project root is complete: every written file with path,
+dimensions and size, plus source dimensions and content hash. It is a build log — for
+diagnosis, for the plausibility check in CI and for the cleanup.
+`app/data/photos.index.json` is the part the frontend needs, and it is imported into the
+bundle. For 26 photos that is 82 KB of manifest against 17 KB of index; the frontend should
+not ship a build log.
 
-**Demo-Fallback.** `build-images` wählt die Quelle in dieser Reihenfolge: expliziter
-`--source-dir`, dann das private `content/`-Submodule (nur wenn es ausgecheckt ist _und_
-Quellen enthält), sonst `demo-content/`. Der gewählte Modus steht als `sourceMode` im
-Manifest. Die CI checkt das Submodule absichtlich nicht aus und prüft anschließend, dass
-`sourceMode` gleich `demo` ist — damit ist der Fallback nicht behauptet, sondern bei jedem
-Lauf bewiesen.
+**Image URLs are not in the index, they follow a convention:**
+`/img/<slug>/<width>.<ext>`, plus `/img/<slug>/og.jpg`. The index records only the
+widths actually generated per format (`variants: { avif: [...], webp: [...], jpeg: [...] }`).
+Compared with spelled-out paths this saves the bulk of the bytes and makes a rename a change
+in exactly one place (`shared/constants/images.ts`).
+
+**Types and schema pin each other.** `shared/types/photo.ts` contains types only and is
+imported by the build scripts as well as the frontend. The zod schemas in
+`scripts/lib/schema.ts` are bound to it bidirectionally via an `AssertExact` helper: change
+only one side and you get a type error, instead of the compile-time and runtime models
+quietly drifting apart.
+
+**Sorting: date descending, slug ascending on a tie.** The second key is not a matter of
+taste but of determinism — a gallery that reorders itself between two deploys looks like a
+bug.
+
+**Hero rule.** Exactly one photo carries `hero: true`. If there are two, that is an error:
+this calls for a decision the script must not make. If there is none, the build picks the
+newest featured photo (otherwise the newest overall) and warns — a home page without a hero
+would be broken, and a hard error for it would be a needless obstacle. The resolved slug
+sits as `heroSlug` in the header, and the `hero` field per photo is set from the resolution
+rather than copied from the YAML; the two therefore cannot drift apart. `featured` marks the
+candidates for the home page selection, `order` their sequence there.
+
+**Tags** are a closed set (`animals`, `nature`, `landscape`, `sailing`, `fire`,
+`architecture`, `black-and-white`), lowercase and ASCII in the data model because they show
+up in URLs (`/gallery/black-and-white`). Their order and the display labels for both
+languages live in `shared/utils/tags.ts`. The index records only the tags actually assigned,
+with their count.
+
+**Titles and image descriptions are bilingual.** `title` is English and required,
+`title_de` and `alt_de` are optional; in the index they are called `titleDe`/`altDe` and are
+absent when there is no translation. Resolution goes through `photoTitle`/`photoAlt` in
+`shared/utils/photos.ts` — details under "Internationalisation".
+
+**Demo fallback.** `build-images` picks the source in this order: explicit `--source-dir`,
+then the private `content/` submodule (only if it is checked out _and_ contains sources),
+otherwise `demo-content/`. The chosen mode is recorded as `sourceMode` in the manifest. CI
+deliberately does not check out the submodule and then verifies that `sourceMode` equals
+`demo` — so the fallback is not asserted but proven on every run.
 
 ## Frontend
 
-Die Bilder dominieren, die Bedienung tritt an den Rand: feste Seitenleiste links, randloser
-Inhalt rechts, Struktur nur über 1-px-Hairlines. Das Design kommt aus dem Handoff; die
-Entscheidungen darunter sind die Stellen, an denen die Umsetzung von der Vorlage abweicht
-oder eine Wahl hatte.
+The images dominate, the controls step to the edge: fixed sidebar on the left, full-bleed
+content on the right, structure only through 1 px hairlines. The design comes from the
+handoff; the decisions below are the places where the implementation deviates from the
+original or had a choice to make.
 
-**Der Tag-Filter ist eine Pfadroute, keine Query** (Abweichung von PLAN.md §6 und vom
-Handoff, der `?tag=segeln` vorschlägt). `/gallery` und `/gallery/sailing` sind zwei
-prerenderte Seiten statt einer Seite mit clientseitiger Filterung. Der Unterschied ist
-nicht kosmetisch: eine Query lässt sich nicht statisch vorrendern, also käme die gefilterte
-Liste erst nach der Hydration — mit einem Moment ungefilterter Galerie davor, ohne
-JavaScript gar nicht, und `aria-current="page"` auf dem aktiven Filter wäre eine
-Behauptung statt einer Tatsache. Als Pfad ist der aktive Tag die Adresse: die Seite steht
-fertig im HTML, jeder Filterlink ist ein echter Link, und ein unbekannter Tag ist ein 404
-statt einer stillschweigend ungefilterten Ansicht. Eine clientseitige Middleware schreibt
-`/gallery?tag=x` auf `/gallery/x` um, damit Links aus der Entwurfsphase am Ziel ankommen.
+**The tag filter is a path route, not a query** (deviation from the plan and from the
+handoff, which proposes `?tag=segeln`). `/gallery` and `/gallery/sailing` are two
+prerendered pages rather than one page with client-side filtering. The difference is not
+cosmetic: a query cannot be prerendered statically, so the filtered list would only arrive
+after hydration — with a moment of unfiltered gallery before it, not at all without
+JavaScript, and `aria-current="page"` on the active filter would be a claim rather than a
+fact. As a path, the active tag is the address: the page is finished in the HTML, every
+filter link is a real link, and an unknown tag is a 404 instead of a silently unfiltered
+view. A client-side middleware rewrites `/gallery?tag=x` to `/gallery/x`, so links from the
+drafting phase still arrive.
 
-**Der Sidebar-Inhalt kommt aus den Routen-Metadaten, nicht aus einem Teleport.** Galerie
-und Detailseite füllen denselben Platz in der Seitenleiste mit Unterschiedlichem. Der
-naheliegende Weg — die Seite teleportiert ihren Block in die Sidebar — funktioniert im SSG
-nicht: Teleports werden beim statischen Rendern verworfen, die Sidebar bliebe im
-ausgelieferten HTML leer und füllte sich erst nach der Hydration. Stattdessen trägt jede
-Seite `definePageMeta({ aside: 'gallery' | 'photo' })`, Nuxt liest den Schlüssel dank
-`experimental.extraPageMetaExtractionKeys` schon zur Buildzeit aus, und das Layout
-entscheidet daraus, was in der Seitenleiste steht — und mobil auch, an welcher Stelle des
-Grids es steht (Filter über den Kacheln, Bildmetadaten unter dem Bild). Ein Store käme aus
-demselben Grund nicht in Frage wie der Teleport.
+**The sidebar content comes from the route metadata, not from a teleport.** Gallery and
+detail page fill the same slot in the sidebar with different things. The obvious route — the
+page teleports its block into the sidebar — does not work under SSG: teleports are discarded
+during static rendering, the sidebar would stay empty in the delivered HTML and only fill in
+after hydration. Instead every page carries `definePageMeta({ aside: 'gallery' | 'photo' })`,
+Nuxt reads the key at build time thanks to `experimental.extraPageMetaExtractionKeys`, and
+the layout decides from it what goes into the sidebar — and on mobile also where in the grid
+it goes (filter above the tiles, image metadata below the image). A store is ruled out for
+the same reason as the teleport.
 
-**Masonry über CSS-Columns, mit einer dokumentierten Nebenwirkung.** `grid-template-rows:
-masonry` ist 2026 noch nicht überall Baseline, also bleibt es bei `columns: 3`. Die Kacheln
-füllen damit Spalte für Spalte statt Zeile für Zeile: die Tabulator-Reihenfolge läuft die
-erste Spalte hinunter und dann die zweite, nicht in Leserichtung. Für eine Galerie ohne
-inhaltliche Reihenfolge ist das vertretbar — die Alternative wäre ein Raster mit fester
-Zeilenhöhe, und das beschnitte jedes Hochformat.
+**Masonry via CSS columns, with one documented side effect.** `grid-template-rows: masonry`
+is not baseline everywhere in 2026, so `columns: 3` it is. The tiles therefore fill column
+by column rather than row by row: the tab order runs down the first column and then the
+second, not in reading order. For a gallery with no inherent order that is acceptable — the
+alternative would be a grid with a fixed row height, and that would crop every portrait.
 
-**Kachelhintergrund ist die Durchschnittsfarbe, kein Blur.** Jede Kachel trägt ihr
-`aspect-ratio` und die Durchschnittsfarbe aus dem Index; CLS bleibt bei 0, ohne dass
-26 Base64-Vorschauen im HTML stehen. Der Blur-up bleibt Hero und Detailseite vorbehalten,
-wo es je Seite genau ein Bild ist. Wie viele Kacheln ohne `loading="lazy"` starten, ergibt
-sich nicht aus einer geratenen Zahl, sondern aus einer Simulation des Spaltenumbruchs über
-die Seitenverhältnisse — der Lazy-Loader des Browsers entscheidet erst nach dem Layout, und
-bei CSS-Columns steht das Layout spät.
+**The tile background is the average colour, not a blur.** Every tile carries its
+`aspect-ratio` and the average colour from the index; CLS stays at 0 without 26 base64
+previews sitting in the HTML. The blur-up is reserved for hero and detail page, where it is
+exactly one image per page. How many tiles start without `loading="lazy"` does not come from
+a guessed number but from a simulation of the column break across the aspect ratios — the
+browser's lazy loader only decides after layout, and with CSS columns layout comes late.
 
-**Die Kachel bleibt ein Link.** `<a href="/photo/…">` mit abgefangenem Klick: nur der
-einfache Linksklick ohne Modifier öffnet die Lightbox, alles andere (Mittelklick, Strg,
-„In neuem Tab öffnen") führt zur Detailseite. Damit funktioniert die Galerie ohne
-JavaScript, und die 26 Detailseiten stehen als echte Links im Quelltext.
+**The tile stays a link.** `<a href="/photo/…">` with an intercepted click: only a plain
+left click without modifiers opens the lightbox, everything else (middle click, Ctrl,
+„In neuem Tab öffnen" / open in new tab) goes to the detail page. That way the gallery works
+without JavaScript, and the 26 detail pages are real links in the source.
 
-**Die Lightbox ist ein natives `<dialog>` mit `showModal()`.** Der Browser übernimmt
-Fokusfalle, Inertisierung des Hintergrunds, Esc und die Rolle im Accessibility-Baum —
-alles davon von Hand nachzubauen ist der klassische Weg zu einer Lightbox, aus der man mit
-der Tastatur nicht mehr herauskommt. Ihr Zustand steht in der URL (`?foto=<slug>`), nicht
-in einem Store: teilbar, mit dem Zurück-Knopf schließbar, und Seite wie Dialog leiten ihren
-Zustand aus derselben Quelle ab. Öffnen legt genau einen Verlaufseintrag an, Blättern
-ersetzt ihn, Schließen geht genau einen Schritt zurück — und nur dann, wenn dieser Tab den
-Eintrag selbst gelegt hat. Geladen wird die Komponente erst beim Öffnen
-(`defineAsyncComponent` hinter einem `v-if`); die Galerie ist die Seite, die am wenigsten
-Bundle verträgt.
+**The lightbox is a native `<dialog>` with `showModal()`.** The browser handles the focus
+trap, inerting the background, Esc and the role in the accessibility tree — rebuilding all
+of that by hand is the classic route to a lightbox one cannot get out of with the keyboard.
+Its state lives in the URL (`?foto=<slug>`), not in a store: shareable, closable with the
+back button, and page and dialog both derive their state from the same source. Opening adds
+exactly one history entry, paging replaces it, closing goes exactly one step back — and only
+if this tab placed the entry itself. The component is only loaded on opening
+(`defineAsyncComponent` behind a `v-if`); the gallery is the page that can afford the least
+bundle.
 
-**Die `<h1>` der Detailseite steht unsichtbar im `<main>`.** Das Design gibt den Titel der
-Seitenleiste und lässt den Inhaltsbereich dem Bild allein. Eine Überschrift in der
-seitenübergreifenden Kopfpartie wäre aber keine Überschrift *dieser* Seite: sie stünde
-außerhalb des `<main>`, in einem Block, der auf jeder Seite gleich aussieht. Deshalb trägt
-das `<main>` eine `.sr-only`-`<h1>` mit dem Bildtitel, und die Seitenleiste zeigt denselben
-Titel sichtbar als `<p>`. Der Preis ist eine Wiederholung für Screenreader — die Alternative
-(die Seitenleiste bekommt die `<h1>`) verlegt die Dokumentstruktur in die Navigation, und
-das wiegt schwerer. Die Kopfleiste mit Titel und Jahr, die das P4-Gerüst über dem Bild
-hatte, ist damit entfallen; sie stand so auch nicht in der Spec.
+**The `<h1>` of the detail page sits invisibly inside `<main>`.** The design gives the title
+to the sidebar and leaves the content area to the image alone. But a heading in the
+cross-page header area would not be a heading of _this_ page: it would sit outside `<main>`,
+in a block that looks the same on every page. So `<main>` carries an `.sr-only` `<h1>` with
+the image title, and the sidebar shows the same title visibly as a `<p>`. The price is a
+repetition for screen readers — the alternative (the sidebar gets the `<h1>`) moves the
+document structure into the navigation, and that weighs more. The header bar with title and
+year that the P4 scaffold had above the image is thereby gone; it was not in the spec that
+way either.
 
-**Anzeigebreite des Detailbilds folgt der Bühnengeometrie — mit zwei Aufschlägen.**
-`object-fit: contain` in einem 820 px hohen Kasten deckelt die Breite auf `820 · aspect`;
-ein Hochformat wird nie breiter als 547 px, egal wie groß der Bildschirm ist. Dieser Deckel
-steht in `sizes` (`min(calc(100vw - 220px), 547px)`) und spart dort die großen Stufen. Für
-das `srcset` (`variantMax`) ist derselbe Wert allerdings zu klein: `sizes` nennt
-CSS-Pixel, der Browser multipliziert selbst mit der Pixeldichte — daher der Faktor 2. Und
-er darf nicht unter das fallen, was ein Telefon braucht, denn dort ist die Bühne höhenlos
-und das Bild volle 100vw breit (bis 767 CSS-px, bei doppelter Dichte rund 1534): die
-Untergrenze ist deshalb die 1600er-Stufe. In Zahlen: ein Querformat bekommt 480/960/1600
-statt zusätzlich 2560, ein Hochformat 480/960/1600 statt zusätzlich 1707. Beide Funktionen
-(`detailSizes`, `detailVariantMax`) liegen in `shared/utils/img.ts` und sind getestet; die
-820 stehen dort als Konstante neben dem Hinweis auf `--detail-h`.
+**The display width of the detail image follows the stage geometry — with two surcharges.**
+`object-fit: contain` in a box 820 px high caps the width at `820 · aspect`; a portrait is
+never wider than 547 px, however large the screen. That cap is in `sizes`
+(`min(calc(100vw - 220px), 547px)`) and saves the large steps there. For the `srcset`
+(`variantMax`), however, the same value is too small: `sizes` states CSS pixels, the browser
+multiplies by the pixel density itself — hence the factor 2. And it must not fall below what
+a phone needs, because there the stage has no height and the image is a full 100vw wide (up
+to 767 CSS px, around 1534 at double density): the floor is therefore the 1600 step. In
+numbers: a landscape gets 480/960/1600 instead of additionally 2560, a portrait 480/960/1600
+instead of additionally 1707. Both functions (`detailSizes`, `detailVariantMax`) live in
+`shared/utils/img.ts` and are tested; the 820 sits there as a constant next to the pointer
+to `--detail-h`.
 
-**Der Tag-Kontext der Detailseite ist weicher Zustand — und wird geprüft.** `/photo/<slug>`
-ist ohne Query prerendert. Läse die Seite `?tag=` schon beim ersten Rendern, unterschiede
-sich der hydrierte Baum vom ausgelieferten HTML. Ein `hydrated`-Flag aus `onMounted` hält
-den ersten Durchlauf deckungsgleich (ungefilterte Nachbarn), danach zieht der Filter;
-`import.meta.client` reicht dafür nicht, es ist beim Hydrieren schon wahr. Zusätzlich gilt
-der Filter nur, wenn das Bild in ihm vorkommt: `/photo/jetty-against-the-light?tag=sailing`
-ist ein von Hand gebauter oder alt gewordener Link, und ohne diese Prüfung stünde dort
-„00 / 04" ohne Nachbarn und ein Rückweg in eine Galerie ohne dieses Bild. Prev/Next reichen
-`?tag=` weiter, die Pfeiltasten ← und → tun dasselbe — mit Wächtern gegen Modifier,
-Eingabefelder und einen offenen Dialog. Das Canonical steht ohne Query.
+**The tag context of the detail page is soft state — and it is checked.** `/photo/<slug>` is
+prerendered without a query. If the page read `?tag=` on the first render, the hydrated tree
+would differ from the delivered HTML. A `hydrated` flag from `onMounted` keeps the first
+pass congruent (unfiltered neighbours), after which the filter applies;
+`import.meta.client` is not enough for that, it is already true during hydration. On top of
+that the filter only applies if the image occurs in it:
+`/photo/jetty-against-the-light?tag=sailing` is a hand-built or stale link, and without this
+check it would show "00 / 04" with no neighbours and a way back into a gallery without that
+image. Prev/next pass `?tag=` along, and the ← and → arrow keys do the same — with guards
+against modifiers, input fields and an open dialog. The canonical is stated without a query.
 
-**Auf der Detailseite tauscht die Seitenleiste ihren Fuß, statt einen zweiten zu bekommen.**
-Dort unten stehen Prev/Next, der Zähler und die Rechtslinks (`PhotoAsideFoot`); `SiteFoot`
-mit Ort und Koordinaten entfällt — im Handoff ist er ohnehin eine Zutat der Startseite.
-Stünden beide, stünde „Impressum" zweimal auf derselben Seite. Mobil ist es umgekehrt: dort
-trägt der Seitenfuß des Layouts Ort und Rechtliches, und `PhotoAsideFoot` blendet seine
-Rechtslinks aus. Sichtbar ist damit in jeder Breite genau ein Satz. Dieselbe Routen-Meta
-(`aside === 'photo'`) blendet die Navigationsliste aus — aber nur oberhalb von 768 px:
-mobil ist sie das Menü der Kopfleiste und der einzige Weg zu den übrigen Seiten. Die
-Wortmarke bleibt in beiden Fällen der Weg zur Startseite.
+**On the detail page the sidebar swaps its foot rather than gaining a second one.** Down
+there sit prev/next, the counter and the legal links (`PhotoAsideFoot`); `SiteFoot` with
+place and coordinates is dropped — in the handoff it is an ingredient of the home page
+anyway. With both present, „Impressum" (legal notice) would appear twice on the same page.
+On mobile it is the other way round: there the layout's page foot carries place and legal,
+and `PhotoAsideFoot` hides its legal links. Exactly one set is visible at any width. The
+same route meta (`aside === 'photo'`) hides the navigation list — but only above 768 px: on
+mobile it is the header bar's menu and the only way to the remaining pages. The wordmark
+stays the way to the home page in both cases.
 
-**Blur-up als Pseudo-Element, nicht als Bildhintergrund.** Das 20-px-Vorschaubild liegt
-unter dem echten Bild (`picture::before`, `blur(12px)`, `scale(1.06)` gegen den hellen
-Saum, den ein Blur an der Kante hinterlässt), und das echte Bild blendet mit 160 ms darüber
-ein. Als `background-image` auf dem `<img>` selbst — die naheliegende Fassung — ließe sich
-das Bild nicht über dem Blur einblenden, weil beide dasselbe Element wären. Unter
-`prefers-reduced-motion` entfällt das Pseudo-Element ganz; dann steht bis zum Laden die
-ruhige Durchschnittsfarbe. Ohne JavaScript (`@media (scripting: none)`) ist das Bild sofort
-sichtbar, statt auf ein `load`-Ereignis zu warten, das niemand mehr auswertet.
+**Blur-up as a pseudo-element, not as an image background.** The 20 px preview sits below
+the real image (`picture::before`, `blur(12px)`, `scale(1.06)` against the light seam a blur
+leaves at the edge), and the real image fades in over it in 160 ms. As a `background-image`
+on the `<img>` itself — the obvious version — the image could not be faded in above the
+blur, because both would be the same element. Under `prefers-reduced-motion` the
+pseudo-element is dropped entirely; the calm average colour then stands until the image
+loads. Without JavaScript (`@media (scripting: none)`) the image is visible immediately
+instead of waiting for a `load` event nobody evaluates any more.
 
-**Bekannte Abweichung: mobil steht der Metadatenblock der Detailseite im DOM vor dem Bild,
-sichtbar aber darunter.** Die Seitenleiste ist auf dem Desktop ein zusammenhängender,
-klebender Block und muss dafür ein Element sein; unter 768 px löst `display: contents` ihn
-in Grid-Felder auf, und dann liegt das Feld mit den Metadaten zwangsläufig vor dem
-`<main>`. Die Reihenfolge im DOM (Titel, Jahr, Tags, Prev/Next, dann Bild) bleibt eine
-sinnvolle Lesefolge — sie liest sich wie eine vorangestellte Bildunterschrift, und die
-Fokusreihenfolge folgt ihr —, deckt sich aber nicht mit der visuellen. Die saubere Lösung
-wäre, den Block zweimal zu rendern und je Breite einen auszublenden; das dupliziert Inhalt
-im HTML und wurde bewusst nicht gemacht. Vermerkt für P7.
+**Known deviation: on mobile the metadata block of the detail page sits before the image in
+the DOM, but below it visually.** On desktop the sidebar is a contiguous, sticky block and
+has to be one element for that; below 768 px `display: contents` dissolves it into grid
+cells, and then the cell with the metadata inevitably lies before `<main>`. The DOM order
+(title, year, tags, prev/next, then image) remains a sensible reading order — it reads like
+a caption placed in front, and the focus order follows it — but does not match the visual
+one. The clean fix would be to render the block twice and hide one per breakpoint; that
+duplicates content in the HTML and was deliberately not done. It is still open; the
+measured state and the two ways out are under "Performance".
 
-**`payloadExtraction: 'client'`.** Der Client-Index liegt bereits im JavaScript-Bundle.
-Ohne diese Einstellung legte Nuxt die im HTML gerenderten Daten ein zweites Mal als
-`_payload.json` daneben — dieselben Bytes, zweimal ausgeliefert.
+**`payloadExtraction: 'client'`.** The client index is already in the JavaScript bundle.
+Without this setting Nuxt would put the data rendered in the HTML alongside it a second time
+as `_payload.json` — the same bytes, delivered twice.
 
-**Kein zod im Browser.** Der Index ist beim Build gegen das Schema geprüft worden; ihn im
-Browser ein zweites Mal zu validieren, kostet eine Bibliothek im Bundle und beweist nichts,
-was nicht schon bewiesen wäre. Genau ein `as unknown as PhotoIndexFile` in
-`usePhotos.ts` bringt das strukturell typlose JSON auf das Datenmodell — eine Stelle,
-absichtlich sichtbar. Die reine Logik darunter (Sortieren, Filtern, Nachbarn, `srcset`)
-liegt in `shared/utils/` und ist ohne Vue testbar; nur Dateien direkt in `shared/utils/`
-und `shared/types/` importiert Nuxt automatisch, deshalb liegen die Tests in einem
-Unterordner `__tests__/`.
+**No zod in the browser.** The index was checked against the schema at build time;
+validating it a second time in the browser costs a library in the bundle and proves nothing
+that is not already proven. Exactly one `as unknown as PhotoIndexFile` in `usePhotos.ts`
+lifts the structurally untyped JSON onto the data model — one place, deliberately visible.
+The pure logic beneath it (sorting, filtering, neighbours, `srcset`) lives in
+`shared/utils/` and is testable without Vue; Nuxt auto-imports only files directly in
+`shared/utils/` and `shared/types/`, which is why the tests live in a `__tests__/`
+subfolder.
 
-**Der faint-Ton ist angehoben: #5E6874 → #767F8B** (Abweichung vom Handoff, dessen Werte
-sonst unverändert sind). `--color-text-faint` trägt genau die Elemente, die ohnehin am
-kleinsten sind: 10-px-Labels, Zähler, Fußnoten. Auf dem Seitenhintergrund ergibt der
-Handoff-Wert 3,52:1 und verfehlt WCAG AA (4,5:1) bei dieser Größe deutlich. #767F8B kommt
-auf 4,9:1, bleibt im selben Grauton und liegt weiter erkennbar unter
-`--color-text-muted` (5,3:1). Das ist eine Arbeitsannahme, keine Designentscheidung: die
-Alternative wäre, `faint` ganz auf `muted` zu kollabieren und die Abstufung aufzugeben.
-Die Korrektur steht als einzige Farbüberschreibung in einem klar markierten Projekt-Block
-am Ende von `tokens.css`; der Handoff-Teil darüber ist unangetastet.
+**The faint tone is lifted: #5E6874 → #767F8B** (deviation from the handoff, whose values
+are otherwise unchanged). `--color-text-faint` carries exactly those elements that are
+already the smallest: 10 px labels, counters, footnotes. On the page background the handoff
+value comes to 3.52:1 and misses WCAG AA (4.5:1) at that size by a clear margin. #767F8B
+reaches 4.9:1, stays in the same grey tone and remains recognisably below
+`--color-text-muted` (5.3:1). This is a working assumption, not a design decision: the
+alternative would be to collapse `faint` into `muted` entirely and give up the gradation.
+The correction is the only colour override, in a clearly marked project block at the end of
+`tokens.css`; the handoff part above it is untouched.
 
-**Der Caption-Gradient ist zweistufig statt linear** (zweite Abweichung vom Handoff, in
-demselben Projekt-Block). Die Vorlage blendet von 85 % Deckkraft linear auf 0 aus. Der
-Titel steht aber nicht am unteren Rand des Streifens, sondern in seiner Mitte — dort ist
-vom Verlauf nur noch rund ein Drittel bis die Hälfte übrig, und über einem hellen Foto
-(Watt, Wolkenbank) fällt der Kontrast des weißen 10-px-Texts unter AA. Eine Stützstelle
-bei 60 % hält die Deckkraft dort, wo der Text steht, und lässt den Verlauf darüber
-weiterhin weich auslaufen; sichtbar ändert sich nur, dass die Unterschrift lesbar bleibt.
+**The caption gradient is two-stage rather than linear** (second deviation from the handoff,
+in the same project block). The original fades linearly from 85 % opacity to 0. The title,
+however, does not sit at the lower edge of the band but in its middle — where only about a
+third to a half of the gradient is left, and over a bright photo (mudflats, a bank of cloud)
+the contrast of the white 10 px text falls below AA. A stop at 60 % holds the opacity where
+the text is and still lets the gradient fade out softly above it; the only visible change is
+that the caption stays readable.
 
-**Die Startseite zeigt fünf kuratierte Bilder, nicht sechs bis neun** (Abweichung von
-PLAN.md). Das Raster der Spec hat fünf Spalten; sechs Bilder brechen in eine zweite Reihe
-um, in der vier Plätze leer bleiben. Fünf ist die einzige Zahl, die eine volle Reihe ergibt
-— und eine Auswahl, die man auf einen Blick fasst, ist ohnehin der Punkt. Welche Bilder es
-sind und in welcher Reihenfolge, steht als `featured` und `order` im YAML: eine Entscheidung
-des Fotografen, keine des Codes (`curated()` in `shared/utils/photos.ts`, mit Tests).
+**The home page shows five curated images, not six to nine** (deviation from the plan). The
+grid in the spec has five columns; six images break into a second row where four slots stay
+empty. Five is the only number that yields a full row — and a selection one takes in at a
+glance is the point anyway. Which images they are and in which order is in the YAML as
+`featured` and `order`: a decision by the photographer, not by the code (`curated()` in
+`shared/utils/photos.ts`, with tests).
 
-**Der Hero ist mobil breitengetrieben — und `sizes` sagt 100vw, nicht 66vw.** Der Handoff
-setzt unter 768 px `--hero-h: 60vh`. Eine Höhe in Viewporthöhen koppelt aber bei
-`object-fit: cover` die Anzeigebreite vom Viewport ab, und genau diese Breite ist das
-Einzige, was `sizes` ausdrücken kann: der Browser wählte die Stufe nach einer Zahl, die
-nicht stimmt — ausgerechnet für das LCP-Bild. Mobil ist der Hero deshalb 3:2 bei
-`height: auto` (`--hero-h` im Projekt-Block überschrieben). Damit ist seine Breite exakt
-100vw, und das steht auch in `sizes`; die im Vorurteil genannten 66vw stammen aus der
-60vh-Fassung und wären jetzt ein Drittel zu wenig. Dieselbe Überlegung gilt für die
-Auswahlreihe: unter 768 px wird sie einspaltig (`--curated-cols: 1`, `--curated-h: auto`,
-3:2) statt fünf Kacheln à 70 px.
+**On mobile the hero is width-driven — and `sizes` says 100vw, not 66vw.** The handoff sets
+`--hero-h: 60vh` below 768 px. But a height in viewport heights couples the display width to
+the viewport under `object-fit: cover`, and that width is the only thing `sizes` can
+express: the browser would pick the step by a number that is wrong — for the LCP image, of
+all things. On mobile the hero is therefore 3:2 at `height: auto` (`--hero-h` overridden in
+the project block). Its width is thereby exactly 100vw, and that is what `sizes` says; the
+66vw named in the preconception comes from the 60vh version and would now be a third too
+little. The same reasoning applies to the curated row: below 768 px it becomes single-column
+(`--curated-cols: 1`, `--curated-h: auto`, 3:2) instead of five tiles at 70 px.
 
-**„Licht / Schatten" ist die `<h1>` der Startseite.** Das Motiv des Projekts steht als
-eigene Bande unter der Hero-Caption: `Licht` kursiv in 400 und voller Textfarbe, ein
-Mono-Schrägstrich in 11 px als Scharnier, `Schatten` aufrecht in 600 und gedämpft. Die
-Überschrift der Startseite ist damit die Aussage der Seite und nicht das Wort „Start"; die
-Wortmarke in der Seitenleiste bleibt ein Link. Der Seitentitel wird hier ausnahmsweise ohne
-die Vorlage `%s – Moritz Späth` gesetzt (`titleTemplate: null`), sonst stünde im Tab
-„Start – Moritz Späth" oder der Name zweimal.
+**„Licht / Schatten" (light / shadow) is the `<h1>` of the home page.** The project's motif
+stands as its own band below the hero caption: `Licht` italic at 400 and in full text
+colour, a mono slash at 11 px as the hinge, `Schatten` upright at 600 and muted. The heading
+of the home page is thereby the statement of the site and not the word „Start" (home); the
+wordmark in the sidebar remains a link. The page title is set here without the
+`%s – Moritz Späth` template as an exception (`titleTemplate: null`), because otherwise the
+tab would read „Start – Moritz Späth" or the name would appear twice.
 
-**Die drei Textseiten teilen eine Komponente, nicht drei Stylesheets.** `<DocPage title>`
-bringt die Kopfleiste und die Spalte mit 62 Zeichen Zeilenlänge mit; die Typografie von
-Überschriften, Absätzen, Listen und Definitionslisten greift über `:deep()` in den
-Slot-Inhalt. Die Seiten selbst enthalten deshalb nur Text in einfachem HTML — was sie
-unterscheidet, ist ihr Inhalt, und das soll man auch beim Lesen des Quelltexts sehen.
-Abschnittsüberschriften sind Mikro-Labels in Mono mit Hairline, kein zweiter Titelgrad: die
-Seite kennt nur eine Textgröße für Fließtext und eine für Labels. Offene Angaben stehen als
-sichtbarer Text „TODO: …" mit Rahmen auf der Seite, nicht als Kommentar im Quelltext — was
-fehlt, soll beim Lesen auffallen und sich im erzeugten HTML finden lassen. Impressum und
-Datenschutz sind ausdrücklich Entwürfe: § 5 DDG ohne ODR-Klausel (die Schlichtungsstelle
-gilt für Verbraucherverträge, die es hier nicht gibt), Datenschutz mit Server-Logs,
-lokalen Schriften, metadatenfreien Bildern und der Aufsichtsbehörde — jeweils mit einem
-TODO für die Rechtsprüfung.
+**The three text pages share one component, not three stylesheets.** `<DocPage title>`
+brings the header bar and the column with a 62-character line length; the typography of
+headings, paragraphs, lists and definition lists reaches into the slot content via
+`:deep()`. The pages themselves therefore contain nothing but text in plain HTML — what
+distinguishes them is their content, and that should be visible when reading the source too.
+Section headings are micro labels in mono with a hairline, not a second title level: the
+page knows only one text size for body copy and one for labels. Open items stand as visible
+text "TODO: …" with a border on the page, not as a comment in the source — what is missing
+should be noticed while reading and be findable in the generated HTML. Legal notice and
+privacy are explicitly drafts: § 5 DDG without an ODR clause (the arbitration board applies
+to consumer contracts, of which there are none here), privacy with server logs, local fonts,
+metadata-free images and the supervisory authority — each with a TODO for the legal review.
 
-**Kein `overflow: hidden` auf Mono-Versalien mit `line-height: 1`.** Die Spec setzt die
-Mikro-Labels auf 10 bzw. 11 px bei Zeilenhöhe 1; der Zeilenkasten ist damit genau so hoch
-wie die Schrift, und `overflow: hidden` schneidet ab, was darüber hinausragt — die Punkte
-über Ü und Ö. Im Grid stand deshalb „LACHMOWEN" statt „LACHMÖWEN". Wo eine Zeile beides
-braucht (Kürzen mit Ellipse *und* die enge Geometrie), bekommt sie `line-height: 1.4` und
-holt die Differenz über `margin-block: -0.2em` zurück: sichtbar ändert sich nichts, der
-Kasten reicht nur wieder über die Umlautpunkte. Deutsche Titel sind hier der Regelfall,
-nicht der Sonderfall.
+**No `overflow: hidden` on mono capitals with `line-height: 1`.** The spec sets the micro
+labels at 10 and 11 px respectively with a line height of 1; the line box is then exactly as
+tall as the type, and `overflow: hidden` cuts off whatever sticks out above it — the dots
+over Ü and Ö. In the grid it therefore read „LACHMOWEN" instead of „LACHMÖWEN". Where a line
+needs both (truncation with an ellipsis _and_ the tight geometry), it gets `line-height: 1.4`
+and takes the difference back via `margin-block: -0.2em`: nothing changes visibly, the box
+just reaches over the umlaut dots again. German titles are the normal case here, not the
+exception.
 
-**Landmarken und Zielgrößen.** Die Seitenleiste ist ein `<header>`, kein `<aside>`; jede
-`<nav>` trägt ein `aria-label` (Hauptnavigation / Nach Motiv filtern / Rechtliches); es
-gibt genau ein `<main id="inhalt" tabindex="-1">` als Ziel der Sprungmarke und genau eine
-`<h1>` je Seite. Zähler wie „03 / 14" stehen sichtbar als `aria-hidden`-Text neben einer
-`.sr-only`-Fassung in ganzen Worten — ein `aria-label` auf einem Absatz oder Span wird von
-vielen Screenreadern ignoriert. Die Rechtslinks stehen untereinander mit `min-height: 24px`
-und das Filter-Padding ist 8 statt der 7 px der Spec, damit beide die Mindest-Zielgröße
-erreichen; sichtbar ändert das nichts.
+**Landmarks and target sizes.** The sidebar is a `<header>`, not an `<aside>`; every `<nav>`
+carries an `aria-label` from the dictionary — Main navigation (Hauptnavigation), Filter by
+subject (Nach Motiv filtern), Legal (Rechtliches), Photo navigation (Foto-Navigation);
+there is exactly one
+`<main id="content" tabindex="-1">` as the target of the skip link and exactly one `<h1>` per
+page. Counters such as "03 / 14" appear visibly as `aria-hidden` text next to an `.sr-only`
+version in whole words — an `aria-label` on a paragraph or span is ignored by many screen
+readers. The legal links sit below one another with `min-height: 24px` and the filter
+padding is 8 instead of the spec's 7 px, so that both reach the minimum target size; nothing
+of that is visible.
 
-**Der Sidebar-Fuß ist ein `<footer>` neben dem `<header>`, nicht darin.** Ein `<footer>`
-innerhalb eines `<header>` ist nicht erlaubt; als Geschwisterelement ist er gültig und
-liefert die `contentinfo`-Landmarke, sodass auch Ort und Koordinaten in einer Landmarke
-stehen. Mobil ist er ausgeblendet, dafür trägt ein Seitenfuß dieselben Angaben — es ist
-immer genau einer sichtbar.
+**The sidebar foot is a `<footer>` next to the `<header>`, not inside it.** A `<footer>`
+inside a `<header>` is not permitted; as a sibling it is valid and provides the
+`contentinfo` landmark, so that place and coordinates sit in a landmark too. On mobile it is
+hidden and a page foot carries the same details instead — exactly one of them is always
+visible.
 
-**Mobiles Menü: `<details>` als Schalter, Navigation als Geschwisterelement.** Unter 768 px
-klappt die Navigation aus einer 56-px-Kopfleiste auf, darüber steht sie dauerhaft. Die
-Liste liegt bewusst _neben_ dem `<details>` und wird über `[open] ~ .nav` eingeblendet,
-statt in ihm zu stecken: ein geschlossenes `<details>` versteckt seine Kinder je nach
-Engine über `display: none` auf einem Shadow-Slot oder über `content-visibility` auf
-`::details-content`, und beides lässt sich nicht überall zuverlässig wieder aufheben. Eine
-Hauptnavigation, die im falschen Browser verschwindet, ist kein akzeptabler Ausfall. Die
-Zustandsanzeige (`aria-expanded`) liefert `<summary>` weiterhin selbst; Vue schließt das
-Menü nur bei Routenwechsel und auf Esc.
+**Mobile menu: `<details>` as the switch, navigation as a sibling.** Below 768 px the
+navigation unfolds from a 56 px header bar; above that it is permanently visible. The list
+deliberately sits _next to_ the `<details>` and is shown via `[open] ~ .nav` instead of
+being nested inside it: a closed `<details>` hides its children, depending on the engine,
+via `display: none` on a shadow slot or via `content-visibility` on `::details-content`, and
+neither can be reliably undone everywhere. A main navigation that disappears in the wrong
+browser is not an acceptable failure. The state indication (`aria-expanded`) is still
+provided by `<summary>` itself; Vue only closes the menu on a route change and on Esc.
 
-**Prefetch nur bei Absicht.** `nuxtLink.prefetchOn` steht auf `interaction` statt
-`visibility`: in einer Galerie mit 26 Kacheln lädt „sichtbar" sofort jede Detailseite vor.
-Beim Hovern oder Fokussieren ist die Absicht belegt, und die Zeit bis zum Klick reicht.
+**Prefetch on intent only.** `nuxtLink.prefetchOn` is set to `interaction` instead of
+`visibility`: in a gallery of 26 tiles, "visible" preloads every detail page immediately. On
+hover or focus the intent is established, and the time until the click is enough.
 
-**`sizes` steht auf jeder `<source>`.** Ohne das Attribut rechnet der Browser je Quelle mit
-100vw und lädt für eine Kachel von 260 px die 2560er-Stufe. Es ist die häufigste stille
-Fehlerquelle in einem `<picture>` und deshalb ein Pflicht-Prop von `<PhotoImage>` — ebenso
-wie `alt`: welcher Text das ist, entscheidet die Einsatzstelle, dass es einen gibt, nicht.
+**`sizes` is on every `<source>`.** Without the attribute the browser assumes 100vw per
+source and loads the 2560 step for a 260 px tile. It is the most common silent source of
+error in a `<picture>` and therefore a required prop of `<PhotoImage>` — as is `alt`: what
+that text is, is decided at the point of use; that there is one, is not.
 
-**Optionales `alt` im YAML.** Ein guter Titel („Delfine vor dem Bug") und eine gute
-Bildbeschreibung sind selten derselbe Satz. Das Metadaten-Schema kennt deshalb ein
-optionales Feld `alt`, das durch Manifest und Index bis zur Komponente durchläuft; fehlt
-es, tritt der Titel an seine Stelle. Kein Skript kann es erfinden, also bleibt es leer, bis
-jemand es schreibt.
+**Optional `alt` in the YAML.** A good title („Delfine vor dem Bug" — dolphins ahead of the
+bow) and a good image description are rarely the same sentence. The metadata schema
+therefore has an optional field `alt`, which runs through manifest and index all the way to
+the component; if it is missing, the title takes its place. No script can invent it, so it
+stays empty until someone writes it.
+
+**Type utilities instead of repeated blocks.** The mono micro-label, the footer label and
+the small page title were written out as the same five or six declarations in fifteen
+scoped stylesheets. They are `.t-ui`, `.t-meta` and `.t-title-s` in `base.css`. Only exact
+matches were replaced, so the rendering is unchanged; colour and the occasional
+line-height or letter-spacing variant stay at the call site, where a scoped selector
+outranks the utility. Blocks that differ in more than one declaration — the counters with
+`tabular-nums`, the filter chips with their own letter spacing — keep their own rules
+rather than being forced into a utility plus three overrides.
+
+**`--text-label-ls` is 0.18em, and the filter label now uses it.** The token's own comment
+names the two places it is for, the home page's "Selection" and the filter's "Filter", but
+`TagFilter` carried a hard-coded `0.16em`. Two section labels in the same typographic role
+at different letter spacing is a drift, not a decision; the token wins. At 10 px the
+visible difference is 0.2 px per character, on one label that is hidden below 768 px
+anyway.
+
+**One `<SiteFoot>` per breakpoint, two in the DOM.** The sidebar renders it on the desktop
+and the layout renders a second one for the mobile page foot; exactly one is ever visible.
+A single instance is technically possible — below 768 px the sidebar is `display: contents`,
+so its foot could take the `foot` grid area — but it would then sit before `<main>` in the
+DOM while appearing after it, which is the reading-order problem noted for the mobile
+detail page below. Two instances, one hidden, keeps reading order and visual order
+together; the cost is a duplicated subtree in the markup.
+
+**`prettier --check` is not part of `pnpm lint`** yet. Files untouched by this package fail
+it, and formatting them would put a repo-wide reflow into a diff that is about something
+else (`AGENTS.md` §3). The check is adopted in P9 as its own commit, paired with a single
+repo-wide `prettier --write` pass.
 
 ## SEO
 
-*New sections are written in English from P7 on; the German ones above are translated in P8.*
-
 **`NUXT_PUBLIC_SITE_URL` is a build variable, not a runtime one.** A statically generated
 site has no server left at request time to substitute a host, so the absolute URLs are
-baked in by `nuxt generate`. On Coolify it therefore has to be set as a *build* variable
+baked in by `nuxt generate`. On Coolify it therefore has to be set as a _build_ variable
 (the checkbox matters), not just as an environment variable. It feeds four things: the
 canonical link and `og:url` of every page, `og:image` (social crawlers ignore a relative
 one), the `<loc>` entries of the sitemap, and the `Sitemap:` line of robots.txt.
@@ -548,7 +599,7 @@ step, because a static file and a route at the same path is a coin toss.
 What the sitemap contains: 70 URLs — 35 pages in each of the two locales. Per locale:
 26 photo pages, `/gallery` plus its seven tag pages, and `/`. The tag pages are in because
 they are real prerendered routes with their own content and their own canonical link, not a
-query view of the gallery. `/about`, `/legal-notice` and `/privacy` are *not* in: they
+query view of the gallery. `/about`, `/legal-notice` and `/privacy` are _not_ in: they
 carry `hasPlaceholders` and with it `noindex`, and a sitemap entry for a noindex page asks
 a crawler to fetch a page one has just asked it not to index. Every `<url>` carries the
 `xhtml:link` alternates that mirror the page's own hreflang tags.
@@ -582,18 +633,18 @@ English is the primary language, German the translation. That order is a decisio
 audience, not about the author: the site is a developer's portfolio as much as a
 photographer's, and the code, the docs and the commit history are English already.
 
-**URL scheme.** English lives at the bare paths, German under `/de` with the *same* English
+**URL scheme.** English lives at the bare paths, German under `/de` with the _same_ English
 path segments:
 
-| page | English | German |
-| --- | --- | --- |
-| home | `/` | `/de` |
-| gallery | `/gallery` | `/de/gallery` |
-| tag filter | `/gallery/<tag>` | `/de/gallery/<tag>` |
-| photo | `/photo/<slug>` | `/de/photo/<slug>` |
-| about | `/about` | `/de/about` |
-| legal notice | `/legal-notice` | `/de/legal-notice` |
-| privacy | `/privacy` | `/de/privacy` |
+| page         | English          | German              |
+| ------------ | ---------------- | ------------------- |
+| home         | `/`              | `/de`               |
+| gallery      | `/gallery`       | `/de/gallery`       |
+| tag filter   | `/gallery/<tag>` | `/de/gallery/<tag>` |
+| photo        | `/photo/<slug>`  | `/de/photo/<slug>`  |
+| about        | `/about`         | `/de/about`         |
+| legal notice | `/legal-notice`  | `/de/legal-notice`  |
+| privacy      | `/privacy`       | `/de/privacy`       |
 
 Translating the segments as well (`/de/galerie/segeln`) would double the slug vocabulary,
 and slugs become product URLs in phase 2. `x-default` points at English.
@@ -614,10 +665,10 @@ this costs: `localeOf` and `stripLocale` must test whole segments, never
 
 **The second route tree comes from `pages:extend`.** The hook clones the resolved pages and
 prefixes their paths. Cloning resolved pages is what keeps `definePageMeta({ aside })` and
-the rest of the page meta intact; a second directory under `app/pages/de/` would mean 31
-duplicated files, and a `router.options.ts` that rewrites paths at runtime would not
+the rest of the page meta intact; a second directory under `app/pages/de/` would mean 6
+duplicated page files, and a `router.options.ts` that rewrites paths at runtime would not
 prerender at all. `nitro.prerender.routes` is then the English route list times the locale
-list: 38 pages per locale, 76 files.
+list: 38 pages per locale, 76 pages.
 
 **One head block for both trees**, in `layouts/default.vue`: `<html lang>`, the
 self-referencing canonical, the reciprocal `hreflang` set including `x-default`, and
@@ -628,7 +679,7 @@ description and preview image.
 **Photo titles are data, UI strings are dictionary.** `title` in the YAML is English and
 required; `title_de` and `alt_de` are optional. A German page without a translation falls
 back to the English title — an untranslated tile is honest, an empty one looks broken. A
-missing `alt` falls back to the title of the *same* locale, never to the description of the
+missing `alt` falls back to the title of the _same_ locale, never to the description of the
 other one, which a screen reader would read out in the wrong language.
 
 **Slugs were renamed to English** in the same step (`anleger-im-gegenlicht` became
@@ -650,7 +701,7 @@ locale rather than a change to the existing ones.
 **The legal notice is not translated.** § 5 DDG is a German provision and the wording that
 satisfies it is the German wording, so `/legal-notice` is an English shell around the
 German text in a `<div lang="de">`, with one English sentence saying so. The privacy page
-*is* translated, with a note on the English version that the German one is authoritative.
+_is_ translated, with a note on the English version that the German one is authoritative.
 
 ## Fonts
 
@@ -658,12 +709,12 @@ German text in a `<div lang="de">`, with one English sentence saying so. The pri
 site renders and clamps their weight axis to what `fonts.css` declares:
 **114 KB → 55 KB (-52 %)**.
 
-| file | source | subset |
-| --- | ---: | ---: |
-| `archivo-variable.woff2` | 34,928 B | 15,004 B (-57 %) |
-| `archivo-italic-variable.woff2` | 39,156 B | 15,940 B (-59 %) |
-| `jetbrains-mono-variable.woff2` | 40,404 B | 23,940 B (-40 %) |
-| **total** | **114,488 B** | **54,884 B** |
+| file                            |        source |           subset |
+| ------------------------------- | ------------: | ---------------: |
+| `archivo-variable.woff2`        |      34,928 B | 15,004 B (-57 %) |
+| `archivo-italic-variable.woff2` |      39,156 B | 15,940 B (-59 %) |
+| `jetbrains-mono-variable.woff2` |      40,404 B | 23,940 B (-40 %) |
+| **total**                       | **114,488 B** |     **54,884 B** |
 
 **Source and output are separate directories.** The unsubset `latin` files live in
 `scripts/fonts-src/` and the subsets in `public/fonts/`. Subsetting a file that is already
@@ -707,28 +758,93 @@ The fix is not to drop `swap` (invisible text is worse than moved text) and not 
 cost no request — carrying `size-adjust`, `ascent-override`, `descent-override` and
 `line-gap-override` so that the fallback occupies the same space as the webfont.
 
-How the numbers were derived: `size-adjust` is the ratio of mean advance width between the
-webfont and the fallback, weighted by how often each character actually occurs across the
-generated pages (a frequency corpus of ~24,000 characters, not a flat average over the
-alphabet); the three overrides are the webfont's own ascent/descent/line-gap (`OS/2 sTypo*`,
-upem 1000) divided by that ratio, so the line box matches as well as the width. Measured
-with fontTools against Liberation Sans and DejaVu Sans Mono, which are metrically
-compatible with Arial and Menlo.
+How the numbers are derived: `size-adjust` is the webfont's mean advance width over the
+fallback's, in em, with each character weighted by how often it occurs in the _rendered_
+text of the generated pages — all 78 files under `.output/public`, both languages, 40,173
+characters over 88 distinct code points. A character either font of a pair lacks is skipped
+in both, so the two means cover the same set; here that drops exactly three (U+2190, U+2192,
+U+2261, absent from Google's `latin` subset), leaving 99.42 % of the corpus. The three
+overrides are the webfont's `OS/2 sTypo` ascent, descent and line-gap over upem, divided by
+that same ratio, so the line box matches as well as the width. `fsSelection` bit 7
+(USE_TYPO_METRICS) is set on all three webfonts, and `hhea` agrees with `sTypo` exactly, so
+the choice of source does not matter.
 
-*To re-derive:* the Archivo `size-adjust` of 95.77 % does not reproduce — recomputing the
-weighted mean advance against Liberation Sans gives about 98.6 %. The declaration is inert
-where no matching font exists and conservative where one does, so it is left as it is until
-the number is redone from scratch. Noted in `content/OFFEN.md`.
+**Measure Archivo at wght 400.** Its variable default instance is 600 (the italic's is 500),
+and `hmtx` holds the default — so reading it without pinning the axis with
+`fontTools.varLib.instancer` measures the wrong weight for body text. This is the sharpest
+edge in the recipe.
 
-| family | size-adjust | ascent | descent | line-gap |
-| --- | ---: | ---: | ---: | ---: |
-| Archivo Fallback, normal | 95.77 % | 91.68 % | 21.93 % | 0 % |
-| Archivo Fallback, italic | 95.01 % | 92.41 % | 22.10 % | 0 % |
-| JetBrains Mono Fallback | 99.66 % | 102.35 % | 30.10 % | 0 % |
+| family                   | size-adjust |   ascent | descent | line-gap |
+| ------------------------ | ----------: | -------: | ------: | -------: |
+| Archivo Fallback, normal |     98.58 % |  89.06 % | 21.30 % |      0 % |
+| Archivo Fallback, italic |     98.73 % |  88.93 % | 21.27 % |      0 % |
+| JetBrains Mono Fallback  |     99.66 % | 102.35 % | 30.10 % |      0 % |
+
+_Re-derived in P8._ The P7 values (95.77 % / 95.01 % for the two Archivo faces) did not
+reproduce under any method tried — weights 100 to 600, subset and unsubset sources,
+weighted and unweighted means, several alternative reference fonts, and a kerning-aware
+measurement, which moves the ratio by 0.06 pp. They are also internally impossible: Archivo
+italic is very slightly _wider_ than upright at every weight, so any single coherent
+measurement must give italic ≥ upright, and 95.77 > 95.01 inverts that. The overrides were
+arithmetically consistent with the wrong ratio, so they simply inherited the error. The new
+values shrink the fallback less: Liberation Sans is the wider font (0.46200 em weighted mean
+against Archivo's 0.45543 em), and at 95.77 % the fallback rendered about 2.9 % _narrower_
+than the webfont, so text still grew on swap. The monospace row reproduces exactly and is
+unchanged — and that is not evidence the old method was sound: JetBrains Mono is a flat
+0.600 em and DejaVu Sans Mono a flat 0.60205 em, so every method returns 99.66 %.
+
+To re-run, with fontTools in a throwaway venv (not a project dependency, the same
+arrangement as `scripts/subset-fonts.sh`) and Liberation Sans plus DejaVu Sans Mono from the
+distribution's font packages:
+
+```python
+# fallback-metrics.py — do NOT name this file inspect.py; it shadows a stdlib
+# module fontTools imports.
+# usage: python fallback-metrics.py .output/public public/fonts <font-dir>
+import html, re, sys, pathlib
+from collections import Counter
+from fontTools.ttLib import TTFont
+from fontTools.varLib import instancer
+
+site, fonts, sysfonts = (pathlib.Path(p) for p in sys.argv[1:4])
+DROP = re.compile(r"<(script|style|head)\b[^>]*>.*?</\1>|<!--.*?-->", re.S | re.I)
+freq = Counter()
+for f in sorted(site.rglob("*.html")):
+    t = DROP.sub(" ", f.read_text(encoding="utf-8"))
+    t = html.unescape(re.sub(r"<[^>]+>", " ", t))
+    freq.update(re.sub(r"\s+", " ", t))
+freq = {ord(c): n for c, n in freq.items()}
+
+def load(p, wght=None):
+    f = TTFont(p)
+    return (instancer.instantiateVariableFont(f, {"wght": wght}, inplace=False,
+                                              updateFontNames=False) if wght else f)
+
+def mean(f, codes):  # weighted mean advance, in em
+    u, cm, hm = f["head"].unitsPerEm, f.getBestCmap(), f["hmtx"]
+    return sum(freq[c] * hm[cm[c]][0] / u for c in codes) / sum(freq[c] for c in codes)
+
+for name, web, fb in (
+    ("Archivo", "archivo-variable", "liberation-sans-fonts/LiberationSans-Regular.ttf"),
+    ("Archivo italic", "archivo-italic-variable", "liberation-sans-fonts/LiberationSans-Italic.ttf"),
+    ("JetBrains Mono", "jetbrains-mono-variable", "dejavu-sans-mono-fonts/DejaVuSansMono.ttf"),
+):
+    w, f = load(fonts / f"{web}.woff2", 400), load(sysfonts / fb)
+    codes = sorted(c for c in freq if c in w.getBestCmap() and c in f.getBestCmap())
+    sa = round(100 * mean(w, codes) / mean(f, codes), 2)
+    o, u = w["OS/2"], w["head"].unitsPerEm
+    print(f"{name}: size-adjust {sa}% " + " ".join(
+        f"{lbl} {round(100 * (v / u) / (sa / 100), 2)}%"
+        for lbl, v in (("ascent", o.sTypoAscender), ("descent", -o.sTypoDescender),
+                       ("line-gap", o.sTypoLineGap))))
+```
+
+The overrides are computed from the _published_ two-decimal `size-adjust`, so the CSS stays
+internally consistent with what a browser actually applies.
 
 Only fonts that are metrically compatible with the one the numbers were computed against
 are named in `local()`. That is the whole discipline: a `size-adjust` derived from Arial and
-then applied to a font of a different width makes the shift *worse*. So Arial, Helvetica,
+then applied to a font of a different width makes the shift _worse_. So Arial, Helvetica,
 Liberation Sans and Arimo for the sans; Menlo, DejaVu Sans Mono, Liberation Mono and
 Cascadia Mono for the monospace — all four around 0.6 em advance, with Consolas (0.55 em)
 deliberately absent. Where none of them exists, the declaration does not match, the next
@@ -753,12 +869,12 @@ build scored 12 to 16 points lower on mobile and the bottleneck it showed was th
 **Results, 2026-08-29** (P6 → P7, same build, same server, same machine; mobile is
 Lighthouse's throttled 4G profile, desktop its unthrottled one):
 
-| page | mobile perf | desktop perf | LCP mobile | CLS mobile |
-| --- | --- | --- | --- | --- |
-| `/` | 89 → **94** | 100 → **100** | 3.5 s → 2.9 s | 0 → 0 |
-| gallery | 86 → **91** | 99 → **100** | 4.1 s → 3.4 s | 0 → 0 |
-| photo detail | 96 → **97** | 100 → **100** | 2.4 s → 2.3 s | 0 → 0 |
-| about | 98 → **98** | 100 → **100** | 2.0 s → 2.0 s | 0.019 → 0.003 |
+| page         | mobile perf | desktop perf  | LCP mobile    | CLS mobile    |
+| ------------ | ----------- | ------------- | ------------- | ------------- |
+| `/`          | 89 → **94** | 100 → **100** | 3.5 s → 2.9 s | 0 → 0         |
+| gallery      | 86 → **91** | 99 → **100**  | 4.1 s → 3.4 s | 0 → 0         |
+| photo detail | 96 → **97** | 100 → **100** | 2.4 s → 2.3 s | 0 → 0         |
+| about        | 98 → **98** | 100 → **100** | 2.0 s → 2.0 s | 0.019 → 0.003 |
 
 Accessibility 100, best practices 100 and SEO 100 on every page in both profiles, before
 and after. (The SEO score needs `NUXT_PUBLIC_SITE_URL` set — without it the canonical link
@@ -781,7 +897,7 @@ faith:
 - **Inlining the global stylesheet** (`features.inlineStyles: true`). Lighthouse flags
   ~450 ms of render-blocking CSS per page, but the measured result was inside run-to-run
   noise (+0 / -2 / +1 points on three pages). Not worth the config surface or duplicating
-  the CSS into 74 prerendered files.
+  the CSS into all 78 prerendered files.
 
 `fetchpriority="low"` on eager-but-not-LCP images did survive, on reasoning rather than a
 measured delta: it is correct (the gallery starts nine tiles at once and only one of them is
@@ -814,7 +930,7 @@ The HTML must not be cached that way: the asset URLs inside it change with every
 a cached page pointing at deleted `/_nuxt/` files is a blank site. `sitemap.xml` and
 `robots.txt` are generated files too and change whenever a photo is added, so they get a
 short cache rather than the immutable one. The README's Coolify
-instructions in P8 should carry this table.
+instructions carry this table.
 
 **Payload extraction stays on `'client'`.** Confirmed by measurement: no `_payload.json`
 request appears in any first-load trace on any page. The files exist for client-side
@@ -826,13 +942,40 @@ its metadata, but in the DOM the sidebar (and with it the metadata block) still 
 the two ways out are duplicating the block into `<main>` and hiding one copy per breakpoint —
 which duplicates a `<nav>` landmark and its links — or splitting the sticky sidebar column
 into separate grid items, which reworks the layout the P4–P6 design was signed off on.
-Lighthouse's accessibility audit is at 100 either way. Noted for P8.
+Lighthouse's accessibility audit is at 100 either way. It stays open — see the open-questions
+list in the private notes.
 
-## Phase-2-Vorgriff
+## Phase 2 groundwork
 
-> Wird in P8 ausgefüllt.
+Phase 2 is selling fine-art prints (PLAN §1). None of it is built here: no shop, no
+checkout, no cart, no accounts, no payment integration — that is a hard rule of phase 1
+(PLAN §9), and nothing in this repository talks to a payment or fulfilment provider. What
+phase 1 does is avoid the three decisions that would be expensive to reverse.
 
-Geplanter Flow: Produktseite → Stripe Checkout → Stripe-Webhook → Nitro-Route →
-Print-on-Demand-API → Tracking-Webhook → Kundenmail. Das Rendering wird dafür hybrid
-(statische Seiten plus einzelne Server-Routen); Datenmodell und URLs sind bereits jetzt so
-angelegt, dass dieser Schritt keine Migration erzwingt.
+**URLs are already product URLs.** File name = slug = URL, and a slug is immutable once
+deployed (see "Data model"). `/photo/<slug>` is the detail page today and the product page
+later, in both languages — so a shop layer inherits addresses that search engines and links
+have already had time to accumulate, and no redirect table is needed.
+
+**The generated data is already the product data source.** `photos.manifest.json` and the
+client index are built from the YAML in the content repo, validated against a zod schema
+that also pins the TypeScript types. `PhotoIndexEntry.print` exists and is typed `null`
+(`shared/types/photo.ts`, `scripts/lib/schema.ts`): the field is reserved for formats,
+papers and prices, and the schema rejects anything else for now. Adding it later is a schema
+change in one place, not a second data source.
+
+**The rendering mode can change without a migration.** `ssr: true` with `nuxt generate`
+prerenders the whole site today; Nuxt's route rules make individual routes dynamic later
+without touching the pages. A print-sales layer would attach as Nitro server routes in this
+repository (checkout session, provider webhook, order status) or as a separate service the
+static site links to — that choice is deliberately left open, because it depends on where
+the deployment ends up and on what the provider's API requires. The static pages stay
+static either way.
+
+**Deliberately not decided.** The print-on-demand provider — PLAN §1 names Prodigi and
+theprintspace as candidates and picks neither — nor formats, papers, pricing or shipping
+regions. The sketch in PLAN §10 (product page → checkout → webhook → provider API →
+customer mail) is a sketch, not a commitment: no provider is evaluated, no contract read, no
+line of it written. None of that constrains phase 1, and deciding it now would only put a
+guess into the repository. What _is_ settled is that whatever keys such a step needs live in
+the environment, never in the repository (PLAN §9).

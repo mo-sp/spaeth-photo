@@ -17,10 +17,9 @@
         :priority="position === 0"
         :variant-max="1600"
       />
-      <!-- Der Link trägt den Namen bereits über das alt-Attribut; die Zeile
-           wiederholt ihn nur sichtbar. Für Screenreader wäre sie ein zweiter,
-           halber Name. -->
-      <span class="caption" aria-hidden="true">
+      <!-- The link is already named by the alt attribute; this line only
+           repeats it visibly, so it stays out of the accessibility tree. -->
+      <span class="caption t-meta" aria-hidden="true">
         <span class="caption-title">{{ photoTitle(photo, locale) }}</span>
         <span class="caption-year">{{ photo.year }}</span>
       </span>
@@ -37,11 +36,7 @@ const { locale, path } = useI18n()
 
 const emit = defineEmits<{ open: [slug: string] }>()
 
-/**
- * Aus dem Urteil P2/P3 übernommen: die Kachelbreite ergibt sich aus der
- * Contentbreite (Viewport minus Sidebar minus Gaps und Padding) geteilt durch
- * die Spaltenzahl der jeweiligen Stufe.
- */
+/** Tile width = content width (viewport minus sidebar, gaps and padding) divided by the column count of each step. */
 const TILE_SIZES = [
   '(max-width: 767px) calc(100vw - 16px)',
   '(max-width: 1023px) calc((100vw - 204px) / 2)',
@@ -68,10 +63,9 @@ const tagQuery = computed(() => {
 })
 
 /**
- * Die Kachel ist und bleibt ein Link auf die Detailseite: ohne JavaScript,
- * mit Mittelklick, mit „In neuem Tab öffnen" und im Quelltext für Crawler.
- * Nur der einfache Linksklick ohne Modifier wird abgefangen und öffnet
- * stattdessen die Lightbox.
+ * The tile stays a link to the detail page — without JavaScript, on middle
+ * click, in a new tab and for crawlers. Only a plain unmodified left click is
+ * intercepted and opens the lightbox instead.
  */
 function onTileClick(event: MouseEvent, slug: string) {
   if (event.defaultPrevented) return
@@ -83,14 +77,9 @@ function onTileClick(event: MouseEvent, slug: string) {
 </script>
 
 <style scoped>
-/*
-  CSS-Columns statt eines echten Masonry-Layouts: `grid-template-rows: masonry`
-  ist 2026 noch nicht überall Baseline. Folge, die man kennen muss: die Kacheln
-  füllen Spalte für Spalte, nicht Zeile für Zeile — die Tabulator-Reihenfolge
-  läuft also die erste Spalte hinunter, dann die zweite. Für eine Galerie ohne
-  inhaltliche Reihenfolge ist das vertretbar; ein Raster mit fester Zeilenhöhe
-  wäre die Alternative und würde jedes Hochformat beschneiden.
-*/
+/* CSS columns instead of real masonry: `grid-template-rows: masonry` is not
+   baseline in 2026. Consequence to know: tiles fill column by column, so tab
+   order runs down the first column before the second. */
 .grid {
   columns: var(--grid-cols);
   column-gap: var(--grid-gap);
@@ -116,23 +105,13 @@ function onTileClick(event: MouseEvent, slug: string) {
   gap: var(--space-1);
   padding: 14px;
   background: var(--overlay-caption);
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-meta-size);
-  line-height: var(--text-meta-lh);
-  letter-spacing: var(--text-meta-ls);
-  text-transform: uppercase;
   color: var(--color-text);
 }
 
-/*
-  `overflow: hidden` schneidet am Rand des Zeilenkastens ab — und bei
-  `line-height: 1` ist dieser Kasten genau so hoch wie die Schriftgröße. Die
-  Punkte über Ü und Ö ragen darüber hinaus: aus „LACHMÖWEN" wurde
-  „LACHMOWEN". Die Zeile bekommt deshalb 1,4 Zeilenhöhe und holt die
-  Differenz über negative Blockränder wieder herein — die Geometrie der
-  Unterschrift bleibt dieselbe, der Kasten reicht nur über die Umlautpunkte.
-*/
+/* `overflow: hidden` clips at the line box, and at `line-height: 1` that box is
+   exactly the font size — umlaut dots were sheared off („LACHMÖWEN" rendered as
+   „LACHMOWEN"). Line height 1.4 plus negative block margins keeps the geometry
+   and lets the box reach over the dots. */
 .caption-title {
   line-height: 1.4;
   margin-block: -0.2em;
@@ -145,12 +124,8 @@ function onTileClick(event: MouseEvent, slug: string) {
   flex: 0 0 auto;
 }
 
-/*
-  Auf Zeigergeräten blendet die Unterschrift erst beim Hovern ein — das Bild
-  soll dominieren. Auf Touch und bei Tastaturbedienung gibt es kein Hovern,
-  dort bleibt sie sichtbar. Deshalb ist „sichtbar" der Standard und das
-  Ausblenden die Ausnahme, nicht umgekehrt.
-*/
+/* Visible is the default and hiding the exception: touch and keyboard have no
+   hover, so only pointer devices fade the caption in. */
 @media (hover: hover) and (pointer: fine) {
   .caption {
     opacity: 0;

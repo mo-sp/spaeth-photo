@@ -14,69 +14,55 @@ import { formatIssues, slugSchema, tagSchema } from './lib/schema.ts'
 import { slugFromFilename, slugify } from './lib/slug.ts'
 
 /**
- * Erzeugt aus den Original-JPEGs (volle Auflösung, mit EXIF) die Web-Quellen
- * des Content-Repos: 2560 px lange Kante, sRGB, ohne Metadaten — und, falls
- * noch keine existiert, eine `photos/meta/<slug>.yaml` mit den aus EXIF
- * gelesenen Angaben.
- *
- * Die Originale werden ausschließlich gelesen. Sie liegen außerhalb jedes
- * Repositorys und bleiben dort.
+ * Turns the full-resolution originals into the content repo's web sources
+ * (2560 px long edge, sRGB, no metadata) and, where none exists yet, a
+ * `photos/meta/<slug>.yaml` filled from EXIF. The originals are only ever read;
+ * they live outside every repository and stay there.
  */
 
 const EXPORT_WIDTH = 2560
 /**
- * q95 mit 4:4:4. Diese Datei ist ein Archiv, aus dem später alle
- * Auslieferungsvarianten entstehen — jede Kompression hier vererbt sich in
- * jede AVIF- und WebP-Stufe. Vor allem die Farbunterabtastung: 4:2:0 wirft
- * drei Viertel der Farbauflösung weg, bevor der eigentliche Encoder überhaupt
- * anfängt, und das ist nicht rückholbar.
+ * q95 with 4:4:4. Every compression here is inherited by each AVIF and WebP
+ * step: 4:2:0 alone throws away three quarters of the colour resolution before
+ * the actual encoder starts, and that is not recoverable.
  */
 const EXPORT_QUALITY = 95
-
-/**
- * Der Demo-Content im öffentlichen Repo ist kein Archiv, sondern ein Beleg,
- * dass der Build ohne das private Submodule durchläuft. Er wird deshalb mit
- * niedrigerer Qualität exportiert (`--quality`), damit das Repo nicht dauerhaft
- * mehrere Megabyte Platzhalterbilder mitschleppt.
- */
 
 const OPTIONS: OptionSpecs = {
   'source-dir': {
     type: 'string',
     placeholder: '<dir>',
-    description: 'Verzeichnis mit den Originalen (Standard: $PHOTO_SOURCE_DIR)',
+    description: 'Directory holding the originals (required, or set $PHOTO_SOURCE_DIR)',
   },
   map: {
     type: 'string',
     placeholder: '<json>',
-    description: 'Zuordnung Originaldatei → Slug/Titel/Tags (Standard: <out>/import-map.json)',
+    description: 'Original file → slug/title/tags mapping (default: <out>/import-map.json)',
   },
   out: {
     type: 'string',
     placeholder: '<dir>',
-    description: 'Content-Wurzel für die Ausgabe (Standard: content)',
+    description: 'Content root for the output (default: content)',
   },
   quality: {
     type: 'string',
     placeholder: '<1-100>',
-    description: `JPEG-Qualität der Web-Quelle (Standard: ${EXPORT_QUALITY})`,
+    description: `JPEG quality of the web source (default: ${EXPORT_QUALITY})`,
   },
-  'dry-run': { type: 'boolean', description: 'Nichts schreiben, nur berichten' },
+  'dry-run': { type: 'boolean', description: 'Write nothing, only report' },
   force: {
     type: 'boolean',
-    description: 'Vorhandene Web-Quellen überschreiben (Standard: überspringen)',
+    description: 'Overwrite existing web sources (default: skip them)',
   },
-  only: { type: 'string', placeholder: '<slug>', description: 'Nur diesen Slug exportieren' },
+  only: { type: 'string', placeholder: '<slug>', description: 'Export only this slug' },
 }
 
-const USAGE = 'Aufruf: pnpm export-sources [Optionen]'
-
-const DEFAULT_SOURCE_DIR = '~/incoming/BilderWebseite'
+const USAGE = 'Usage: pnpm export-sources [options]'
 
 /**
- * `year` und `orientation` stehen im Handoff, werden aber bewusst **nicht**
- * übernommen: das Aufnahmedatum steht im EXIF, die Ausrichtung in den Pixeln.
- * Beides ist verlässlicher als eine von Hand gepflegte Liste.
+ * `year` and `orientation` are in the handoff but deliberately not taken from
+ * it: the capture date is in EXIF and the orientation in the pixels, both more
+ * reliable than a hand-maintained list.
  */
 const importEntrySchema = z.object({
   slug: slugSchema,
@@ -101,7 +87,7 @@ function loadImportMap(file: string): { entries: Map<string, MapEntry>; issues: 
   const entries = new Map<string, MapEntry>()
   const issues: string[] = []
   if (!existsSync(file)) {
-    issues.push(`Zuordnungsdatei fehlt: ${displayPath(file)} — alle Bilder bekommen title: "TODO"`)
+    issues.push(`map file missing: ${displayPath(file)} — every image gets title: "TODO"`)
     return { entries, issues }
   }
 
@@ -109,7 +95,7 @@ function loadImportMap(file: string): { entries: Map<string, MapEntry>; issues: 
   try {
     raw = JSON.parse(readFileSync(file, 'utf8'))
   } catch (error) {
-    throw new CliError(`Zuordnungsdatei ist kein gültiges JSON: ${(error as Error).message}`)
+    throw new CliError(`map file is not valid JSON: ${(error as Error).message}`)
   }
 
   const parsed = importMapSchema.safeParse(raw)
@@ -117,17 +103,18 @@ function loadImportMap(file: string): { entries: Map<string, MapEntry>; issues: 
 
   for (const entry of parsed.data) {
     if (entries.has(entry.file)) {
-      issues.push(`Zuordnung: ${entry.file} kommt mehrfach vor — der letzte Eintrag gewinnt`)
+      issues.push(`map: ${entry.file} appears more than once — the last entry wins`)
     }
-    // The map carries the tag keys as written (`black-and-white`); `slugify`
-    // is kept as the gate so a hand-typed „Black & White" still lands on the
-    // key. Unknown tags are dropped rather than passed into the data model.
+    // `slugify` normalises case and spacing before the vocabulary check, so
+    // "Landscape" and "landscape" both pass. It does not invent words: "Black
+    // & White" becomes `black-white` and is rejected, which is the point —
+    // an unknown tag is dropped rather than passed into the data model.
     const tags: Tag[] = []
     for (const rawTag of entry.tags) {
       const candidate = slugify(rawTag)
       const check = tagSchema.safeParse(candidate)
       if (check.success) tags.push(check.data)
-      else issues.push(`Zuordnung ${entry.slug}: unbekanntes Tag „${rawTag}" verworfen`)
+      else issues.push(`map ${entry.slug}: unknown tag "${rawTag}" dropped`)
     }
     entries.set(entry.file, {
       slug: entry.slug,
@@ -154,18 +141,24 @@ async function main(): Promise<void> {
   const rawQuality = flags.str('quality')
   const quality = rawQuality === undefined ? EXPORT_QUALITY : Number(rawQuality)
   if (!Number.isInteger(quality) || quality < 1 || quality > 100) {
-    throw new CliError(`--quality erwartet eine ganze Zahl von 1 bis 100, nicht „${rawQuality}"`)
+    throw new CliError(`--quality expects a whole number from 1 to 100, not "${rawQuality}"`)
   }
 
-  const sourceDir = fromRoot(
-    flags.str('source-dir') ?? process.env.PHOTO_SOURCE_DIR ?? DEFAULT_SOURCE_DIR,
-  )
+  // No default: the originals live outside every repository, so their location
+  // is the operator's and must not be baked into a public file.
+  const rawSourceDir = flags.str('source-dir') ?? process.env.PHOTO_SOURCE_DIR
+  if (rawSourceDir === undefined) {
+    throw new CliError(
+      'no source directory: pass --source-dir <dir> or set $PHOTO_SOURCE_DIR (see .env.example)',
+    )
+  }
+  const sourceDir = fromRoot(rawSourceDir)
   const outRoot = fromRoot(flags.str('out') ?? 'content')
   const mapFile = fromRoot(flags.str('map') ?? path.join(outRoot, 'import-map.json'))
   const out = photosDirs(outRoot)
 
   if (!existsSync(sourceDir)) {
-    throw new CliError(`Quellverzeichnis nicht gefunden: ${displayPath(sourceDir)}`)
+    throw new CliError(`source directory not found: ${displayPath(sourceDir)}`)
   }
 
   const reporter = createReporter()
@@ -174,20 +167,18 @@ async function main(): Promise<void> {
 
   const files = listJpegs(sourceDir)
   if (files.length === 0) {
-    throw new CliError(`Keine JPEGs in ${displayPath(sourceDir)}`)
+    throw new CliError(`No JPEGs in ${displayPath(sourceDir)}`)
   }
 
   const mappedFiles = new Set(map.keys())
   for (const file of mappedFiles) {
-    if (!files.includes(file)) reporter.warn('import-map', `Datei fehlt im Quellordner: ${file}`)
+    if (!files.includes(file)) reporter.warn('import-map', `file missing from the source: ${file}`)
   }
 
-  reporter.info(`Quelle   ${displayPath(sourceDir)} (${files.length} Dateien)`)
-  reporter.info(`Ziel     ${displayPath(outRoot)}${dryRun ? '  [dry-run]' : ''}`)
-  reporter.info(`Mapping  ${displayPath(mapFile)} (${map.size} Einträge)`)
-  reporter.info(
-    `Format   ${EXPORT_WIDTH} px lange Kante · JPEG q${quality} 4:4:4 · sRGB · ohne EXIF`,
-  )
+  reporter.info(`Source  ${displayPath(sourceDir)} (${files.length} files)`)
+  reporter.info(`Target  ${displayPath(outRoot)}${dryRun ? '  [dry-run]' : ''}`)
+  reporter.info(`Map     ${displayPath(mapFile)} (${map.size} entries)`)
+  reporter.info(`Format  ${EXPORT_WIDTH} px long edge · JPEG q${quality} 4:4:4 · sRGB · no EXIF`)
   reporter.info('')
 
   if (!dryRun) {
@@ -208,12 +199,12 @@ async function main(): Promise<void> {
     const slug = mapped?.slug ?? slugFromFilename(file)
 
     if (!slugSchema.safeParse(slug).success) {
-      reporter.error(file, `abgeleiteter Slug ist ungültig: „${slug}"`)
+      reporter.error(file, `derived slug is invalid: "${slug}"`)
       continue
     }
     const previous = seen.get(slug)
     if (previous) {
-      reporter.error(slug, `Slug doppelt vergeben: ${previous} und ${file}`)
+      reporter.error(slug, `slug used twice: ${previous} and ${file}`)
       continue
     }
     seen.set(slug, file)
@@ -227,28 +218,27 @@ async function main(): Promise<void> {
     const outputFile = path.join(out.source, `${slug}.jpg`)
     const metaFile = path.join(out.meta, `${slug}.yaml`)
 
-    // EXIF wird gelesen, BEVOR die Pipeline die Metadaten verwirft.
+    // EXIF is read BEFORE the pipeline discards the metadata.
     const input = sharp(inputFile, { failOn: 'error' })
     const metadata = await input.metadata()
     const exif = readExif(metadata.exif)
 
     if (!exif.date) {
-      reporter.warn(slug, 'kein DateTimeOriginal im EXIF — heutiges Datum eingesetzt')
+      reporter.warn(slug, 'no DateTimeOriginal in EXIF — using today')
     }
     if (!mapped) {
-      reporter.warn(slug, `keine Zuordnung für ${file} — title: "TODO"`)
+      reporter.warn(slug, `no map entry for ${file} — title: "TODO"`)
     }
 
-    // Ein EXIF-Orientierungsflag ab 5 dreht das Bild um 90°; `.autoOrient()`
-    // vertauscht dann Breite und Höhe. Die Vorschau muss dieselben Maße nennen
-    // wie der echte Lauf, sonst berichtet sie über ein anderes Bild.
+    // An EXIF orientation flag of 5 or more rotates the image by 90°, so
+    // `.autoOrient()` swaps width and height. The preview has to report the
+    // same dimensions as the real run.
     const rotated = (metadata.orientation ?? 1) >= 5
     const inputWidth = rotated ? metadata.height : metadata.width
     const inputHeight = rotated ? metadata.width : metadata.height
 
-    // Die Web-Quelle ist die Vorlage aller Varianten und kann von Hand
-    // nachbearbeitet worden sein. Sie wird deshalb genauso geschützt wie die
-    // YAML-Datei: ein zweiter Lauf überschreibt sie nicht ungefragt.
+    // The web source may have been retouched by hand, so like the YAML file it
+    // is never overwritten unasked.
     const sourceExists = existsSync(outputFile)
     const skipSource = sourceExists && !force
 
@@ -259,10 +249,10 @@ async function main(): Promise<void> {
     let sourceNote: string
 
     if (skipSource) {
-      sourceNote = 'übersprungen, existiert'
+      sourceNote = 'skipped, exists'
       existing += 1
     } else if (dryRun) {
-      sourceNote = sourceExists ? 'würde überschreiben' : 'würde schreiben'
+      sourceNote = sourceExists ? 'would overwrite' : 'would write'
     } else {
       const info = await input
         .autoOrient()
@@ -274,9 +264,9 @@ async function main(): Promise<void> {
           kernel: 'lanczos3',
         })
         .jpeg({ quality, chromaSubsampling: '4:4:4', mozjpeg: true })
-        // Einzige Stelle im Projekt, an der ein Profil geschrieben wird: die
-        // Web-Quelle ist ein Archiv und soll sich selbst beschreiben. Die
-        // ausgelieferten Varianten bleiben profillos (= sRGB per Konvention).
+        // The only place in the project that writes a profile: the web source
+        // is an archive and should describe itself. The delivered variants stay
+        // profileless (= sRGB by convention).
         .withIccProfile('srgb')
         .toFile(outputFile)
       outWidth = info.width
@@ -284,16 +274,16 @@ async function main(): Promise<void> {
       bytes = statSync(outputFile).size
       totalBytes += bytes
       written += 1
-      sourceNote = sourceExists ? 'überschrieben (--force)' : 'geschrieben'
+      sourceNote = sourceExists ? 'overwritten (--force)' : 'written'
     }
 
-    let metaNote = 'YAML vorhanden'
+    let metaNote = 'YAML exists'
     if (!existsSync(metaFile)) {
       const meta: PhotoMeta = {
         title: mapped?.title ?? 'TODO',
         title_de: mapped?.titleDe ?? null,
-        // Eine Bildbeschreibung kann kein Skript erfinden; sie wird von Hand
-        // nachgetragen und fällt bis dahin auf den Titel zurück.
+        // No script can invent an image description; it is added by hand and
+        // falls back to the title until then.
         alt: null,
         alt_de: null,
         date: exif.date ?? todayIso(),
@@ -308,11 +298,11 @@ async function main(): Promise<void> {
       }
       if (!dryRun) await writeFile(metaFile, renderMetaYaml(meta), 'utf8')
       metaCreated += 1
-      metaNote = 'YAML neu'
+      metaNote = 'YAML new'
     }
 
     reporter.step(
-      skipSource ? 'vorhanden' : dryRun ? 'würde' : 'export',
+      skipSource ? 'exists' : dryRun ? 'would' : 'export',
       slug,
       `${outWidth}×${outHeight} · ${bytes > 0 ? formatBytes(bytes) : '—'} · ` +
         `${sourceNote} · ${metaNote} · ${file}`,
@@ -322,9 +312,9 @@ async function main(): Promise<void> {
   const duration = Date.now() - started
   reporter.info('')
   reporter.info(
-    `  ${files.length} Originale · ${written} Web-Quellen geschrieben · ${metaCreated} YAML angelegt` +
-      `${existing > 0 ? ` · ${existing} vorhanden` : ''}` +
-      `${skipped > 0 ? ` · ${skipped} übersprungen` : ''}` +
+    `  ${files.length} originals · ${written} web sources written · ${metaCreated} YAML created` +
+      `${existing > 0 ? ` · ${existing} existing` : ''}` +
+      `${skipped > 0 ? ` · ${skipped} skipped` : ''}` +
       `${totalBytes > 0 ? ` · ${formatBytes(totalBytes)}` : ''} · ${formatDuration(duration)}`,
   )
   reporter.finish()
@@ -334,7 +324,7 @@ try {
   await main()
 } catch (error) {
   if (error instanceof CliError) {
-    console.error(`Fehler: ${error.message}`)
+    console.error(`Error: ${error.message}`)
     process.exitCode = 1
   } else {
     throw error

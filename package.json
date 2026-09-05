@@ -15,7 +15,7 @@
     "generate": "nuxt generate",
     "build": "pnpm build-images && pnpm generate",
     "preview": "nuxt preview",
-    "lint": "eslint .",
+    "lint": "eslint . && prettier --check .",
     "lint:fix": "eslint . --fix",
     "pretypecheck": "pnpm build-images",
     "typecheck": "nuxt typecheck && tsc -p tsconfig.scripts.json",

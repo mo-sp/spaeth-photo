@@ -1,28 +1,19 @@
 /**
- * Datenmodell der Foto-Pipeline. Diese Datei enthält ausschließlich Typen —
- * kein Laufzeitcode —, damit sowohl die Build-Skripte (Node) als auch das
- * Frontend (Vite) sie ohne Nebenwirkungen importieren können.
- *
- * Die zod-Schemata in `scripts/lib/schema.ts` sind bidirektional an diese Typen
- * geklammert: Sie sind als `z.ZodType<T>` deklariert und ihr `z.infer` wird
- * gegen `T` geprüft. Eine Änderung hier bricht dort den Typecheck und umgekehrt.
+ * Data model of the photo pipeline. Types only, no runtime code, so both the
+ * build scripts (Node) and the front end (Vite) can import it without side
+ * effects. The zod schemas in `scripts/lib/schema.ts` are clamped to these
+ * types in both directions: a change here breaks the typecheck there.
  */
 
 /** Allowed tags. Order and display labels in `shared/utils/tags.ts`. */
 export type Tag =
-  | 'animals'
-  | 'nature'
-  | 'landscape'
-  | 'sailing'
-  | 'fire'
-  | 'architecture'
-  | 'black-and-white'
+  'animals' | 'nature' | 'landscape' | 'sailing' | 'fire' | 'architecture' | 'black-and-white'
 
 export type Orientation = 'landscape' | 'portrait' | 'square'
 
 export type VariantFormat = 'avif' | 'webp' | 'jpeg'
 
-/** Inhalt einer `photos/meta/<slug>.yaml` nach der Validierung. */
+/** Contents of a `photos/meta/<slug>.yaml` after validation. */
 export interface PhotoMeta {
   /**
    * English title. Required and not empty — English is the primary language,
@@ -32,32 +23,30 @@ export interface PhotoMeta {
   /** German title. Optional; falls back to `title`. */
   title_de: string | null
   /**
-   * Bildbeschreibung für Screenreader. Optional: fehlt sie, tritt der Titel an
-   * ihre Stelle. Sie steht getrennt, weil ein guter Titel („Delfine vor dem
-   * Bug") und eine gute Beschreibung („Zwei Delfine springen dicht vor dem Bug
-   * eines fahrenden Segelboots aus dem Wasser") selten derselbe Satz sind.
+   * Screen-reader description; falls back to the title. Kept separate because a
+   * good title and a good description are rarely the same sentence.
    */
   alt: string | null
-  /** German image description. Optional; falls back to `alt`, then to a title. */
+  /** German image description. Optional; falls back to the German title, never to `alt`. */
   alt_de: string | null
-  /** Aufnahmedatum, `YYYY-MM-DD`. */
+  /** Capture date, `YYYY-MM-DD`. */
   date: string
   tags: Tag[]
-  /** Spätere Serien; Phase 1 immer null. */
+  /** Later series; always null in phase 1. */
   collection: string | null
   camera: string | null
   lens: string | null
-  /** Kandidat für die kuratierte Auswahl der Startseite. */
+  /** Candidate for the curated home-page selection. */
   featured: boolean
-  /** Genau ein Foto im Bestand darf `true` sein. */
+  /** Exactly one photo in the collection may be `true`. */
   hero: boolean
-  /** Position in der Startseiten-Auswahl; sonst null. */
+  /** Position in the home-page selection; null otherwise. */
   order: number | null
-  /** Phase 2 (Print-Verkauf); Phase 1 immer null. */
+  /** Phase 2 (print sales); always null in phase 1. */
   print: null
 }
 
-/** Erzeugte Breiten je Format. Die URLs ergeben sich per Konvention. */
+/** Rendered widths per format. The URLs follow from the convention. */
 export interface PhotoVariants {
   avif: number[]
   webp: number[]
@@ -65,9 +54,8 @@ export interface PhotoVariants {
 }
 
 /**
- * Ein Foto, wie es das Frontend sieht (`app/data/photos.index.json`).
- * Bild-URLs werden nicht gespeichert, sondern per Konvention gebildet:
- * `/img/<slug>/<breite>.<ext>`.
+ * A photo as the front end sees it (`app/data/photos.index.json`). Image URLs
+ * are not stored but built by convention: `/img/<slug>/<width>.<ext>`.
  */
 export interface PhotoIndexEntry {
   slug: string
@@ -75,7 +63,7 @@ export interface PhotoIndexEntry {
   title: string
   /** German title. Absent when the YAML has none — `photoTitle` falls back. */
   titleDe?: string
-  /** Bildbeschreibung; `null` bedeutet: der Titel ist die Beschreibung. */
+  /** Description; `null` means the title is the description. */
   alt: string | null
   /** German image description. Absent when the YAML has none. */
   altDe?: string
@@ -89,18 +77,18 @@ export interface PhotoIndexEntry {
   featured: boolean
   hero: boolean
   order: number | null
-  /** Pixelmaße der größten erzeugten Stufe. */
+  /** Pixel size of the largest rendered step. */
   width: number
   height: number
-  /** `width / height`, auf 6 Nachkommastellen gerundet. */
+  /** `width / height`, rounded to 6 decimals. */
   aspectRatio: number
   orientation: Orientation
-  /** Durchschnittsfarbe als `#rrggbb` — Kachel-Hintergrund ohne Blur. */
+  /** Average colour as `#rrggbb` — tile background, no blur. */
   color: string
-  /** 20-px-WebP als Data-URI (Blur-up auf Hero und Detailseite). */
+  /** 20 px WebP as a data URI (blur-up on hero and detail page). */
   lqip: string
   variants: PhotoVariants
-  /** OpenGraph-Bild, 1200×630. */
+  /** OpenGraph image, 1200×630. */
   og: string
 }
 
@@ -109,12 +97,12 @@ export interface TagCount {
   count: number
 }
 
-/** Der Client-Index — einzige Datenquelle des Frontends zur Laufzeit. */
+/** The client index — the front end's only data source at runtime. */
 export interface PhotoIndexFile {
   schema: 1
   generatedAt: string
   sourceMode: SourceMode
-  /** Slug des Hero-Fotos; null nur, wenn es kein einziges Foto gibt. */
+  /** Slug of the hero photo; null only when there is no photo at all. */
   heroSlug: string | null
   tags: TagCount[]
   photos: PhotoIndexEntry[]
@@ -122,36 +110,36 @@ export interface PhotoIndexFile {
 
 export type SourceMode = 'content' | 'demo'
 
-/** Eine konkret geschriebene Bilddatei unter `public/img/`. */
+/** One image file actually written below `public/img/`. */
 export interface ManifestFile {
   format: VariantFormat
   width: number
   height: number
-  /** Pfad relativ zur Site-Wurzel, z. B. `/img/<slug>/960.avif`. */
+  /** Path relative to the site root, e.g. `/img/<slug>/960.avif`. */
   path: string
   bytes: number
 }
 
-/** Ein Foto im vollständigen Build-Manifest (`photos.manifest.json`). */
+/** A photo in the full build manifest (`photos.manifest.json`). */
 export interface ManifestPhoto extends PhotoIndexEntry {
-  /** Maße der Quelldatei vor dem Resizen. */
+  /** Dimensions of the source file before resizing. */
   sourceWidth: number
   sourceHeight: number
   sourceBytes: number
-  /** SHA-256 der Quelldatei (Kurzform), Grundlage des inkrementellen Builds. */
+  /** Short SHA-256 of the source file; basis of the incremental build. */
   sourceHash: string
   files: ManifestFile[]
   ogFile: ManifestFile
-  /** Summe aller erzeugten Dateien dieses Fotos in Byte. */
+  /** Total bytes of all files rendered for this photo. */
   totalBytes: number
 }
 
-/** Das vollständige Manifest — Build-Artefakt, nicht ausgeliefert. */
+/** The full manifest — a build artefact, not shipped. */
 export interface PhotoManifest {
   schema: 1
   generatedAt: string
   sourceMode: SourceMode
-  /** Quellverzeichnis relativ zur Projektwurzel (Diagnose). */
+  /** Source directory relative to the project root (diagnostics). */
   sourceDir: string
   heroSlug: string | null
   tags: TagCount[]
