@@ -144,6 +144,12 @@ html[data-intro] .shell {
   display: none;
 }
 
+/* Below 768 px the sidebar dissolves and its foot moves here; over the clip it
+   needs the same ground the column gets on the desktop. */
+.shell--behind .page-foot {
+  background: var(--color-bg);
+}
+
 @media (max-width: 767px) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
