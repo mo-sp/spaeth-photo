@@ -8,7 +8,7 @@ import {
   PREFIXED_LOCALES,
   localePath,
 } from './shared/utils/i18n.ts'
-import { CLIP_SLUGS } from './shared/constants/video.ts'
+import { CLIP_SLUGS, publishableClips } from './shared/constants/video.ts'
 import { THEME_INIT_SCRIPT } from './shared/utils/theme.ts'
 import { VIDEO_FILES } from './shared/utils/video.ts'
 
@@ -26,10 +26,19 @@ const VIDEO_DIR = fileURLToPath(new URL('./content/video', import.meta.url))
  * half-built feature rather than a graceful fallback.
  */
 function clipDirs(): { slug: string; dir: string }[] {
-  const found = CLIP_SLUGS.map((slug) => ({ slug, dir: `${VIDEO_DIR}/${slug}` })).filter(
-    ({ dir }) => existsSync(`${dir}/${VIDEO_FILES.poster}`),
+  const found = CLIP_SLUGS.filter((slug) =>
+    existsSync(`${VIDEO_DIR}/${slug}/${VIDEO_FILES.poster}`),
   )
-  return found.length === CLIP_SLUGS.length ? found : []
+  const published = publishableClips(found)
+  // Having some but not all of them is the confusing case: the clip is simply
+  // absent from the start page and nothing says why.
+  if (published.length === 0 && found.length > 0) {
+    console.warn(
+      `[nuxt.config] a clip is encoded for ${found.join(', ')} but not for every palette - ` +
+        'the start page falls back to its hero photograph',
+    )
+  }
+  return published.map((slug) => ({ slug, dir: `${VIDEO_DIR}/${slug}` }))
 }
 
 const clips = clipDirs()
