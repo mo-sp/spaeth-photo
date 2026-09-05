@@ -197,9 +197,14 @@ watch(() => route.fullPath, closeMenu)
   display: none;
 }
 
+/* `margin-top: auto` is what separates the foot wherever the column has room,
+   and it is the whole separation on every page but one. The padding only shows
+   where there is no room — a gallery page, whose filter makes the column 779 px
+   tall — and there 28 px of it was enough to push the page into scrolling by
+   11 px at 1366×768. 14 px is the same air where it is visible at all. */
 .side-foot {
   margin-top: auto;
-  padding: var(--space-3) var(--space-3) 0;
+  padding: var(--space-2) var(--space-3) 0;
 }
 
 /* The nav list goes away on the detail page, but only above 768 px: on mobile

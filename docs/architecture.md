@@ -645,8 +645,16 @@ scroll region; the `overflow-y: auto` that used to let the metadata block scroll
 because the scrollbar it produced on the detail page read as a defect. Most of the overflow
 left with the stepper. What remains is a trade-off worth naming: `position: sticky; top: 0`
 pins a column taller than the viewport instead of letting it scroll, so in a window shorter
-than roughly 600 px the foot of the sidebar is out of reach. Keeping the navigation in place
-on every long gallery page is worth more than that case.
+than the column the foot of the sidebar is out of reach. Keeping the navigation in place on
+every long gallery page is worth more than that case.
+
+The threshold is not the "roughly 600 px" this paragraph used to claim. Measured after the
+larger navigation of the F1 review: the column needs 765 px on a gallery page, where the tag
+filter is 291 px of it, against 474 px on a page without an aside. Below that the page scrolls for the
+sidebar rather than for its content — which showed as an 11 px scrollbar on a filtered
+gallery at 1366×768, where the photographs fit the viewport exactly. The foot's top padding
+absorbed it: `margin-top: auto` already separates the foot wherever the column has room, so
+that padding is visible only in the case that was overflowing.
 
 _Prev/next stand beside the image, the counter under it._ `PhotoStepper` is a three-column
 grid, `44px 1fr 44px`, with the stage slotted into the middle cell and the counter centred
