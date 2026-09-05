@@ -26,7 +26,7 @@
       <SiteMotto />
     </div>
 
-    <section class="strip-section">
+    <section class="strip-section" :class="{ 'strip-section--stage': stage }">
       <h2 class="label">{{ t('home.all') }}</h2>
       <PhotoStrip />
     </section>
@@ -131,6 +131,15 @@ useHead({
      would cost more than it saves. */
   gap: 24px;
   padding: var(--space-5) var(--space-4) var(--space-6);
+}
+
+/* The 11 px label over the clip measured 2.1:1 against a bright frame. A ground
+   the width of the words, not the row: the tiles below it are photographs and
+   stay untouched. Prototype guardrail; the treatment is P11's. */
+.strip-section--stage .label {
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg);
 }
 
 .label {

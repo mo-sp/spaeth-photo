@@ -725,11 +725,21 @@ plain background.
 they can be compared in the preview, reachable through a temporary query flag:
 `?video=full` (the default — full-page background behind a washed-out scrim) and
 `?video=band` (a hero band where the hero photograph stood, page background normal). The
-flag is prototype scaffolding and goes with the decision. Two things are unresolved and
-both are design questions, not mechanics: text over a moving picture cannot be
-contrast-checked the way text over a token colour can — the muted greys of the strip label
-and the sidebar foot are the exposed ones — and the motto is centred in the content column,
-which over a full-bleed clip reads as off-centre against the viewport.
+flag is prototype scaffolding and goes with the decision. One thing is unresolved and it is
+a design question, not a mechanic: the motto is centred in the content column, which over a
+full-bleed clip reads as off-centre against the viewport.
+
+**Small text over the clip has a ground of its own — a guardrail, not a design.** Text over
+a moving picture cannot be contrast-checked the way text over a token colour can, and the
+measurement is not close: sampled against the p90 luminance of the bright frames of the
+prototype clip, the 11 px strip label (`--color-text-muted`) comes to **2.06:1** and the
+10 px sidebar foot (`--color-text-faint`) to **1.90:1**, where AA at those sizes asks for
+4.5:1. So in the full-bleed variant the sidebar column, its mobile foot and the strip label
+get the page background back as an opaque panel; the ratios are then the ones the palette is
+checked at (4.9:1 dark, 4.7:1 light) and no frame can change them. The cost is visible and
+deliberate: the clip shows in the content column and not behind the navigation. Photographs
+are not touched and no filter goes near them. The version that keeps the clip whole and the
+text readable is a design problem, and P11's.
 
 ## SEO
 

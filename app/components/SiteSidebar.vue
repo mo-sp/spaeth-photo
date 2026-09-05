@@ -113,6 +113,13 @@ watch(() => route.fullPath, closeMenu)
   padding: var(--space-page-top) 0 var(--space-4);
 }
 
+/* Over the full-page clip the column's small type has no measurable contrast:
+   the 10 px foot came to 1.9:1 against a bright frame. It gets the page ground
+   back as a panel — the plain guardrail, not the treatment; that is P11's. */
+.shell--behind .side {
+  background: var(--color-bg);
+}
+
 .wordmark {
   display: block;
   padding: 0 var(--space-3);
