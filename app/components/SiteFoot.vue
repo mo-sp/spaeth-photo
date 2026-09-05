@@ -1,15 +1,16 @@
 <template>
+  <!--
+    Ort, Koordinaten und die Rechtslinks. Auf der Detailseite tritt
+    `PhotoAsideFoot` an diese Stelle — dort trägt der Sidebar-Fuß Prev/Next, und
+    die Rechtslinks kommen von dort. Sichtbar ist immer genau eine der beiden
+    Fassungen (mobil der Seitenfuß im Layout).
+  -->
   <footer class="foot">
     <p class="place">
       Wedel<br />
       <span class="coords">53.58°N 9.70°E</span>
     </p>
-    <!-- § 5 DDG verlangt „leicht erkennbar, unmittelbar erreichbar und ständig
-         verfügbar" — deshalb auf jeder Seite, nicht nur im Impressum. -->
-    <nav class="legal" aria-label="Rechtliches">
-      <NuxtLink to="/impressum">Impressum</NuxtLink>
-      <NuxtLink to="/datenschutz">Datenschutz</NuxtLink>
-    </nav>
+    <SiteLegal class="legal" />
   </footer>
 </template>
 
@@ -28,24 +29,7 @@
   margin: 0;
 }
 
-/* Untereinander statt „Impressum · Datenschutz": zwei 10-px-Links in einer
-   Zeile liegen unter der Mindest-Zielgröße von 24 px. Vertikal mit
-   min-height reicht jeder Link an 24 px heran, ohne dass die Schrift wächst. */
 .legal {
-  display: flex;
-  flex-direction: column;
   margin-top: var(--space-2);
-}
-
-.legal a {
-  display: flex;
-  align-items: center;
-  min-height: 24px;
-  transition: color var(--t-fast);
-}
-
-.legal a:hover,
-.legal a:focus-visible {
-  color: var(--color-text);
 }
 </style>

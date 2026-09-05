@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { PhotoIndexEntry } from '../../types/photo.ts'
-import { buildSources, fallbackFormat, fallbackSrc, imgUrl, srcSet, variantWidths } from '../img.ts'
+import {
+  buildSources,
+  detailCap,
+  detailSizes,
+  detailVariantMax,
+  fallbackFormat,
+  fallbackSrc,
+  imgUrl,
+  srcSet,
+  variantWidths,
+} from '../img.ts'
 
 function photo(overrides: Partial<PhotoIndexEntry> = {}): PhotoIndexEntry {
   return {
@@ -129,5 +139,56 @@ describe('fallback', () => {
 
   it('bleibt auch mit engem Deckel nicht leer', () => {
     expect(fallbackSrc(photo(), 10)).toBe('/img/hafen-am-morgen/960.jpg')
+  })
+})
+
+describe('detailCap', () => {
+  it('deckelt die Breite über die Bühnenhöhe', () => {
+    expect(detailCap(1.5)).toBe(1230)
+    expect(detailCap(0.666797)).toBe(547)
+  })
+})
+
+describe('detailSizes', () => {
+  it('nennt drei Stufen und trägt den Deckel in beiden Desktop-Stufen', () => {
+    const sizes = detailSizes(1.5)
+    expect(sizes).toBe(
+      '(max-width: 767px) 100vw, ' +
+        '(max-width: 1023px) min(calc(100vw - 180px), 1230px), ' +
+        'min(calc(100vw - 220px), 1230px)',
+    )
+  })
+
+  it('ist mobil breitengetrieben, nicht gedeckelt', () => {
+    expect(detailSizes(0.667).startsWith('(max-width: 767px) 100vw,')).toBe(true)
+  })
+})
+
+describe('detailVariantMax', () => {
+  it('lässt Raum für doppelte Pixeldichte', () => {
+    expect(detailVariantMax(1.5)).toBe(2460)
+  })
+
+  it('fällt für Hochformate nicht unter die mobile Anzeigebreite', () => {
+    expect(detailVariantMax(0.666797)).toBe(1600)
+  })
+
+  it('lässt einem Hochformat damit die 1600er-Stufe', () => {
+    const portrait = photo({
+      width: 1707,
+      height: 2560,
+      aspectRatio: 0.666797,
+      variants: { avif: [480, 960, 1600, 1707], webp: [480, 960, 1600, 1707], jpeg: [960, 1600] },
+    })
+    expect(variantWidths(portrait.variants.avif, detailVariantMax(portrait.aspectRatio))).toEqual([
+      480, 960, 1600,
+    ])
+  })
+
+  it('spart dem Querformat die 2560er-Stufe', () => {
+    const landscape = photo()
+    expect(variantWidths(landscape.variants.avif, detailVariantMax(landscape.aspectRatio))).toEqual(
+      [480, 960, 1600],
+    )
   })
 })

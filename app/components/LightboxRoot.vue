@@ -23,7 +23,6 @@
           :photo="photo"
           :alt="photo.alt ?? photo.title"
           :sizes="STAGE_SIZES"
-          :variant-max="1600"
           eager
         />
       </div>
@@ -39,7 +38,7 @@
       <span class="caption-meta">
         <span>{{ photo.year }}</span>
         <span aria-hidden="true"> · </span>
-        <span aria-hidden="true">{{ pad(nav.position) }} / {{ pad(nav.total) }}</span>
+        <span aria-hidden="true">{{ padCounter(nav.position) }} / {{ padCounter(nav.total) }}</span>
         <span class="sr-only">Bild {{ nav.position }} von {{ nav.total }}</span>
       </span>
     </p>
@@ -67,7 +66,18 @@ const { current, nav, go, close } = useLightbox(() => props.photos)
 const photo = computed(() => current.value ?? props.photos[0]!)
 
 const titleId = useId()
-const STAGE_SIZES = '(max-width: 767px) 100vw, calc(100vw - 208px)'
+
+/**
+ * Die Bühne ist so breit wie der Viewport minus der beiden Pfeilspalten und des
+ * Bildrands: mobil 2×44 px Pfeil und 2×8 px Rand, auf dem Desktop 2×72 px
+ * Pfeil und 2×32 px Rand.
+ *
+ * Ein `variantMax` gibt es hier nicht: anders als auf der Detailseite hat die
+ * Bühne keine feste Höhe, aus der sich eine Höchstbreite ableiten ließe — sie
+ * ist so hoch wie das Fenster. Ein geratener Deckel machte auf einem großen
+ * Bildschirm genau das Bild unscharf, für das die Lightbox da ist.
+ */
+const STAGE_SIZES = '(max-width: 767px) calc(100vw - 104px), calc(100vw - 208px)'
 
 const detailPath = computed(() => {
   const tag = route.params.tag
@@ -79,9 +89,6 @@ const detailPath = computed(() => {
   }
 })
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
 
 function step(direction: -1 | 1) {
   const target = direction === 1 ? nav.value.next : nav.value.prev

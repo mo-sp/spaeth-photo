@@ -7,7 +7,7 @@
     <div> — er verliert durch `display: contents` keine Semantik, die
     Landmarken sitzen auf den Teilen darin.
   -->
-  <div class="side">
+  <div class="side" :class="{ 'side--photo': isPhotoPage }">
     <header class="side-top" @keydown.escape="closeMenu">
       <NuxtLink to="/" class="wordmark">
         <span>Moritz</span>
@@ -33,18 +33,38 @@
         </summary>
       </details>
       <nav id="hauptnavigation" class="nav" aria-label="Hauptnavigation">
-        <NuxtLink v-for="item in navigation" :key="item.to" :to="item.to" class="nav-item">
+        <NuxtLink
+          v-for="item in navigation"
+          :key="item.to"
+          :to="item.to"
+          class="nav-item"
+          :aria-current="currentState(item.to)"
+        >
           {{ item.label }}
         </NuxtLink>
       </nav>
     </header>
 
-    <div class="side-extra">
-      <slot name="aside" />
-      <slot name="asideFoot" />
+    <!--
+      Der Mittelteil trägt beides: den Sidebar-Inhalt oben und den Sidebar-Fuß
+      der Seite (Prev/Next) unten. Er ist ein eigenes Element, weil er unter
+      768 px als ein Grid-Feld an eine andere Stelle wandert — zwei Geschwister
+      landeten dort im selben Feld übereinander.
+    -->
+    <div class="side-main">
+      <div class="side-extra">
+        <slot name="aside" />
+      </div>
+      <div class="side-bottom">
+        <slot name="asideFoot" />
+      </div>
     </div>
 
-    <SiteFoot class="side-foot" />
+    <!-- Auf der Detailseite steht im Sidebar-Fuß Prev/Next samt Rechtslinks
+         (`PhotoAsideFoot`); Ort und Koordinaten sind laut Handoff ohnehin eine
+         Zutat der Startseite. Zwei Füße übereinander wären zwei Mal
+         „Impressum" auf derselben Seite. -->
+    <SiteFoot v-if="!isPhotoPage" class="side-foot" />
   </div>
 </template>
 
@@ -57,6 +77,28 @@ const navigation = [
 
 const menu = useTemplateRef<HTMLDetailsElement>('menu')
 const route = useRoute()
+
+/**
+ * Auf der Detailseite trägt die Seitenleiste die Bildmetadaten; die
+ * Navigationsliste entfällt dort und der Fuß gehört Prev/Next. Woran die Seite
+ * das erkennt, steht schon in den Routen-Metadaten — dieselbe Quelle, aus der
+ * das Layout den Sidebar-Inhalt wählt.
+ */
+const isPhotoPage = computed(() => route.meta.aside === 'photo')
+
+/**
+ * Der Aktivzustand der Navigation deckt den ganzen Abschnitt ab, nicht nur die
+ * genaue Adresse: `/galerie/segeln` ist eine Galerie-Seite. `NuxtLink` setzt
+ * `aria-current` von sich aus nur bei exakter Übereinstimmung — deshalb hier
+ * ausgeschrieben. `page` bleibt der genauen Seite vorbehalten, der Abschnitt
+ * bekommt das allgemeine `true`; sonst gäbe es auf `/galerie/segeln` zwei
+ * „aktuelle Seiten" (die Navigation und den Filter-Chip).
+ */
+function currentState(to: string): 'page' | 'true' | undefined {
+  const path = route.path.length > 1 ? route.path.replace(/\/$/, '') : route.path
+  if (path === to) return 'page'
+  return to !== '/' && path.startsWith(`${to}/`) ? 'true' : undefined
+}
 
 function closeMenu() {
   if (menu.value) menu.value.open = false
@@ -131,28 +173,56 @@ watch(() => route.fullPath, closeMenu)
   color: var(--color-text);
 }
 
-.nav-item.router-link-exact-active {
+/* Abschnitts-Aktivzustand, nicht nur exakte Adresse: auf `/galerie/segeln`
+   bleibt „Galerie" markiert. `router-link-active` trifft für „/" nur die
+   Startseite selbst — vue-router vergleicht die getroffenen Routen, nicht das
+   Pfad-Präfix. */
+.nav-item.router-link-active {
   color: var(--color-text);
   border-left-color: var(--color-text);
 }
 
-.side-extra {
+.side-main {
+  display: flex;
+  flex-direction: column;
+  /* Nimmt den freien Platz, damit `.side-bottom` unten kleben kann und der
+     Seitenfuß darunter bleibt. */
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: var(--space-brand);
+}
+
+.side-extra {
   /* Der Filterblock darf scrollen, wenn die Liste einmal länger wird als die
      Sidebar hoch ist; der Fuß bleibt dabei sichtbar. */
   min-height: 0;
   overflow-y: auto;
 }
 
+.side-bottom {
+  margin-top: auto;
+}
+
 /* `:empty` griffe hier nicht: ein nicht befüllter Slot hinterlässt einen
    Kommentarknoten. `:has(*)` fragt nach echten Elementen. */
-.side-extra:not(:has(*)) {
+.side-extra:not(:has(*)),
+.side-bottom:not(:has(*)) {
   display: none;
 }
 
 .side-foot {
   margin-top: auto;
   padding: var(--space-3) var(--space-3) 0;
+}
+
+/* Die Navigationsliste entfällt auf der Detailseite — nur oberhalb von 768 px:
+   mobil ist sie das Menü der Kopfleiste und damit der einzige Weg zu den
+   übrigen Seiten. Die Wortmarke bleibt in beiden Fällen als Weg zur
+   Startseite. */
+@media (min-width: 768px) {
+  .side--photo .nav {
+    display: none;
+  }
 }
 
 @media (max-width: 767px) {
@@ -234,9 +304,13 @@ watch(() => route.fullPath, closeMenu)
     display: flex;
   }
 
-  .side-extra {
+  .side-main {
     grid-area: aside;
+    display: block;
     margin-top: 0;
+  }
+
+  .side-extra {
     overflow: visible;
   }
 

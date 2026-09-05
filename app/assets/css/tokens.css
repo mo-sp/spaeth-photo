@@ -99,6 +99,21 @@
   --filterbar-h: 44px;
 
   /* KORREKTUR gegenüber dem Handoff.
+     Der Caption-Gradient des Handoffs beginnt bei α 0,85 und läuft linear auf
+     0 aus. Der Text steht aber nicht am unteren Rand, sondern in der Mitte des
+     14-px-Streifens — dort liegt die Deckkraft bei etwa 0,31 bis 0,54, und über
+     einem hellen Foto (Watt, Wolkenbank) fällt der Kontrast des weißen
+     10-px-Texts unter AA. Die zweite Stützstelle bei 60 % hält die Deckkraft
+     dort oben, wo der Text steht, und lässt den Verlauf nach oben trotzdem
+     weich auslaufen. */
+  --overlay-caption: linear-gradient(
+    to top,
+    rgba(8, 9, 11, 0.9) 0%,
+    rgba(8, 9, 11, 0.78) 60%,
+    rgba(8, 9, 11, 0) 100%
+  );
+
+  /* KORREKTUR gegenüber dem Handoff.
      #5E6874 auf #08090B ergibt 3,52:1. Das reicht für 10-px-Text nicht für
      WCAG AA (4,5:1) — und faint trägt genau die 10-px-Labels, Zähler und
      Fußnoten. #767F8B kommt auf 4,9:1 und bleibt im selben Grauton, also
