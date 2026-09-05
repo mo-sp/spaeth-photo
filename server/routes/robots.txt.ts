@@ -11,7 +11,7 @@ import { absoluteUrl } from '../../shared/utils/url.ts'
  *
  * Everything else this file says is the same as before: nothing is
  * disallowed. There is no admin area, no search-result page and no duplicate
- * view to hide; `?tag=` and `?foto=` are query views of pages that are already
+ * view to hide; `?tag=` is a query view of pages that are already
  * listed, and the canonical link on each page settles them.
  */
 export default defineEventHandler((event) => {

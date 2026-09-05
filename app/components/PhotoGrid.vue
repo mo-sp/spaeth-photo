@@ -7,7 +7,6 @@
       :data-slug="photo.slug"
       :href="`${path(`/photo/${photo.slug}`)}${tagQuery}`"
       :style="{ aspectRatio: `${photo.width} / ${photo.height}`, backgroundColor: photo.color }"
-      @click="onTileClick($event, photo.slug)"
     >
       <PhotoImage
         :photo="photo"
@@ -34,8 +33,6 @@ const props = defineProps<{ photos: PhotoIndexEntry[] }>()
 
 const { locale, path } = useI18n()
 
-const emit = defineEmits<{ open: [slug: string] }>()
-
 /** Tile width = content width (viewport minus sidebar, gaps and padding) divided by the column count of each step. */
 const TILE_SIZES = [
   '(max-width: 767px) calc(100vw - 16px)',
@@ -61,19 +58,6 @@ const tagQuery = computed(() => {
   const tag = parseTag(route.params.tag)
   return tag === null ? '' : `?tag=${tag}`
 })
-
-/**
- * The tile stays a link to the detail page — without JavaScript, on middle
- * click, in a new tab and for crawlers. Only a plain unmodified left click is
- * intercepted and opens the lightbox instead.
- */
-function onTileClick(event: MouseEvent, slug: string) {
-  if (event.defaultPrevented) return
-  if (event.button !== 0) return
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-  event.preventDefault()
-  emit('open', slug)
-}
 </script>
 
 <style scoped>

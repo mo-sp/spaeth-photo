@@ -90,6 +90,11 @@
   --text-foot-lh: 1.6;
   --text-foot-ls: 0.1em;
 
+  /* The three sidebar links are the primary navigation and now read as it: the
+     11px UI size they shared with counters and micro labels left them smaller
+     than the space around them. Family, case and letter spacing stay. */
+  --text-nav-item-size: 20px;
+
   /* Spec spacings that are off the 8/14/28/32/72/96 ladder. */
   --space-brand: 44px; /* wordmark → navigation */
   --space-back: 36px;  /* back link → title on the detail page */

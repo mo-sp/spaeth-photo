@@ -124,7 +124,7 @@ export default defineNuxtConfig({
       crawlLinks: true,
       // A build that silently skips a broken route ships a site with holes.
       failOnError: true,
-      // Query views (`?foto=…`) are the same content, and prerendering them
+      // Query views (`?tag=…`) are the same content, and prerendering them
       // would create files with a question mark in the name.
       ignore: [/\?/],
       // sitemap.xml and robots.txt are Nitro routes (server/routes/), not

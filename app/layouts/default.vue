@@ -36,7 +36,7 @@ const asideKind = computed(() => route.meta.aside ?? 'none')
 // the page rather than its descendants.
 providePhotoNav()
 
-/* Derived from `route.path`, never `fullPath` (`?tag=`/`?foto=` are views), so
+/* Derived from `route.path`, never `fullPath` (`?tag=` is a view), so
    canonical, hreflang and og:url cannot disagree with the page. */
 
 /** The page's address in the unprefixed form both trees share. */

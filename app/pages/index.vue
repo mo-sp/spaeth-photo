@@ -89,6 +89,13 @@ useHead({
 </script>
 
 <style scoped>
+/* Every other page opens with the padding of its header block; without it the
+   hero would sit flush against the top edge. The foot of the page already
+   carries the same distance. */
+.page {
+  padding-top: var(--space-4);
+}
+
 /* Below 768 px `--hero-h: auto` makes the image width-driven (3:2): a height in
    vh cannot be expressed in `sizes`, and the browser would load the wrong step. */
 .hero :deep(img) {
@@ -226,6 +233,11 @@ useHead({
 }
 
 @media (max-width: 767px) {
+  /* The sticky top bar already separates the page from the edge here. */
+  .page {
+    padding-top: var(--space-2);
+  }
+
   .hero-caption,
   .motto,
   .all {
