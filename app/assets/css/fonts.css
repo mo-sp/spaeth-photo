@@ -1,17 +1,18 @@
-/* Self-hosted fonts — no request to a third party (hard rule in CLAUDE.md). Source: Google
-   Fonts API, 2026-08-29, `latin` subset only (covers the German umlauts and ß).
-   Licence of both families: SIL OFL 1.1, see public/fonts/LICENSE-OFL.txt.
+/* Self-hosted fonts — no request to a third party (hard rule in CLAUDE.md). Sources: the
+   Google Fonts API, 2026-08-29, `latin` subset only (covers the German umlauts and ß), and
+   the Google Fonts repository, 2026-09-05, for Italianno.
+   Licence of all three families: SIL OFL 1.1, see public/fonts/LICENSE-OFL.txt.
 
-   The three files are subset further, to the characters this site renders and
-   to the weight range declared below: 105 KB -> 53 KB. `scripts/subset-fonts.sh`
-   does it and documents the character set; changing a `font-weight` here means
-   re-running it. Two consequences worth knowing: U+2190/U+2192 (the arrows) and
-   U+2261 (the mobile menu glyph) are not in Google's `latin` subset and were
-   never in these files, so they render from a system font; and the weight
-   ranges below are now the literal capability of the files, not a subset of a
-   wider axis.
+   The files are subset further, to the characters this site renders and to the
+   weight declared below: 373 KB of source -> 63 KB delivered.
+   `scripts/subset-fonts.sh` does it and documents the character sets; changing a
+   `font-weight` here means re-running it. Two consequences worth knowing:
+   U+2190/U+2192 (the arrows) and U+2261 (the mobile menu glyph) are not in
+   Google's `latin` subset and were never in these files, so they render from a
+   system font; and the weights below are now the literal capability of the
+   files, not a subset of a wider axis.
 
-   Both families ship as variable fonts, one file per family and style covering
+   The body families ship as variable fonts, one file per family and style covering
    the whole weight range, so three files replace seven cuts and the @font-face
    rules state the range as `font-weight: 400 600`. Weights in use: Archivo
    400/500/600 upright, 400/500 italic, JetBrains Mono 400/500. */
@@ -40,6 +41,38 @@
   font-weight: 400 500;
   font-display: swap;
   src: url('/fonts/jetbrains-mono-variable.woff2') format('woff2');
+}
+
+/* ---------------------------------------------------------------------------
+   The motto, and nothing else.
+
+   "Light / Shadow" is the heading of the start page and the theme switch in one,
+   and P11 gives it a face per word: a script for the light one, Archivo at its
+   heaviest for the shadow one. Both files carry only the letters of those two
+   words in both languages — ten capitals and six lowercase — which is why 224 KB
+   of Italianno and a second cut of Archivo together cost 8.4 KB.
+
+   The heavy Archivo is declared under the same family name at `font-weight: 900`,
+   a weight the body file's 400–600 range deliberately does not reach: the browser
+   picks the file by weight, and nothing has to know there are two. There is no
+   `unicode-range` on either rule — the motto's letters are ordinary Latin ones
+   that the body text uses too, so the split is by CSS class, not by codepoint. */
+
+@font-face {
+  font-family: 'Italianno';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/italianno-motto.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 900;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/archivo-motto.woff2') format('woff2');
 }
 
 /* ---------------------------------------------------------------------------

@@ -1,12 +1,12 @@
 Fonts in this directory
 =======================
 
-Both families are licensed under the SIL Open Font License, Version 1.1. The
-full text is reproduced below, as OFL section 2 requires it to accompany the
-font files.
+All three families are licensed under the SIL Open Font License, Version 1.1.
+The full text is reproduced below, as OFL section 2 requires it to accompany
+the font files.
 
 Archivo
-  archivo-variable.woff2, archivo-italic-variable.woff2
+  archivo-variable.woff2, archivo-italic-variable.woff2, archivo-motto.woff2
   Copyright 2020 The Archivo Project Authors
   https://github.com/Omnibus-Type/Archivo
 
@@ -15,25 +15,34 @@ JetBrains Mono
   Copyright 2020 The JetBrains Mono Project Authors
   https://github.com/JetBrains/JetBrainsMono
 
-The sources are the `latin` subset files served by the Google Fonts API on
-2026-08-29 (kept in `scripts/fonts-src/`); they are self-hosted here so that
-opening a page makes no request to a third party.
+Italianno
+  italianno-motto.woff2
+  Copyright 2009 The Italianno Project Authors
+  https://github.com/googlefonts/italianno
+
+The sources of the first two families are the `latin` subset files served by
+the Google Fonts API on 2026-08-29; the source of Italianno is the upstream
+Italianno-Regular.ttf from the Google Fonts repository, fetched 2026-09-05.
+All of them are kept in `scripts/fonts-src/`, and they are self-hosted here so
+that opening a page makes no request to a third party.
 
 Modification: subset
 --------------------
-All three files are modified versions. `scripts/subset-fonts.sh` reduces them
-with fontTools to the characters this site renders and clamps their weight axis
-to the range declared in `app/assets/css/fonts.css` (Archivo 400-600, italic
-400-500, JetBrains Mono 400-500). 114 KB becomes 55 KB. The unmodified sources
-remain available from the project pages above and from the Google Fonts API.
+All five files are modified versions. `scripts/subset-fonts.sh` reduces them
+with fontTools to the characters this site renders and pins or clamps their
+weight axis to what `app/assets/css/fonts.css` declares (Archivo 400-600,
+italic 400-500, JetBrains Mono 400-500, and Archivo pinned to 900 for the
+motto). The two motto files carry only the letters of the words "Light",
+"Licht", "Shadow" and "Schatten". 373 KB of source becomes 63 KB delivered. The
+unmodified sources remain available from the project pages above.
 
 The OFL permits this explicitly (section 1: "in Original or Modified
 Versions"). The remaining conditions are met: the fonts are not sold on their
 own, and this licence notice accompanies them.
 
-The original names are kept because neither family declares a Reserved Font
-Name -- the copyright lines above carry no "with Reserved Font Name" clause, so
-section 4 does not restrict the name of a modified version.
+The original names are kept because none of the three families declares a
+Reserved Font Name -- the copyright lines above carry no "with Reserved Font
+Name" clause, so section 4 does not restrict the name of a modified version.
 
 
 -----------------------------------------------------------
