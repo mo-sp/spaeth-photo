@@ -87,8 +87,12 @@ defineProps<{
   color: var(--color-text-muted);
 }
 
+/* The first heading of a document sits directly under the page header, which
+   already draws a hairline — without this the two stack into a double rule. */
 .doc :deep(h2:first-child) {
   margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .doc :deep(p) {

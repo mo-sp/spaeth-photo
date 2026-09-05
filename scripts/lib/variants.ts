@@ -1,7 +1,13 @@
 import { mkdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
-import { VARIANT_EXTENSION, ogUrl, variantUrl } from '../../shared/constants/images.ts'
+import {
+  OG_HEIGHT,
+  OG_WIDTH,
+  VARIANT_EXTENSION,
+  ogUrl,
+  variantUrl,
+} from '../../shared/constants/images.ts'
 import type {
   ManifestFile,
   Orientation,
@@ -74,8 +80,6 @@ export const SHARPEN: Record<BaseWidth, SharpenSettings | null> = {
   2560: null,
 }
 
-export const OG_WIDTH = 1200
-export const OG_HEIGHT = 630
 export const OG_QUALITY = 80
 
 export const LQIP_WIDTH = 20

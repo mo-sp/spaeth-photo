@@ -514,6 +514,213 @@ optionales Feld `alt`, das durch Manifest und Index bis zur Komponente durchläu
 es, tritt der Titel an seine Stelle. Kein Skript kann es erfinden, also bleibt es leer, bis
 jemand es schreibt.
 
+## SEO
+
+*New sections are written in English from P7 on; the German ones above are translated in P8.*
+
+**`NUXT_PUBLIC_SITE_URL` is a build variable, not a runtime one.** A statically generated
+site has no server left at request time to substitute a host, so the absolute URLs are
+baked in by `nuxt generate`. On Coolify it therefore has to be set as a *build* variable
+(the checkbox matters), not just as an environment variable. It feeds four things: the
+canonical link and `og:url` of every page, `og:image` (social crawlers ignore a relative
+one), the `<loc>` entries of the sitemap, and the `Sitemap:` line of robots.txt.
+`.env.example` documents it.
+
+Unset, everything still builds and renders — URLs stay relative, the sitemap comes out
+empty with a build warning, robots.txt omits its `Sitemap:` line. That is deliberate:
+inventing a domain would put wrong canonical URLs in front of a crawler, and failing the
+build would break the rule that a clone without the private content still builds. The
+default stays `''`.
+
+**Sitemap and robots.txt are Nitro routes, not files in `public/`.** Both need the absolute
+site URL, which a static file cannot know. `server/routes/sitemap.xml.ts` sets
+`content-type: application/xml` explicitly — with the default `text/html` the prerenderer
+would file the response under `sitemap.xml/index.html`, which serves fine but is not the
+URL robots.txt points at. Both routes are listed in `nitro.prerender.routes`; nothing links
+to them, so `crawlLinks` would never find them. `public/robots.txt` was removed in the same
+step, because a static file and a route at the same path is a coin toss.
+
+What the sitemap contains: 36 URLs — 26 photo pages, `/galerie` plus its five tag pages,
+and the four remaining pages (`/`, `/ueber`, `/impressum`, `/datenschutz`). The tag pages
+are in because they are real prerendered routes with their own content and their own
+canonical link, not a query view of the gallery.
+
+Three deliberate omissions:
+
+- **No `<changefreq>`, no `<priority>`.** Google ignores both. A number nobody acts on is a
+  number that quietly goes stale.
+- **No `<lastmod>` on the three text pages.** The only date available would be the build
+  time, and a rebuild does not change their wording. Elsewhere `lastmod` is the photo's
+  capture date, and for the listing pages the newest date they show — those really do change
+  when a photo is added.
+- **The image extension names each photo only on its own page.** The widest JPEG variant,
+  not the AVIF/WebP ones (JPEG is what every crawler can read) and not the OG crop (which is
+  a 1200x630 cut of the photo, not the photo). Repeating all 26 images on the gallery pages
+  would claim 26 canonical pages for each of them.
+
+**`useSiteSeo()` holds the head tags.** Six pages each repeated the same block — read
+`siteUrl`, feed the description into `og:description` a second time, spell out the OG image
+and its size, set `twitter:card`, add a canonical link. The copies had already drifted in
+the way that matters: only the home page and the photo pages carried an `og:image` at all,
+so a link to `/galerie` or `/ueber` unfurled as a bare text card. The composable defaults
+the preview image to the hero photo's OG crop, and the gallery overrides it with the first
+photo of the current filter. `og:image:width`/`height` come from `OG_WIDTH`/`OG_HEIGHT` in
+`shared/constants/images.ts`, which the image pipeline also reads — the numbers are a fact
+about the generated file, and now only written down once.
+
+## Fonts
+
+**Subsetting.** `scripts/subset-fonts.sh` reduces the three self-hosted woff2 files to the
+characters this site renders and clamps their weight axis to what `fonts.css` declares:
+**105 KB → 53 KB (-49 %)**.
+
+| file | before | after |
+| --- | ---: | ---: |
+| `archivo-variable.woff2` | 34,928 B | 14,628 B (-58 %) |
+| `archivo-italic-variable.woff2` | 39,156 B | 15,560 B (-60 %) |
+| `jetbrains-mono-variable.woff2` | 31,432 B | 23,544 B (-25 %) |
+| **total** | **105,516 B** | **53,732 B** |
+
+Most of the saving is the weight axis, not the character set: these are variable fonts,
+Archivo ships a 100–900 axis and JetBrains Mono a 400–800 one, and the design uses 400–600
+and 400–500. `fontTools.varLib.instancer` clamps the axis, `pyftsubset` then cuts the
+glyphs with `--layout-features='*'` — dropping features to save more bytes would break the
+tabular figures the counters depend on. The script is idempotent, prints before/after
+sizes, and verifies afterwards that every requested character survived.
+
+fontTools is **not** a project dependency. The site builds without it; the script installs
+it into a throwaway virtualenv and is run by hand when the character set or a weight
+changes. The character set is listed in the script with a reason per line, and the sources
+(Google Fonts API, `latin` subset, 2026-08-29) are named there so the set can be widened
+again later. `public/fonts/LICENSE-OFL.txt` records that the files are modified versions,
+which the OFL requires.
+
+**Two characters the fonts never had.** U+2190/U+2192 (the ← → arrows) and U+2261 (the
+mobile menu glyph) are outside Google's `latin` subset and were absent before this change
+too — they render from a system font. Subsetting cannot add them. They are listed in the
+script anyway, so a fuller source font would pick them up, and the script's check reports
+them on every run. Whether to replace them with drawn shapes is a design question, noted in
+`content/OFFEN.md`.
+
+**Metric-matched fallbacks against CLS.** `font-display: swap` paints the fallback font
+first and repaints when the webfont arrives; where the two differ in width, that repaint
+moves text. Measured: CLS 0.133 on `/ueber` at mobile emulation, attributed by Lighthouse
+to exactly those two font loads, on a page whose layout is otherwise perfectly stable.
+
+The fix is not to drop `swap` (invisible text is worse than moved text) and not to preload
+(see below). It is `@font-face` declarations with no `src` URL — `local()` only, so they
+cost no request — carrying `size-adjust`, `ascent-override`, `descent-override` and
+`line-gap-override` so that the fallback occupies the same space as the webfont.
+
+How the numbers were derived: `size-adjust` is the ratio of mean advance width between the
+webfont and the fallback, weighted by how often each character actually occurs across the
+generated pages (a frequency corpus of ~24,000 characters, not a flat average over the
+alphabet); the three overrides are the webfont's own ascent/descent/line-gap (`OS/2 sTypo*`,
+upem 1000) divided by that ratio, so the line box matches as well as the width. Measured
+with fontTools against Liberation Sans and DejaVu Sans Mono, which are metrically
+compatible with Arial and Menlo.
+
+| family | size-adjust | ascent | descent | line-gap |
+| --- | ---: | ---: | ---: | ---: |
+| Archivo Fallback, normal | 95.77 % | 91.68 % | 21.93 % | 0 % |
+| Archivo Fallback, italic | 95.01 % | 92.41 % | 22.10 % | 0 % |
+| JetBrains Mono Fallback | 99.66 % | 102.35 % | 30.10 % | 0 % |
+
+Only fonts that are metrically compatible with the one the numbers were computed against
+are named in `local()`. That is the whole discipline: a `size-adjust` derived from Arial and
+then applied to a font of a different width makes the shift *worse*. So Arial, Helvetica,
+Liberation Sans and Arimo for the sans; Menlo, DejaVu Sans Mono, Liberation Mono and
+Cascadia Mono for the monospace — all four around 0.6 em advance, with Consolas (0.55 em)
+deliberately absent. Where none of them exists, the declaration does not match, the next
+family in the stack takes over unadjusted, and the page behaves exactly as it did before:
+the adjustment can help or do nothing, but it cannot hurt.
+
+Measured effect on `/ueber`, mobile emulation: CLS 0.133 → 0.003 where an Arial-metric font
+is present. The stacks live in the project block of `tokens.css`; the handoff line above the
+divider is untouched.
+
+## Performance
+
+Measured locally with Lighthouse against the generated output, never in CI. The static
+server used for it mirrors what a real host does — HTTP/1.1 with keep-alive, brotli, and
+the cache headers recommended below. This matters more than it sounds: measured through
+`python3 -m http.server`, which is HTTP/1.0 without keep-alive or compression, the same
+build scored 12 to 16 points lower on mobile and the bottleneck it showed was the test rig.
+
+**Results, 2026-08-29** (P6 → P7, same build, same server, same machine; mobile is
+Lighthouse's throttled 4G profile, desktop its unthrottled one):
+
+| page | mobile perf | desktop perf | LCP mobile | CLS mobile |
+| --- | --- | --- | --- | --- |
+| `/` | 89 → **94** | 100 → **100** | 3.5 s → 2.9 s | 0 → 0 |
+| `/galerie` | 86 → **91** | 99 → **100** | 4.1 s → 3.4 s | 0 → 0 |
+| `/foto/<slug>` | 96 → **97** | 100 → **100** | 2.4 s → 2.3 s | 0 → 0 |
+| `/ueber` | 98 → **98** | 100 → **100** | 2.0 s → 2.0 s | 0.019 → 0.003 |
+
+Accessibility 100, best practices 100 and SEO 100 on every page in both profiles, before
+and after. (The SEO score needs `NUXT_PUBLIC_SITE_URL` set — without it the canonical link
+is relative and Lighthouse scores 92. The measurements above set it, because a deployment
+will.)
+
+The `/ueber` row is the honest one to read carefully: its CLS gain depends on the measuring
+machine having an Arial-metric font. On a machine with none, the P6 build shifted by 0.133
+and the P7 build shifts the same amount, because the `local()` declaration finds nothing to
+adjust. The fix helps every visitor on Windows, macOS and iOS and is inert elsewhere.
+
+**Two optimisations that were measured and rejected.** Both are the kind that get added on
+faith:
+
+- **Preloading the LCP image** with `imagesrcset`/`imagesizes`, tried on `/` and on
+  `/galerie`: no change to LCP at all (2.9 s and 3.3 s, unmoved). Lighthouse's own LCP
+  discovery audit explains why — the image is already found by the preload scanner in the
+  initial document, already `fetchpriority=high`, already not lazy. There is nothing left
+  for a preload to bring forward.
+- **Inlining the global stylesheet** (`features.inlineStyles: true`). Lighthouse flags
+  ~450 ms of render-blocking CSS per page, but the measured result was inside run-to-run
+  noise (+0 / -2 / +1 points on three pages). Not worth the config surface or duplicating
+  the CSS into 74 prerendered files.
+
+`fetchpriority="low"` on eager-but-not-LCP images did survive, on reasoning rather than a
+measured delta: it is correct (the gallery starts nine tiles at once and only one of them is
+the LCP element), it costs nothing, and Lighthouse's simulated throttling does not model
+connection-level reordering well enough to show it either way.
+
+**What still limits the two image-heavy pages.** `/` at 94 and `/galerie` at 91 sit below
+the ≥95 target, and the cause is understood: on the simulated 4G profile the LCP image
+arrives behind 300–400 KB of other above-the-fold image traffic. Reducing the eager set does
+not help — measured at 9, 3, 2 and 1 eager tiles, LCP stayed at 3.3 s, because the browser's
+own lazy-loading threshold fetches the next screens anyway. The remaining levers are the
+AVIF quality ladder and the width steps, both set deliberately in P3 against a quality
+budget; changing them is a picture-quality decision, not a performance tweak, and is left
+open rather than taken quietly.
+
+**Cache headers for the deployment.** Everything under `/_nuxt/`, `/fonts/` and `/img/` is
+content-addressed or immutable by convention — a photo's slug never changes and its
+variants are regenerated only when the source does:
+
+```
+/_nuxt/*   Cache-Control: public, max-age=31536000, immutable
+/fonts/*   Cache-Control: public, max-age=31536000, immutable
+/img/*     Cache-Control: public, max-age=31536000, immutable
+*.html     Cache-Control: public, max-age=0, must-revalidate
+```
+
+The HTML must not be cached that way: the asset URLs inside it change with every build, and
+a cached page pointing at deleted `/_nuxt/` files is a blank site. The README's Coolify
+instructions in P8 should carry this table.
+
+**Payload extraction stays on `'client'`.** Confirmed by measurement: no `_payload.json`
+request appears in any first-load trace on any page. The files exist for client-side
+navigation and cost nothing on entry.
+
+**Known: DOM order on the mobile detail page.** Below 768 px the grid places the photo above
+its metadata, but in the DOM the sidebar (and with it the metadata block) still comes before
+`<main>`. Reading order and visual order therefore differ on that one page. Not fixed here:
+the two ways out are duplicating the block into `<main>` and hiding one copy per breakpoint —
+which duplicates a `<nav>` landmark and its links — or splitting the sticky sidebar column
+into separate grid items, which reworks the layout the P4–P6 design was signed off on.
+Lighthouse's accessibility audit is at 100 either way. Noted for P8.
+
 ## Phase-2-Vorgriff
 
 > Wird in P8 ausgefüllt.

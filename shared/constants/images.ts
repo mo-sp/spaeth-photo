@@ -28,6 +28,15 @@ export function srcset(slug: string, widths: readonly number[], format: VariantF
   return widths.map((width) => `${variantUrl(slug, width, format)} ${width}w`).join(', ')
 }
 
+/**
+ * Size of the OpenGraph crop. The pipeline renders every `og.jpg` at exactly
+ * these dimensions (`fit: cover`), so `og:image:width`/`height` in the page
+ * head are a fact, not an estimate — and both sides read the same constant
+ * instead of repeating the numbers.
+ */
+export const OG_WIDTH = 1200
+export const OG_HEIGHT = 630
+
 /** OpenGraph-Bild eines Fotos, 1200×630. */
 export function ogUrl(slug: string): string {
   return `${photoDirUrl(slug)}/og.jpg`

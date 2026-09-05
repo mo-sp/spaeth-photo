@@ -18,7 +18,7 @@
       :class="{ 'is-loaded': loaded }"
       :loading="eager || priority ? 'eager' : 'lazy'"
       :decoding="priority ? undefined : 'async'"
-      :fetchpriority="priority ? 'high' : undefined"
+      :fetchpriority="fetchPriority"
       @load="loaded = true"
     />
   </picture>
@@ -52,6 +52,23 @@ const props = withDefaults(
   }>(),
   { eager: false, priority: false, variantMax: undefined, lqip: false },
 )
+
+/**
+ * Eager is about *when* the request starts, priority about who wins the
+ * bandwidth once several have started.
+ *
+ * The gallery loads the top of the masonry eagerly, because the browser's lazy
+ * loader decides only after layout and CSS columns lay out late (see
+ * `eagerCount`). On a throttled mobile connection those nine tiles then
+ * competed with the one that is the LCP element: measured LCP was 3.2 s with
+ * all of them at default priority. Marking every eager image that is *not* the
+ * LCP candidate as `low` keeps them out of its way while still starting them
+ * immediately - the browser reorders, it does not defer.
+ */
+const fetchPriority = computed(() => {
+  if (props.priority) return 'high'
+  return props.eager ? 'low' : undefined
+})
 
 const loaded = ref(false)
 

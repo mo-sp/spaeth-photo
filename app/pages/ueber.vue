@@ -12,9 +12,9 @@
 
     <h2>Ausrüstung</h2>
     <p>
-      Sony Alpha 7 IV, dazu einige Festbrennweiten und ein Telezoom — welche Kamera und
-      welches Objektiv ein Bild gemacht haben, steht bei den meisten Fotos in der
-      Seitenleiste. Entwickelt wird in darktable; die ausgelieferten Bilder sind aus den
+      Sony Alpha 7 IV mit einer Handvoll Objektiven vom Weitwinkel bis 600 mm — welche
+      Kamera und welches Objektiv ein Bild gemacht haben, steht bei den meisten Fotos in
+      der Seitenleiste. Entwickelt wird in darktable; die ausgelieferten Bilder sind aus den
       entwickelten Fassungen erzeugt und tragen keine Metadaten mehr.
     </p>
 
@@ -29,7 +29,7 @@
     <h2>Kontakt</h2>
     <p>
       Fragen zu einem Bild, Hinweise, Nutzungsanfragen:
-      <a href="mailto:TODO@example.org">TODO@example.org</a>
+      <a href="mailto:TODO@example.org">TODO@example.org</a>{{ ' ' }}
       <span class="todo">TODO: Kontaktadresse</span>
     </p>
 
@@ -42,14 +42,11 @@
 </template>
 
 <script setup lang="ts">
-const { siteUrl } = useRuntimeConfig().public
-
-useSeoMeta({
+useSiteSeo({
   title: 'Über',
   description:
     'Moritz Späth fotografiert als Hobby rund um Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.',
+  path: '/ueber',
   ogType: 'profile',
 })
-
-useHead({ link: [{ rel: 'canonical', href: absoluteUrl(siteUrl, '/ueber') }] })
 </script>

@@ -61,12 +61,18 @@ function onOpen(slug: string) {
   void open(slug)
 }
 
-useSeoMeta({
-  title: () => (tag.value === null ? 'Galerie' : `${tagLabel(tag.value)} – Galerie`),
+useSiteSeo({
+  title: () => (tag.value === null ? 'Galerie' : tagLabel(tag.value)),
   description: () =>
     tag.value === null
       ? 'Alle Fotos: Tiere, Natur, Landschaft und Segeln.'
       : `Fotos zum Motiv ${tagLabel(tag.value)}.`,
+  path: () => (tag.value === null ? '/galerie' : `/galerie/${tag.value}`),
+  // The first photo of the current filter previews the filter, not the site.
+  image: () => {
+    const first = visible.value[0]
+    return first === undefined ? null : { path: first.og, alt: first.alt ?? first.title }
+  },
 })
 </script>
 

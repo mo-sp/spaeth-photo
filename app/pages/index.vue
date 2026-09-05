@@ -92,28 +92,16 @@ const TILE_SIZES = [
   'calc((100vw - 316px) / 5)',
 ].join(', ')
 
-const { siteUrl } = useRuntimeConfig().public
+const DESCRIPTION =
+  'Fotografien von Moritz Späth aus Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.'
 
-useSeoMeta({
-  description:
-    'Fotografien von Moritz Späth aus Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.',
-  ogType: 'website',
-  ogTitle: 'Moritz Späth – Fotografie',
-  ogDescription:
-    'Fotografien von Moritz Späth aus Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.',
-  ogImage: hero ? absoluteUrl(siteUrl, hero.og) : undefined,
-  ogImageWidth: hero ? 1200 : undefined,
-  ogImageHeight: hero ? 630 : undefined,
-  ogImageAlt: hero ? (hero.alt ?? hero.title) : undefined,
-  twitterCard: 'summary_large_image',
-})
+useSiteSeo({ description: DESCRIPTION, path: '/', ogType: 'website' })
 
 useHead({
   // Die Startseite trägt den Namen selbst; die Vorlage „%s – Moritz Späth"
   // machte daraus „Start – Moritz Späth" oder eine Wiederholung.
   titleTemplate: null,
-  title: 'Moritz Späth – Fotografie',
-  link: [{ rel: 'canonical', href: absoluteUrl(siteUrl, '/') }],
+  title: SITE_TITLE,
 })
 </script>
 

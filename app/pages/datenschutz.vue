@@ -80,13 +80,11 @@
 </template>
 
 <script setup lang="ts">
-const { siteUrl } = useRuntimeConfig().public
-
-useSeoMeta({
+useSiteSeo({
   title: 'Datenschutz',
   description:
     'Diese Seite verwendet keine Cookies, kein Tracking und keine Dienste Dritter. Was der Server protokolliert und welche Rechte Sie haben.',
+  path: '/datenschutz',
+  ogType: 'website',
 })
-
-useHead({ link: [{ rel: 'canonical', href: absoluteUrl(siteUrl, '/datenschutz') }] })
 </script>

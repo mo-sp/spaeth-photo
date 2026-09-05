@@ -1,6 +1,9 @@
 <template>
-  <div v-if="nav.total > 0" class="foot">
-    <nav class="steps" aria-label="Foto-Navigation">
+  <div v-if="nav.position > 0" class="foot">
+    <!-- A filter can hold a single photo (`schwarzweiss` does). There are no
+         neighbours then, and a landmark with nothing in it is a promise the
+         page does not keep. -->
+    <nav v-if="prevTo || nextTo" class="steps" aria-label="Foto-Navigation">
       <NuxtLink v-if="prevTo" class="step" :to="prevTo" rel="prev">
         <span aria-hidden="true">←</span>
         Vorher

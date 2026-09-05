@@ -74,26 +74,15 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
-const { siteUrl } = useRuntimeConfig().public
+const description = `${photo.title} – Fotografie von Moritz Späth, ${photo.year}.`
 
-useSeoMeta({
+useSiteSeo({
   title: photo.title,
-  description: `${photo.title} – Fotografie von Moritz Späth, ${photo.year}.`,
-  ogType: 'article',
-  ogTitle: photo.title,
-  ogDescription: `${photo.title} – Fotografie von Moritz Späth, ${photo.year}.`,
-  ogImage: absoluteUrl(siteUrl, photo.og),
-  // Die Maße stehen nicht im Client-Index; die Pipeline erzeugt jedes OG-Bild
-  // mit genau 1200×630 (`fit: cover`), die Angabe ist also keine Schätzung.
-  ogImageWidth: 1200,
-  ogImageHeight: 630,
-  ogImageAlt: photo.alt ?? photo.title,
-  twitterCard: 'summary_large_image',
-})
-
-useHead({
+  description,
   // Ohne Query: `?tag=` ist ein Anzeigekontext, keine eigene Seite.
-  link: [{ rel: 'canonical', href: absoluteUrl(siteUrl, `/foto/${photo.slug}`) }],
+  path: `/foto/${photo.slug}`,
+  ogType: 'article',
+  image: { path: photo.og, alt: photo.alt ?? photo.title },
 })
 </script>
 
