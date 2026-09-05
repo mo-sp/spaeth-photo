@@ -15,7 +15,7 @@
     <p class="brand">{{ BRAND_NAME }}</p>
     <!-- Wrapped, so the fade sits on something other than the motto itself:
          a class on the component would land on its root and collide with it. -->
-    <div class="choice">
+    <div class="choice" :inert="phase < 2">
       <SiteMotto as="p" @choose="close" />
     </div>
     <button type="button" class="skip" @click="skip">{{ t('intro.skip') }}</button>
@@ -219,9 +219,10 @@ html[data-intro] .intro,
   animation: intro-in var(--t-intro) both;
 }
 
-/* The choice fades in slowly and last. `visibility`, not only an opacity: an
-   invisible control must not take a click *or* a keystroke, and
-   `pointer-events` stops the pointer alone. */
+/* The choice fades in slowly and last. `visibility` rather than an opacity
+   alone: `pointer-events` stops the pointer and nothing else, so a transparent
+   button still answered Enter. `inert` in the template says the same thing to
+   the DOM, which a stylesheet cannot. */
 .choice {
   opacity: 0;
   visibility: hidden;
