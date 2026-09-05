@@ -106,8 +106,12 @@ watch(() => route.fullPath, closeMenu)
   align-self: flex-start;
   position: sticky;
   top: 0;
-  height: 100dvh;
-  padding: var(--space-4) 0;
+  /* `min-height`, not `height`: the column grows instead of scrolling inside
+     itself. It only exceeds the viewport in a window shorter than roughly
+     600 px, and there it stays pinned at the top rather than scrolling away —
+     the price for keeping the navigation in place on every long page. */
+  min-height: 100dvh;
+  padding: var(--space-page-top) 0 var(--space-4);
 }
 
 .wordmark {
@@ -115,7 +119,9 @@ watch(() => route.fullPath, closeMenu)
   padding: 0 var(--space-3);
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: var(--text-nav-size);
+  font-size: var(--text-wordmark-size);
+  /* 1.3, not the tight geometry of the micro labels: at 18 px uppercase the
+     line box has to reach over the dots of the Ä. */
   line-height: var(--text-nav-lh);
   letter-spacing: var(--text-nav-ls);
   text-transform: uppercase;
@@ -178,14 +184,7 @@ watch(() => route.fullPath, closeMenu)
   flex-direction: column;
   /* Takes the free space so `.side-bottom` can sit at the bottom. */
   flex: 1 1 auto;
-  min-height: 0;
   margin-top: var(--space-brand);
-}
-
-.side-extra {
-  /* Lets the filter scroll if the list outgrows the sidebar, keeping the foot visible. */
-  min-height: 0;
-  overflow-y: auto;
 }
 
 .side-bottom {
@@ -305,10 +304,6 @@ watch(() => route.fullPath, closeMenu)
     grid-area: aside;
     display: block;
     margin-top: 0;
-  }
-
-  .side-extra {
-    overflow: visible;
   }
 
   /* On mobile, place and legal links live in the page foot (layout), not here. */

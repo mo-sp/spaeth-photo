@@ -150,12 +150,12 @@ describe('detailCap', () => {
 })
 
 describe('detailSizes', () => {
-  it('names three steps and carries the cap in both desktop steps', () => {
+  it('names three steps, subtracts the stepper columns and carries the cap', () => {
     const sizes = detailSizes(1.5)
     expect(sizes).toBe(
       '(max-width: 767px) 100vw, ' +
-        '(max-width: 1023px) min(calc(100vw - 180px), 1230px), ' +
-        'min(calc(100vw - 220px), 1230px)',
+        '(max-width: 1023px) min(calc(100vw - 284px), 1230px), ' +
+        'min(calc(100vw - 324px), 1230px)',
     )
   })
 
