@@ -45,8 +45,11 @@ export const dateSchema = z
 /** Schema einer `photos/meta/<slug>.yaml`. */
 export const photoMetaSchema = z
   .object({
+    // `title` is English and primary; the `_de` fields may be missing.
     title: z.string().trim().min(1, 'title darf nicht leer sein'),
+    title_de: z.string().trim().min(1).nullable().default(null),
     alt: z.string().trim().min(1).nullable().default(null),
+    alt_de: z.string().trim().min(1).nullable().default(null),
     date: dateSchema,
     // Alles außer Titel und Datum darf in einer handgeschriebenen Datei fehlen
     // und wird auf den dokumentierten Standardwert gesetzt. Unbekannte
@@ -82,7 +85,10 @@ export const tagCountTypeCheck: AssertExact<z.infer<typeof tagCountSchema>, TagC
 const indexEntryShape = {
   slug: slugSchema,
   title: z.string().min(1),
+  // Optional rather than nullable: the index ships to the browser.
+  titleDe: z.string().min(1).optional(),
   alt: z.string().min(1).nullable(),
+  altDe: z.string().min(1).optional(),
   date: dateSchema,
   year: z.int(),
   tags: z.array(tagSchema),

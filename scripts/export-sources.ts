@@ -81,7 +81,10 @@ const DEFAULT_SOURCE_DIR = '~/incoming/BilderWebseite'
 const importEntrySchema = z.object({
   slug: slugSchema,
   file: z.string().min(1),
+  /** English title — the primary one, and the only required one. */
   title: z.string().min(1),
+  /** German title; omitted entries fall back to the English one at render time. */
+  title_de: z.string().min(1).nullable().default(null),
   tags: z.array(z.string()).default([]),
 })
 
@@ -90,6 +93,7 @@ const importMapSchema = z.array(importEntrySchema)
 interface MapEntry {
   slug: string
   title: string
+  titleDe: string | null
   tags: Tag[]
 }
 
@@ -115,8 +119,9 @@ function loadImportMap(file: string): { entries: Map<string, MapEntry>; issues: 
     if (entries.has(entry.file)) {
       issues.push(`Zuordnung: ${entry.file} kommt mehrfach vor — der letzte Eintrag gewinnt`)
     }
-    // „Tiere" → tiere, „Schwarzweiß" → schwarzweiss. Unbekannte Tags werden
-    // verworfen statt still ins Datenmodell durchgereicht.
+    // The map carries the tag keys as written (`black-and-white`); `slugify`
+    // is kept as the gate so a hand-typed „Black & White" still lands on the
+    // key. Unknown tags are dropped rather than passed into the data model.
     const tags: Tag[] = []
     for (const rawTag of entry.tags) {
       const candidate = slugify(rawTag)
@@ -124,7 +129,12 @@ function loadImportMap(file: string): { entries: Map<string, MapEntry>; issues: 
       if (check.success) tags.push(check.data)
       else issues.push(`Zuordnung ${entry.slug}: unbekanntes Tag „${rawTag}" verworfen`)
     }
-    entries.set(entry.file, { slug: entry.slug, title: entry.title, tags: sortTags(tags) })
+    entries.set(entry.file, {
+      slug: entry.slug,
+      title: entry.title,
+      titleDe: entry.title_de,
+      tags: sortTags(tags),
+    })
   }
 
   return { entries, issues }
@@ -281,9 +291,11 @@ async function main(): Promise<void> {
     if (!existsSync(metaFile)) {
       const meta: PhotoMeta = {
         title: mapped?.title ?? 'TODO',
+        title_de: mapped?.titleDe ?? null,
         // Eine Bildbeschreibung kann kein Skript erfinden; sie wird von Hand
         // nachgetragen und fällt bis dahin auf den Titel zurück.
         alt: null,
+        alt_de: null,
         date: exif.date ?? todayIso(),
         tags: mapped?.tags ?? [],
         collection: null,

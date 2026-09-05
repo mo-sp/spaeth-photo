@@ -209,3 +209,21 @@ Design-Integration (Tokens aus Claude Design) erfolgt als separate Folge-Session
 - Autonome Umsetzung von §12 Schritt 1–9. Detailentscheidungen werden selbst getroffen und in `content/SUMMARY.md` (privat) sowie
   `docs/architecture.md` (public, nur Mechanismus, kein Inventar) festgehalten.
 - Nicht ohne Rückfrage: Domainkauf, Coolify-Deploy, Löschen von Nutzerdaten, Force-Push.
+
+**Internationalisation (2026-08-29, P8a)**
+- Englisch ist die primäre Sprache, Deutsch die Übersetzung. URLs englisch und ohne Präfix
+  (`/`, `/gallery`, `/gallery/<tag>`, `/photo/<slug>`, `/about`, `/legal-notice`, `/privacy`);
+  Deutsch unter `/de/…` mit denselben englischen Pfadsegmenten. `x-default` zeigt auf Englisch.
+- Foto-Slugs und Tag-Schlüssel sind jetzt englisch (`anleger-im-gegenlicht` →
+  `jetty-against-the-light`; `segeln` → `sailing`). Die Regel „Slugs nach dem Deploy
+  unveränderlich" bleibt — es war nichts deployed. Eine Client-Middleware schreibt die alten
+  deutschen Pfade um; für die alten Slugs gibt es keine Weiterleitung.
+- Neue Tags `fire` und `architecture` (Feuer/Architektur); der Satz umfasst damit sieben Tags.
+- YAML: `title` ist englisch und Pflicht, `title_de`/`alt_de` optional. Kein @nuxtjs/i18n
+  (Begründung mit Zahlen in docs/architecture.md), sondern zwei JSON-Wörterbücher und ein
+  zweiter Routenbaum über den `pages:extend`-Hook.
+- Seiten mit `TODO:`-Platzhaltern (Über, Impressum, Datenschutz) tragen `noindex, follow` und
+  stehen weder in der Sitemap noch in der hreflang-Paarung.
+- Impressum bleibt deutsch (§ 5 DDG); die englische Seite ist eine Hülle mit einem
+  erklärenden Satz. Datenschutz ist zweisprachig, die deutsche Fassung ist maßgeblich.
+- Diese Datei bleibt deutsch; P8 übersetzt die öffentliche Doku.

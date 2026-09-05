@@ -38,7 +38,9 @@ export function renderMetaYaml(meta: PhotoMeta): string {
   return (
     [
       `title: ${yamlString(meta.title)}`,
+      `title_de: ${optional(meta.title_de)}`,
       `alt: ${optional(meta.alt)}`,
+      `alt_de: ${optional(meta.alt_de)}`,
       `date: ${meta.date}`,
       `tags: ${tags}`,
       `collection: ${optional(meta.collection)}`,

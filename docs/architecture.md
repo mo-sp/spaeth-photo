@@ -258,11 +258,16 @@ Der aufgelöste Slug steht als `heroSlug` im Kopf, und das Feld `hero` je Foto w
 Auflösung gesetzt statt aus der YAML abgeschrieben; beide können damit nicht auseinanderlaufen.
 `featured` markiert die Kandidaten für die Startseiten-Auswahl, `order` ihre Reihenfolge dort.
 
-**Tags** sind ein geschlossener Satz (`tiere`, `natur`, `landschaft`, `segeln`,
-`schwarzweiss`), im Datenmodell kleingeschrieben und ASCII, weil sie in URLs auftauchen
-(`?tag=schwarzweiss`). Reihenfolge und Anzeige-Label mit Umlaut stehen in
-`shared/utils/tags.ts`. Der Index führt nur die tatsächlich vergebenen Tags mit ihrer
-Anzahl.
+**Tags** sind ein geschlossener Satz (`animals`, `nature`, `landscape`, `sailing`, `fire`,
+`architecture`, `black-and-white`), im Datenmodell kleingeschrieben und ASCII, weil sie in
+URLs auftauchen (`/gallery/black-and-white`). Reihenfolge und die Anzeige-Label beider
+Sprachen stehen in `shared/utils/tags.ts`. Der Index führt nur die tatsächlich vergebenen
+Tags mit ihrer Anzahl.
+
+**Titel und Bildbeschreibung sind zweisprachig.** `title` ist englisch und Pflicht,
+`title_de` und `alt_de` sind optional; im Index heißen sie `titleDe`/`altDe` und fehlen,
+wenn es keine Übersetzung gibt. Auflösung über `photoTitle`/`photoAlt` in
+`shared/utils/photos.ts` — Details unter „Internationalisation".
 
 **Demo-Fallback.** `build-images` wählt die Quelle in dieser Reihenfolge: expliziter
 `--source-dir`, dann das private `content/`-Submodule (nur wenn es ausgecheckt ist _und_
@@ -279,7 +284,7 @@ Entscheidungen darunter sind die Stellen, an denen die Umsetzung von der Vorlage
 oder eine Wahl hatte.
 
 **Der Tag-Filter ist eine Pfadroute, keine Query** (Abweichung von PLAN.md §6 und vom
-Handoff, der `?tag=segeln` vorschlägt). `/galerie` und `/galerie/segeln` sind zwei
+Handoff, der `?tag=segeln` vorschlägt). `/gallery` und `/gallery/sailing` sind zwei
 prerenderte Seiten statt einer Seite mit clientseitiger Filterung. Der Unterschied ist
 nicht kosmetisch: eine Query lässt sich nicht statisch vorrendern, also käme die gefilterte
 Liste erst nach der Hydration — mit einem Moment ungefilterter Galerie davor, ohne
@@ -287,7 +292,7 @@ JavaScript gar nicht, und `aria-current="page"` auf dem aktiven Filter wäre ein
 Behauptung statt einer Tatsache. Als Pfad ist der aktive Tag die Adresse: die Seite steht
 fertig im HTML, jeder Filterlink ist ein echter Link, und ein unbekannter Tag ist ein 404
 statt einer stillschweigend ungefilterten Ansicht. Eine clientseitige Middleware schreibt
-`/galerie?tag=x` auf `/galerie/x` um, damit Links aus der Entwurfsphase am Ziel ankommen.
+`/gallery?tag=x` auf `/gallery/x` um, damit Links aus der Entwurfsphase am Ziel ankommen.
 
 **Der Sidebar-Inhalt kommt aus den Routen-Metadaten, nicht aus einem Teleport.** Galerie
 und Detailseite füllen denselben Platz in der Seitenleiste mit Unterschiedlichem. Der
@@ -315,7 +320,7 @@ sich nicht aus einer geratenen Zahl, sondern aus einer Simulation des Spaltenumb
 die Seitenverhältnisse — der Lazy-Loader des Browsers entscheidet erst nach dem Layout, und
 bei CSS-Columns steht das Layout spät.
 
-**Die Kachel bleibt ein Link.** `<a href="/foto/…">` mit abgefangenem Klick: nur der
+**Die Kachel bleibt ein Link.** `<a href="/photo/…">` mit abgefangenem Klick: nur der
 einfache Linksklick ohne Modifier öffnet die Lightbox, alles andere (Mittelklick, Strg,
 „In neuem Tab öffnen") führt zur Detailseite. Damit funktioniert die Galerie ohne
 JavaScript, und die 26 Detailseiten stehen als echte Links im Quelltext.
@@ -354,12 +359,12 @@ statt zusätzlich 2560, ein Hochformat 480/960/1600 statt zusätzlich 1707. Beid
 (`detailSizes`, `detailVariantMax`) liegen in `shared/utils/img.ts` und sind getestet; die
 820 stehen dort als Konstante neben dem Hinweis auf `--detail-h`.
 
-**Der Tag-Kontext der Detailseite ist weicher Zustand — und wird geprüft.** `/foto/<slug>`
+**Der Tag-Kontext der Detailseite ist weicher Zustand — und wird geprüft.** `/photo/<slug>`
 ist ohne Query prerendert. Läse die Seite `?tag=` schon beim ersten Rendern, unterschiede
 sich der hydrierte Baum vom ausgelieferten HTML. Ein `hydrated`-Flag aus `onMounted` hält
 den ersten Durchlauf deckungsgleich (ungefilterte Nachbarn), danach zieht der Filter;
 `import.meta.client` reicht dafür nicht, es ist beim Hydrieren schon wahr. Zusätzlich gilt
-der Filter nur, wenn das Bild in ihm vorkommt: `/foto/anleger-im-gegenlicht?tag=segeln`
+der Filter nur, wenn das Bild in ihm vorkommt: `/photo/jetty-against-the-light?tag=sailing`
 ist ein von Hand gebauter oder alt gewordener Link, und ohne diese Prüfung stünde dort
 „00 / 04" ohne Nachbarn und ein Rückweg in eine Galerie ohne dieses Bild. Prev/Next reichen
 `?tag=` weiter, die Pfeiltasten ← und → tun dasselbe — mit Wächtern gegen Modifier,
@@ -540,10 +545,13 @@ URL robots.txt points at. Both routes are listed in `nitro.prerender.routes`; no
 to them, so `crawlLinks` would never find them. `public/robots.txt` was removed in the same
 step, because a static file and a route at the same path is a coin toss.
 
-What the sitemap contains: 36 URLs — 26 photo pages, `/galerie` plus its five tag pages,
-and the four remaining pages (`/`, `/ueber`, `/impressum`, `/datenschutz`). The tag pages
-are in because they are real prerendered routes with their own content and their own
-canonical link, not a query view of the gallery.
+What the sitemap contains: 70 URLs — 35 pages in each of the two locales. Per locale:
+26 photo pages, `/gallery` plus its seven tag pages, and `/`. The tag pages are in because
+they are real prerendered routes with their own content and their own canonical link, not a
+query view of the gallery. `/about`, `/legal-notice` and `/privacy` are *not* in: they
+carry `hasPlaceholders` and with it `noindex`, and a sitemap entry for a noindex page asks
+a crawler to fetch a page one has just asked it not to index. Every `<url>` carries the
+`xhtml:link` alternates that mirror the page's own hreflang tags.
 
 Three deliberate omissions:
 
@@ -562,24 +570,106 @@ Three deliberate omissions:
 `siteUrl`, feed the description into `og:description` a second time, spell out the OG image
 and its size, set `twitter:card`, add a canonical link. The copies had already drifted in
 the way that matters: only the home page and the photo pages carried an `og:image` at all,
-so a link to `/galerie` or `/ueber` unfurled as a bare text card. The composable defaults
+so a link to `/gallery` or `/about` unfurled as a bare text card. The composable defaults
 the preview image to the hero photo's OG crop, and the gallery overrides it with the first
 photo of the current filter. `og:image:width`/`height` come from `OG_WIDTH`/`OG_HEIGHT` in
 `shared/constants/images.ts`, which the image pipeline also reads — the numbers are a fact
 about the generated file, and now only written down once.
 
+## Internationalisation
+
+English is the primary language, German the translation. That order is a decision about
+audience, not about the author: the site is a developer's portfolio as much as a
+photographer's, and the code, the docs and the commit history are English already.
+
+**URL scheme.** English lives at the bare paths, German under `/de` with the *same* English
+path segments:
+
+| page | English | German |
+| --- | --- | --- |
+| home | `/` | `/de` |
+| gallery | `/gallery` | `/de/gallery` |
+| tag filter | `/gallery/<tag>` | `/de/gallery/<tag>` |
+| photo | `/photo/<slug>` | `/de/photo/<slug>` |
+| about | `/about` | `/de/about` |
+| legal notice | `/legal-notice` | `/de/legal-notice` |
+| privacy | `/privacy` | `/de/privacy` |
+
+Translating the segments as well (`/de/galerie/segeln`) would double the slug vocabulary,
+and slugs become product URLs in phase 2. `x-default` points at English.
+
+**@nuxtjs/i18n was rejected.** For two languages and about fifty strings it costs 18-25 kB
+gzip and roughly 35 transitive dependencies, its SSG support does not reliably prerender
+the second route tree, and its browser detection needs a cookie — which PLAN §9 forbids.
+What replaced it is 60 lines: `shared/utils/i18n.ts` (pure locale arithmetic),
+`app/composables/useI18n.ts` (dictionary lookup, `{n}` interpolation, a two-form plural)
+and two flat JSON files. `de.json` is bound to `en.json` with `satisfies`, so a missing
+translation is a type error rather than a raw key on the page.
+
+**The locale is never stored.** It is derived from `route.path` on every render — no
+`useState`, no ref, no cookie, no `localStorage`. There is therefore no state that can
+disagree with the URL, nothing to hydrate and no `Accept-Language` redirect. The one thing
+this costs: `localeOf` and `stripLocale` must test whole segments, never
+`path.startsWith('/de')`, or a page called `/design` would be German.
+
+**The second route tree comes from `pages:extend`.** The hook clones the resolved pages and
+prefixes their paths. Cloning resolved pages is what keeps `definePageMeta({ aside })` and
+the rest of the page meta intact; a second directory under `app/pages/de/` would mean 31
+duplicated files, and a `router.options.ts` that rewrites paths at runtime would not
+prerender at all. `nitro.prerender.routes` is then the English route list times the locale
+list: 38 pages per locale, 76 files.
+
+**One head block for both trees**, in `layouts/default.vue`: `<html lang>`, the
+self-referencing canonical, the reciprocal `hreflang` set including `x-default`, and
+`og:locale` plus `og:locale:alternate`. All of it derived from `route.path`, so it cannot
+disagree with the page it is on. `useSiteSeo` keeps only what is genuinely per page: title,
+description and preview image.
+
+**Photo titles are data, UI strings are dictionary.** `title` in the YAML is English and
+required; `title_de` and `alt_de` are optional. A German page without a translation falls
+back to the English title — an untranslated tile is honest, an empty one looks broken. A
+missing `alt` falls back to the title of the *same* locale, never to the description of the
+other one, which a screen reader would read out in the wrong language.
+
+**Slugs were renamed to English** in the same step (`anleger-im-gegenlicht` became
+`jetty-against-the-light`), and the tag keys with them (`segeln` → `sailing`). The rule
+that slugs are immutable applies after a deploy, and nothing has been deployed. A client
+middleware rewrites the old German paths so links shared during development still land;
+there are no redirects for the old slugs, because no old slug was ever public.
+
+**`hasPlaceholders` is an explicit page flag,** not something derived from the rendered
+text. It makes a page `noindex, follow`, drops it from the sitemap and drops it from the
+hreflang pairing. About, legal notice and privacy carry it while their copy is a draft.
+Scanning the HTML for the marker word would have caught the sentence that explains the
+marker word.
+
+**Locale is not region.** `en` and `de`, not `en-GB` and `de-DE`. The OpenGraph tags need a
+territory and get one, but nothing in the routing does, so adding `en-US` later is a new
+locale rather than a change to the existing ones.
+
+**The legal notice is not translated.** § 5 DDG is a German provision and the wording that
+satisfies it is the German wording, so `/legal-notice` is an English shell around the
+German text in a `<div lang="de">`, with one English sentence saying so. The privacy page
+*is* translated, with a note on the English version that the German one is authoritative.
+
 ## Fonts
 
-**Subsetting.** `scripts/subset-fonts.sh` reduces the three self-hosted woff2 files to the
-characters this site renders and clamps their weight axis to what `fonts.css` declares:
-**105 KB → 53 KB (-49 %)**.
+**Subsetting.** `scripts/subset-fonts.sh` reduces three woff2 files to the characters this
+site renders and clamps their weight axis to what `fonts.css` declares:
+**114 KB → 55 KB (-52 %)**.
 
-| file | before | after |
+| file | source | subset |
 | --- | ---: | ---: |
-| `archivo-variable.woff2` | 34,928 B | 14,628 B (-58 %) |
-| `archivo-italic-variable.woff2` | 39,156 B | 15,560 B (-60 %) |
-| `jetbrains-mono-variable.woff2` | 31,432 B | 23,544 B (-25 %) |
-| **total** | **105,516 B** | **53,732 B** |
+| `archivo-variable.woff2` | 34,928 B | 15,004 B (-57 %) |
+| `archivo-italic-variable.woff2` | 39,156 B | 15,940 B (-59 %) |
+| `jetbrains-mono-variable.woff2` | 40,404 B | 23,940 B (-40 %) |
+| **total** | **114,488 B** | **54,884 B** |
+
+**Source and output are separate directories.** The unsubset `latin` files live in
+`scripts/fonts-src/` and the subsets in `public/fonts/`. Subsetting a file that is already
+subset cannot add a glyph back, so widening the character set without the sources means
+refetching them and hoping the URLs still resolve. 114 KB of committed source is the
+cheaper answer, and the fetch URLs are pinned in the script header as well.
 
 Most of the saving is the weight axis, not the character set: these are variable fonts,
 Archivo ships a 100–900 axis and JetBrains Mono a 400–800 one, and the design uses 400–600
@@ -598,13 +688,18 @@ which the OFL requires.
 **Two characters the fonts never had.** U+2190/U+2192 (the ← → arrows) and U+2261 (the
 mobile menu glyph) are outside Google's `latin` subset and were absent before this change
 too — they render from a system font. Subsetting cannot add them. They are listed in the
-script anyway, so a fuller source font would pick them up, and the script's check reports
-them on every run. Whether to replace them with drawn shapes is a design question, noted in
-`content/OFFEN.md`.
+script anyway, so a fuller source font would pick them up. Whether to replace them with
+drawn shapes is a design question, noted in `content/OFFEN.md`.
+
+**The character check fails the run.** It compares the source cmap with the output cmap for
+every requested codepoint and exits non-zero on anything the subset dropped, or on anything
+missing from the source that is not one of those three. The earlier version only read the
+output and printed a line, which is a check that cannot fail — and it is how U+2019 (the
+English apostrophe) and U+201D stayed absent from the set until P8a.
 
 **Metric-matched fallbacks against CLS.** `font-display: swap` paints the fallback font
 first and repaints when the webfont arrives; where the two differ in width, that repaint
-moves text. Measured: CLS 0.133 on `/ueber` at mobile emulation, attributed by Lighthouse
+moves text. Measured: CLS 0.133 on the About page at mobile emulation, attributed by Lighthouse
 to exactly those two font loads, on a page whose layout is otherwise perfectly stable.
 
 The fix is not to drop `swap` (invisible text is worse than moved text) and not to preload
@@ -619,6 +714,11 @@ alphabet); the three overrides are the webfont's own ascent/descent/line-gap (`O
 upem 1000) divided by that ratio, so the line box matches as well as the width. Measured
 with fontTools against Liberation Sans and DejaVu Sans Mono, which are metrically
 compatible with Arial and Menlo.
+
+*To re-derive:* the Archivo `size-adjust` of 95.77 % does not reproduce — recomputing the
+weighted mean advance against Liberation Sans gives about 98.6 %. The declaration is inert
+where no matching font exists and conservative where one does, so it is left as it is until
+the number is redone from scratch. Noted in `content/OFFEN.md`.
 
 | family | size-adjust | ascent | descent | line-gap |
 | --- | ---: | ---: | ---: | ---: |
@@ -635,9 +735,12 @@ deliberately absent. Where none of them exists, the declaration does not match, 
 family in the stack takes over unadjusted, and the page behaves exactly as it did before:
 the adjustment can help or do nothing, but it cannot hurt.
 
-Measured effect on `/ueber`, mobile emulation: CLS 0.133 → 0.003 where an Arial-metric font
-is present. The stacks live in the project block of `tokens.css`; the handoff line above the
-divider is untouched.
+Measured effect on the About page, mobile emulation: **CLS 0.019 → 0.003 on a machine that
+has an Arial-metric font installed; 0.133 unchanged on one that has none**, because the
+`local()` declaration then matches nothing. The two numbers come from two different
+environments and are not a single before/after. The fix helps every visitor on Windows,
+macOS and iOS and is inert elsewhere. The stacks live in the project block of `tokens.css`;
+the handoff line above the divider is untouched.
 
 ## Performance
 
@@ -653,16 +756,16 @@ Lighthouse's throttled 4G profile, desktop its unthrottled one):
 | page | mobile perf | desktop perf | LCP mobile | CLS mobile |
 | --- | --- | --- | --- | --- |
 | `/` | 89 → **94** | 100 → **100** | 3.5 s → 2.9 s | 0 → 0 |
-| `/galerie` | 86 → **91** | 99 → **100** | 4.1 s → 3.4 s | 0 → 0 |
-| `/foto/<slug>` | 96 → **97** | 100 → **100** | 2.4 s → 2.3 s | 0 → 0 |
-| `/ueber` | 98 → **98** | 100 → **100** | 2.0 s → 2.0 s | 0.019 → 0.003 |
+| gallery | 86 → **91** | 99 → **100** | 4.1 s → 3.4 s | 0 → 0 |
+| photo detail | 96 → **97** | 100 → **100** | 2.4 s → 2.3 s | 0 → 0 |
+| about | 98 → **98** | 100 → **100** | 2.0 s → 2.0 s | 0.019 → 0.003 |
 
 Accessibility 100, best practices 100 and SEO 100 on every page in both profiles, before
 and after. (The SEO score needs `NUXT_PUBLIC_SITE_URL` set — without it the canonical link
 is relative and Lighthouse scores 92. The measurements above set it, because a deployment
 will.)
 
-The `/ueber` row is the honest one to read carefully: its CLS gain depends on the measuring
+The about row is the honest one to read carefully: its CLS gain depends on the measuring
 machine having an Arial-metric font. On a machine with none, the P6 build shifted by 0.133
 and the P7 build shifts the same amount, because the `local()` declaration finds nothing to
 adjust. The fix helps every visitor on Windows, macOS and iOS and is inert elsewhere.
@@ -671,7 +774,7 @@ adjust. The fix helps every visitor on Windows, macOS and iOS and is inert elsew
 faith:
 
 - **Preloading the LCP image** with `imagesrcset`/`imagesizes`, tried on `/` and on
-  `/galerie`: no change to LCP at all (2.9 s and 3.3 s, unmoved). Lighthouse's own LCP
+  the gallery: no change to LCP at all (2.9 s and 3.3 s, unmoved). Lighthouse's own LCP
   discovery audit explains why — the image is already found by the preload scanner in the
   initial document, already `fetchpriority=high`, already not lazy. There is nothing left
   for a preload to bring forward.
@@ -685,7 +788,7 @@ measured delta: it is correct (the gallery starts nine tiles at once and only on
 the LCP element), it costs nothing, and Lighthouse's simulated throttling does not model
 connection-level reordering well enough to show it either way.
 
-**What still limits the two image-heavy pages.** `/` at 94 and `/galerie` at 91 sit below
+**What still limits the two image-heavy pages.** `/` at 94 and the gallery at 91 sit below
 the ≥95 target, and the cause is understood: on the simulated 4G profile the LCP image
 arrives behind 300–400 KB of other above-the-fold image traffic. Reducing the eager set does
 not help — measured at 9, 3, 2 and 1 eager tiles, LCP stayed at 3.3 s, because the browser's
@@ -699,14 +802,18 @@ content-addressed or immutable by convention — a photo's slug never changes an
 variants are regenerated only when the source does:
 
 ```
-/_nuxt/*   Cache-Control: public, max-age=31536000, immutable
-/fonts/*   Cache-Control: public, max-age=31536000, immutable
-/img/*     Cache-Control: public, max-age=31536000, immutable
-*.html     Cache-Control: public, max-age=0, must-revalidate
+/_nuxt/*        Cache-Control: public, max-age=31536000, immutable
+/fonts/*        Cache-Control: public, max-age=31536000, immutable
+/img/*          Cache-Control: public, max-age=31536000, immutable
+*.html          Cache-Control: public, max-age=0, must-revalidate
+/sitemap.xml    Cache-Control: public, max-age=3600
+/robots.txt     Cache-Control: public, max-age=3600
 ```
 
 The HTML must not be cached that way: the asset URLs inside it change with every build, and
-a cached page pointing at deleted `/_nuxt/` files is a blank site. The README's Coolify
+a cached page pointing at deleted `/_nuxt/` files is a blank site. `sitemap.xml` and
+`robots.txt` are generated files too and change whenever a photo is added, so they get a
+short cache rather than the immutable one. The README's Coolify
 instructions in P8 should carry this table.
 
 **Payload extraction stays on `'client'`.** Confirmed by measurement: no `_payload.json`

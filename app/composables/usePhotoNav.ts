@@ -17,6 +17,7 @@ import type { PhotoIndexEntry, Tag } from '#shared/types/photo'
 export function usePhotoNav() {
   const route = useRoute()
   const { photos } = usePhotos()
+  const { path } = useI18n()
 
   const hydrated = ref(false)
   onMounted(() => {
@@ -53,11 +54,13 @@ export function usePhotoNav() {
   })
 
   /** Der Rückweg führt in die gefilterte Galerie, wenn es einen Filter gibt. */
-  const backTo = computed(() => (tag.value === null ? '/galerie' : `/galerie/${tag.value}`))
+  const backTo = computed(() =>
+    path(tag.value === null ? '/gallery' : `/gallery/${tag.value}`),
+  )
 
   /** Ziel eines Nachbarn — mitsamt Filterkontext. */
   function pathTo(photo: PhotoIndexEntry | null) {
-    return photo === null ? null : { path: `/foto/${photo.slug}`, query: query.value }
+    return photo === null ? null : { path: path(`/photo/${photo.slug}`), query: query.value }
   }
 
   return { hydrated, tag, slug, list, nav, query, backTo, pathTo }

@@ -1,4 +1,5 @@
 import type { PhotoIndexEntry, Tag, TagCount } from '../types/photo.ts'
+import { DEFAULT_LOCALE, type Locale } from './i18n.ts'
 import { TAG_ORDER } from './tags.ts'
 
 /**
@@ -144,4 +145,26 @@ export function curated(photos: readonly PhotoIndexEntry[], limit = 5): PhotoInd
       return a.slug.localeCompare(b.slug, 'en')
     })
     .slice(0, limit)
+}
+
+/** The title in the requested locale; German falls back to the English one. */
+export function photoTitle(
+  photo: Pick<PhotoIndexEntry, 'title' | 'titleDe'>,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  if (locale === 'de') return photo.titleDe ?? photo.title
+  return photo.title
+}
+
+/**
+ * The `alt` text in the requested locale. A missing description falls back to
+ * the title of the *same* locale — an `alt` in the other language would be
+ * read out in the wrong one.
+ */
+export function photoAlt(
+  photo: Pick<PhotoIndexEntry, 'title' | 'titleDe' | 'alt' | 'altDe'>,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  if (locale === 'de') return photo.altDe ?? photoTitle(photo, 'de')
+  return photo.alt ?? photo.title
 }

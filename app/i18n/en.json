@@ -1,0 +1,65 @@
+{
+  "site.title": "Moritz Späth – Photography",
+  "site.description": "Photographs by Moritz Späth from Wedel on the Elbe: animals, nature, landscape and sailing.",
+
+  "a11y.skip": "Skip to content",
+
+  "nav.aria": "Main navigation",
+  "nav.menu": "Menu",
+  "nav.home": "Home",
+  "nav.gallery": "Gallery",
+  "nav.about": "About",
+
+  "lang.aria": "Language",
+
+  "legal.aria": "Legal",
+  "legal.notice": "Legal notice",
+  "legal.privacy": "Privacy",
+
+  "filter.aria": "Filter by subject",
+  "filter.label": "Filter",
+  "filter.all": "All",
+
+  "count.photos.one": "{n} photo",
+  "count.photos.other": "{n} photos",
+
+  "home.selection": "Selection",
+  "home.all": "All photos",
+  "home.motto.light": "Light",
+  "home.motto.shadow": "Shadow",
+
+  "gallery.title": "Gallery",
+  "gallery.tagTitle": "{tag} – Gallery",
+  "gallery.description.all": "Every photo: animals, nature, landscape and sailing.",
+  "gallery.description.tag": "Photographs of {tag}.",
+  "gallery.unknownTag": "There is no such filter",
+
+  "photo.notFound": "There is no such photo",
+  "photo.back": "Gallery",
+  "photo.nav.aria": "Photo navigation",
+  "photo.prev": "Previous",
+  "photo.next": "Next",
+  "photo.counter": "Photo {n} of {total}",
+  "photo.description": "{title} – photograph by Moritz Späth, {year}.",
+
+  "lightbox.details": "Details",
+  "lightbox.close": "Close",
+  "lightbox.prev": "Previous photo",
+  "lightbox.next": "Next photo",
+
+  "about.title": "About",
+  "about.description": "Moritz Späth photographs as a hobby around Wedel on the Elbe: animals, nature, landscape and sailing.",
+
+  "legalNotice.title": "Legal notice",
+  "legalNotice.description": "Provider identification under § 5 DDG for this site.",
+
+  "privacy.title": "Privacy",
+  "privacy.description": "This site uses no cookies, no tracking and no third-party services. What the server logs, and what your rights are.",
+
+  "error.title": "Page not found",
+  "error.404.text": "This address does not exist. It may have been mistyped, or the page may have been renamed.",
+  "error.other.text": "Something went wrong on this page.",
+  "error.status": "Error {status}",
+  "error.home": "Home",
+  "error.gallery": "Gallery"
+}

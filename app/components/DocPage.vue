@@ -88,8 +88,10 @@ defineProps<{
 }
 
 /* The first heading of a document sits directly under the page header, which
-   already draws a hairline — without this the two stack into a double rule. */
-.doc :deep(h2:first-child) {
+   already draws a hairline — without this the two stack into a double rule.
+   Direct children only: an h2 inside a wrapped block (the German body of the
+   English legal notice) keeps its rule. */
+.doc > :deep(h2:first-child) {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;

@@ -8,8 +8,15 @@
  * gegen `T` geprüft. Eine Änderung hier bricht dort den Typecheck und umgekehrt.
  */
 
-/** Erlaubte Tags. Reihenfolge und Anzeige-Label in `shared/utils/tags.ts`. */
-export type Tag = 'tiere' | 'natur' | 'landschaft' | 'segeln' | 'schwarzweiss'
+/** Allowed tags. Order and display labels in `shared/utils/tags.ts`. */
+export type Tag =
+  | 'animals'
+  | 'nature'
+  | 'landscape'
+  | 'sailing'
+  | 'fire'
+  | 'architecture'
+  | 'black-and-white'
 
 export type Orientation = 'landscape' | 'portrait' | 'square'
 
@@ -17,8 +24,13 @@ export type VariantFormat = 'avif' | 'webp' | 'jpeg'
 
 /** Inhalt einer `photos/meta/<slug>.yaml` nach der Validierung. */
 export interface PhotoMeta {
-  /** Pflicht, nicht leer. */
+  /**
+   * English title. Required and not empty — English is the primary language,
+   * so a photo without one would show up untranslated in the main grid.
+   */
   title: string
+  /** German title. Optional; falls back to `title`. */
+  title_de: string | null
   /**
    * Bildbeschreibung für Screenreader. Optional: fehlt sie, tritt der Titel an
    * ihre Stelle. Sie steht getrennt, weil ein guter Titel („Delfine vor dem
@@ -26,6 +38,8 @@ export interface PhotoMeta {
    * eines fahrenden Segelboots aus dem Wasser") selten derselbe Satz sind.
    */
   alt: string | null
+  /** German image description. Optional; falls back to `alt`, then to a title. */
+  alt_de: string | null
   /** Aufnahmedatum, `YYYY-MM-DD`. */
   date: string
   tags: Tag[]
@@ -57,9 +71,14 @@ export interface PhotoVariants {
  */
 export interface PhotoIndexEntry {
   slug: string
+  /** English title, always present. */
   title: string
+  /** German title. Absent when the YAML has none — `photoTitle` falls back. */
+  titleDe?: string
   /** Bildbeschreibung; `null` bedeutet: der Titel ist die Beschreibung. */
   alt: string | null
+  /** German image description. Absent when the YAML has none. */
+  altDe?: string
   /** `YYYY-MM-DD` */
   date: string
   year: number

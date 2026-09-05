@@ -1,0 +1,65 @@
+{
+  "site.title": "Moritz Späth – Fotografie",
+  "site.description": "Fotografien von Moritz Späth aus Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.",
+
+  "a11y.skip": "Zum Inhalt springen",
+
+  "nav.aria": "Hauptnavigation",
+  "nav.menu": "Menü",
+  "nav.home": "Start",
+  "nav.gallery": "Galerie",
+  "nav.about": "Über",
+
+  "lang.aria": "Sprache",
+
+  "legal.aria": "Rechtliches",
+  "legal.notice": "Impressum",
+  "legal.privacy": "Datenschutz",
+
+  "filter.aria": "Nach Motiv filtern",
+  "filter.label": "Filter",
+  "filter.all": "Alle",
+
+  "count.photos.one": "{n} Bild",
+  "count.photos.other": "{n} Bilder",
+
+  "home.selection": "Auswahl",
+  "home.all": "Alle Bilder",
+  "home.motto.light": "Licht",
+  "home.motto.shadow": "Schatten",
+
+  "gallery.title": "Galerie",
+  "gallery.tagTitle": "{tag} – Galerie",
+  "gallery.description.all": "Alle Fotos: Tiere, Natur, Landschaft und Segeln.",
+  "gallery.description.tag": "Fotos zum Motiv {tag}.",
+  "gallery.unknownTag": "Diesen Filter gibt es nicht",
+
+  "photo.notFound": "Dieses Foto gibt es nicht",
+  "photo.back": "Galerie",
+  "photo.nav.aria": "Foto-Navigation",
+  "photo.prev": "Vorher",
+  "photo.next": "Nachher",
+  "photo.counter": "Bild {n} von {total}",
+  "photo.description": "{title} – Fotografie von Moritz Späth, {year}.",
+
+  "lightbox.details": "Details",
+  "lightbox.close": "Schließen",
+  "lightbox.prev": "Vorheriges Bild",
+  "lightbox.next": "Nächstes Bild",
+
+  "about.title": "Über",
+  "about.description": "Moritz Späth fotografiert als Hobby rund um Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.",
+
+  "legalNotice.title": "Impressum",
+  "legalNotice.description": "Anbieterkennzeichnung nach § 5 DDG für diese Seite.",
+
+  "privacy.title": "Datenschutz",
+  "privacy.description": "Diese Seite verwendet keine Cookies, kein Tracking und keine Dienste Dritter. Was der Server protokolliert und welche Rechte Sie haben.",
+
+  "error.title": "Seite nicht gefunden",
+  "error.404.text": "Diese Adresse gibt es nicht. Vielleicht ist sie vertippt, vielleicht wurde die Seite umbenannt.",
+  "error.other.text": "Auf dieser Seite ist etwas schiefgegangen.",
+  "error.status": "Fehler {status}",
+  "error.home": "Start",
+  "error.gallery": "Galerie"
+}

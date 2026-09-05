@@ -10,6 +10,7 @@
       Wedel<br />
       <span class="coords">53.58°N 9.70°E</span>
     </p>
+    <SiteLang class="lang" />
     <SiteLegal class="legal" />
   </footer>
 </template>
@@ -29,7 +30,11 @@
   margin: 0;
 }
 
-.legal {
+.lang {
   margin-top: var(--space-2);
+}
+
+.legal {
+  margin-top: var(--space-1);
 }
 </style>

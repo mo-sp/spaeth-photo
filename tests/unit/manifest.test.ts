@@ -12,7 +12,9 @@ import type { RenderResult } from '../../scripts/lib/variants.ts'
 function meta(overrides: Partial<PhotoMeta> = {}): PhotoMeta {
   return {
     title: 'Titel',
+    title_de: null,
     alt: null,
+    alt_de: null,
     date: '2024-01-01',
     tags: [],
     collection: null,
@@ -73,16 +75,16 @@ describe('comparePhotos', () => {
 describe('countTags', () => {
   it('zählt und behält die kanonische Reihenfolge, nicht die Fundreihenfolge', () => {
     expect(
-      countTags([{ tags: ['landschaft', 'natur'] }, { tags: ['tiere'] }, { tags: ['landschaft'] }]),
+      countTags([{ tags: ['landscape', 'nature'] }, { tags: ['animals'] }, { tags: ['landscape'] }]),
     ).toEqual([
-      { tag: 'tiere', count: 1 },
-      { tag: 'natur', count: 1 },
-      { tag: 'landschaft', count: 2 },
+      { tag: 'animals', count: 1 },
+      { tag: 'nature', count: 1 },
+      { tag: 'landscape', count: 2 },
     ])
   })
 
   it('nennt keine Tags, die niemand vergeben hat', () => {
-    expect(countTags([{ tags: ['segeln'] }])).toEqual([{ tag: 'segeln', count: 1 }])
+    expect(countTags([{ tags: ['sailing'] }])).toEqual([{ tag: 'sailing', count: 1 }])
   })
 })
 
@@ -132,7 +134,7 @@ describe('buildManifest', () => {
     { slug: 'alt', meta: meta({ date: '2020-05-05' }), render: render(), sourceHash: 'aaaa1111' },
     {
       slug: 'neu',
-      meta: meta({ date: '2024-05-05', hero: true, featured: true, order: 1, tags: ['segeln'] }),
+      meta: meta({ date: '2024-05-05', hero: true, featured: true, order: 1, tags: ['sailing'] }),
       render: render(),
       sourceHash: 'bbbb2222',
     },
@@ -147,7 +149,7 @@ describe('buildManifest', () => {
     })
     expect(manifest.photos.map((p) => p.slug)).toEqual(['neu', 'alt'])
     expect(manifest.heroSlug).toBe('neu')
-    expect(manifest.tags).toEqual([{ tag: 'segeln', count: 1 }])
+    expect(manifest.tags).toEqual([{ tag: 'sailing', count: 1 }])
     expect(issues).toEqual([])
   })
 
