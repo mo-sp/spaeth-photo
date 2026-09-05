@@ -4,7 +4,7 @@
       <div class="hero">
         <PhotoImage
           :photo="hero"
-          :alt="hero.alt ?? hero.title"
+          :alt="photoAlt(hero, locale)"
           :sizes="HERO_SIZES"
           eager
           priority
@@ -13,7 +13,7 @@
       </div>
 
       <div class="hero-caption">
-        <p class="hero-title">{{ hero.title }}</p>
+        <p class="hero-title">{{ photoTitle(hero, locale) }}</p>
         <p class="hero-year">{{ hero.year }}</p>
       </div>
     </template>
@@ -25,19 +25,19 @@
       Seitenleiste ist ein Link, keine Überschrift.
     -->
     <h1 class="motto">
-      <em>Licht</em>
+      <em>{{ t('home.motto.light') }}</em>
       <span class="slash" aria-hidden="true">/</span>
-      <span class="shadow">Schatten</span>
+      <span class="shadow">{{ t('home.motto.shadow') }}</span>
     </h1>
 
     <section class="curated">
-      <h2 class="label">Auswahl</h2>
+      <h2 class="label">{{ t('home.selection') }}</h2>
       <ul class="tiles">
         <li v-for="photo in selection" :key="photo.slug">
-          <NuxtLink class="tile tile-focus" :to="`/foto/${photo.slug}`">
+          <NuxtLink class="tile tile-focus" :to="path(`/photo/${photo.slug}`)">
             <PhotoImage
               :photo="photo"
-              :alt="photo.alt ?? photo.title"
+              :alt="photoAlt(photo, locale)"
               :sizes="TILE_SIZES"
               eager
             />
@@ -47,13 +47,13 @@
     </section>
 
     <div class="all">
-      <NuxtLink class="all-link" to="/galerie">
-        Alle Bilder
+      <NuxtLink class="all-link" :to="path('/gallery')">
+        {{ t('home.all') }}
         <span aria-hidden="true">→</span>
       </NuxtLink>
       <p class="all-count">
-        <span aria-hidden="true">{{ padCounter(photos.length) }} Bilder</span>
-        <span class="sr-only">{{ photos.length }} Bilder</span>
+        <span aria-hidden="true">{{ tn('count.photos', photos.length, padCounter(photos.length)) }}</span>
+        <span class="sr-only">{{ tn('count.photos', photos.length) }}</span>
       </p>
     </div>
   </div>
@@ -61,6 +61,7 @@
 
 <script setup lang="ts">
 const { photos, hero } = usePhotos()
+const { locale, t, tn, path } = useI18n()
 
 /** Eine volle Reihe des fünfspaltigen Rasters. */
 const selection = curated(photos, 5)
@@ -92,16 +93,13 @@ const TILE_SIZES = [
   'calc((100vw - 316px) / 5)',
 ].join(', ')
 
-const DESCRIPTION =
-  'Fotografien von Moritz Späth aus Wedel an der Elbe: Tiere, Natur, Landschaft und Segeln.'
-
-useSiteSeo({ description: DESCRIPTION, path: '/', ogType: 'website' })
+useSiteSeo({ description: () => t('site.description'), ogType: 'website' })
 
 useHead({
   // Die Startseite trägt den Namen selbst; die Vorlage „%s – Moritz Späth"
   // machte daraus „Start – Moritz Späth" oder eine Wiederholung.
   titleTemplate: null,
-  title: SITE_TITLE,
+  title: () => t('site.title'),
 })
 </script>
 

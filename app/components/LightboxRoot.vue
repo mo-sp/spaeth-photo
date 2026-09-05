@@ -2,26 +2,26 @@
   <dialog ref="dialog" class="box" :aria-labelledby="titleId" @cancel.prevent="close()">
     <div class="head">
       <NuxtLink class="head-link" :to="detailPath">
-        Details
+        {{ t('lightbox.details') }}
         <span aria-hidden="true">→</span>
       </NuxtLink>
       <button ref="escape" type="button" class="head-link" autofocus @click="close()">
         <span aria-hidden="true">Esc</span>
-        <span class="sr-only">Schließen</span>
+        <span class="sr-only">{{ t('lightbox.close') }}</span>
       </button>
     </div>
 
     <div class="stage" @click.self="close()">
       <button type="button" class="step" :disabled="!nav.prev" @click="step(-1)">
         <span aria-hidden="true">←</span>
-        <span class="sr-only">Vorheriges Bild</span>
+        <span class="sr-only">{{ t('lightbox.prev') }}</span>
       </button>
 
       <div class="frame" @click.self="close()">
         <PhotoImage
           :key="photo.slug"
           :photo="photo"
-          :alt="photo.alt ?? photo.title"
+          :alt="photoAlt(photo, locale)"
           :sizes="STAGE_SIZES"
           eager
         />
@@ -29,17 +29,19 @@
 
       <button type="button" class="step" :disabled="!nav.next" @click="step(1)">
         <span aria-hidden="true">→</span>
-        <span class="sr-only">Nächstes Bild</span>
+        <span class="sr-only">{{ t('lightbox.next') }}</span>
       </button>
     </div>
 
     <p class="caption">
-      <span :id="titleId" class="caption-title">{{ photo.title }}</span>
+      <span :id="titleId" class="caption-title">{{ photoTitle(photo, locale) }}</span>
       <span class="caption-meta">
         <span>{{ photo.year }}</span>
         <span aria-hidden="true"> · </span>
         <span aria-hidden="true">{{ padCounter(nav.position) }} / {{ padCounter(nav.total) }}</span>
-        <span class="sr-only">Bild {{ nav.position }} von {{ nav.total }}</span>
+        <span class="sr-only">{{
+          t('photo.counter', { n: nav.position, total: nav.total })
+        }}</span>
       </span>
     </p>
   </dialog>
@@ -59,6 +61,7 @@ import type { PhotoIndexEntry } from '#shared/types/photo'
 const props = defineProps<{ photos: PhotoIndexEntry[] }>()
 
 const route = useRoute()
+const { locale, t, path } = useI18n()
 const { current, nav, go, close } = useLightbox(() => props.photos)
 
 // Das v-if der Seite hängt an isOpen; solange dieses Bauteil lebt, gibt es ein
@@ -82,7 +85,7 @@ const STAGE_SIZES = '(max-width: 767px) calc(100vw - 104px), calc(100vw - 208px)
 const detailPath = computed(() => {
   const tag = route.params.tag
   return {
-    path: `/foto/${photo.value.slug}`,
+    path: path(`/photo/${photo.value.slug}`),
     // Der Filterkontext reist als weicher Zustand mit, damit Prev/Next auf der
     // Detailseite in derselben Auswahl bleiben.
     query: typeof tag === 'string' && tag !== '' ? { tag } : {},

@@ -157,7 +157,10 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
   const manifestPhotos: ManifestPhoto[] = sorted.map((photo) => ({
     slug: photo.slug,
     title: photo.meta.title,
+    // Spread, so an absent translation is an absent key rather than a null.
+    ...(photo.meta.title_de === null ? {} : { titleDe: photo.meta.title_de }),
     alt: photo.meta.alt,
+    ...(photo.meta.alt_de === null ? {} : { altDe: photo.meta.alt_de }),
     date: photo.meta.date,
     year: year(photo.meta.date),
     tags: photo.meta.tags,
@@ -205,7 +208,9 @@ export function toIndex(manifest: PhotoManifest): PhotoIndexFile {
   const photos: PhotoIndexEntry[] = manifest.photos.map((photo) => ({
     slug: photo.slug,
     title: photo.title,
+    ...(photo.titleDe === undefined ? {} : { titleDe: photo.titleDe }),
     alt: photo.alt,
+    ...(photo.altDe === undefined ? {} : { altDe: photo.altDe }),
     date: photo.date,
     year: photo.year,
     tags: photo.tags,

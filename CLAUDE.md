@@ -14,8 +14,8 @@ Doku und messbare Performance sind Teil des Ziels.
 - Eigenes CSS mit Custom Properties (`app/assets/css/tokens.css`). Kein Tailwind, kein UI-Framework.
 - Bildverarbeitung: eigene Sharp-Skripte (`scripts/export-sources.ts`, `scripts/build-images.ts`),
   kein @nuxt/image. Tests mit vitest.
-- Schriften Archivo und JetBrains Mono selbst gehostet in `public/fonts/`, subgesetzt
-  (`scripts/subset-fonts.sh`, 105 → 53 KB).
+- Schriften Archivo und JetBrains Mono selbst gehostet in `public/fonts/`, subgesetzt aus
+  `scripts/fonts-src/` (`scripts/subset-fonts.sh`, 114 → 55 KB).
 - `sitemap.xml` und `robots.txt` sind Nitro-Routen unter `server/routes/`, keine statischen
   Dateien: beide brauchen die absolute Site-URL aus `NUXT_PUBLIC_SITE_URL` (Build-Variable).
 
@@ -35,6 +35,7 @@ Doku und messbare Performance sind Teil des Ziels.
 | `pnpm test`                   | vitest, nur Unit-Tests (< 1 s)                                             |
 | `pnpm test:integration`       | Farb-Regressionstest der Bild-Pipeline (kodiert echte Bilder)              |
 | `scripts/subset-fonts.sh`     | Schriften neu subsetten (nur nötig, wenn Zeichenvorrat/Gewicht sich ändern) |
+| `scripts/subset-fonts.sh --check` | dasselbe prüfen, ohne zu schreiben; Exit ≠ 0 bei fehlendem Zeichen |
 
 Flags von `build-images`: `--dry-run` (nichts schreiben oder löschen), `--force` (Cache
 ignorieren), `--only <slug>`, `--strict` (Warnungen als Fehler, für CI), `--source-dir <dir>`
@@ -50,9 +51,8 @@ Beide Skripte kennen `--help`.
   des Frontends.** Kein direkter Dateisystem-Zugriff aus Komponenten. Bild-URLs stehen
   nicht darin, sondern folgen der Konvention `/img/<slug>/<breite>.<endung>`
   (`shared/constants/images.ts`).
-- **Dateiname = Slug = URL** (`/foto/<slug>`): kleingeschrieben, kebab-case, ASCII
-  (`ae/oe/ue/ss`). Slugs sind nach dem Deploy unveränderlich — sie werden in Phase 2
-  Produkt-URLs.
+- **Dateiname = Slug = URL** (`/photo/<slug>`): englisch, kleingeschrieben, kebab-case,
+  ASCII. Slugs sind nach dem Deploy unveränderlich — sie werden in Phase 2 Produkt-URLs.
 - **Content kommt aus dem privaten Submodule `content/`** (`content/photos/source|meta`).
   Fehlt es (fremder Clone ohne Zugriff), greift der Fallback auf `demo-content/`.
   Der Build darf dadurch **nie** fehlschlagen.
@@ -60,11 +60,17 @@ Beide Skripte kennen `--help`.
   importiert von dort — und aus `shared/types/` — automatisch, die Build-Skripte greifen
   mit relativem Pfad auf dieselben Dateien zu. Nur die oberste Ebene wird
   auto-importiert; die Tests liegen deshalb in `shared/utils/__tests__/`.
-- **Der Tag-Filter ist eine Pfadroute** (`/galerie/segeln`), nicht `?tag=`; der
+- **Der Tag-Filter ist eine Pfadroute** (`/gallery/sailing`), nicht `?tag=`; der
   Sidebar-Inhalt kommt aus `definePageMeta({ aside })`, nicht aus einem Teleport oder
   Store. Begründungen in `docs/architecture.md`, Abschnitt „Frontend".
-- Alle UI-Texte auf Deutsch. Keine Farbwerte hart in Vue-Dateien — nur Tokens aus
-  `tokens.css` (die einzige Farbkorrektur steht im Projekt-Block dort).
+- **Zweisprachig: Englisch primär, Deutsch unter `/de` mit denselben Pfadsegmenten.** UI-Texte
+  stehen in `app/i18n/{en,de}.json` und werden über `useI18n()` geholt — kein Klartext in
+  Komponenten. Links immer über `path('/gallery')`, damit sie in der aktuellen Sprache
+  bleiben. Foto-Titel kommen aus dem Index (`photoTitle`/`photoAlt`), nicht aus dem
+  Wörterbuch. Abschnitt „Internationalisation" in `docs/architecture.md`.
+- Keine Farbwerte hart in Vue-Dateien — nur Tokens aus `tokens.css` (die einzige
+  Farbkorrektur steht im Projekt-Block dort).
+- **`AGENTS.md` vor jeder Änderung lesen.**
 
 ## Harte Regeln (PLAN.md §9)
 

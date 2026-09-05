@@ -6,6 +6,8 @@ import {
   filterByTag,
   neighbours,
   padCounter,
+  photoAlt,
+  photoTitle,
   sortPhotos,
   tagCounts,
 } from '../photos.ts'
@@ -38,9 +40,9 @@ function photo(slug: string, options: Partial<PhotoIndexEntry> = {}): PhotoIndex
 }
 
 const list = [
-  photo('a', { tags: ['segeln'] }),
-  photo('b', { tags: ['segeln', 'natur'] }),
-  photo('c', { tags: ['natur'] }),
+  photo('a', { tags: ['sailing'] }),
+  photo('b', { tags: ['sailing', 'nature'] }),
+  photo('c', { tags: ['nature'] }),
 ]
 
 describe('sortPhotos', () => {
@@ -70,23 +72,23 @@ describe('filterByTag', () => {
   })
 
   it('filtert auf den Tag', () => {
-    expect(filterByTag(list, 'natur').map((entry) => entry.slug)).toEqual(['b', 'c'])
+    expect(filterByTag(list, 'nature').map((entry) => entry.slug)).toEqual(['b', 'c'])
   })
 
   it('fällt bei leerem Ergebnis auf den vollen Pool zurück (Spec)', () => {
-    expect(filterByTag(list, 'tiere' as Tag)).toHaveLength(3)
+    expect(filterByTag(list, 'animals' as Tag)).toHaveLength(3)
   })
 
   it('fällt bei leerem Pool nicht in eine Endlosschleife', () => {
-    expect(filterByTag([], 'natur')).toEqual([])
+    expect(filterByTag([], 'nature')).toEqual([])
   })
 })
 
 describe('tagCounts', () => {
   it('zählt nur vergebene Tags in kanonischer Reihenfolge', () => {
     expect(tagCounts(list)).toEqual([
-      { tag: 'natur', count: 2 },
-      { tag: 'segeln', count: 2 },
+      { tag: 'nature', count: 2 },
+      { tag: 'sailing', count: 2 },
     ])
   })
 
@@ -197,5 +199,43 @@ describe('curated', () => {
   it('deckelt auf die Zahl der Kacheln', () => {
     expect(curated(pool, 2)).toHaveLength(2)
     expect(curated([], 5)).toEqual([])
+  })
+})
+
+describe('photoTitle', () => {
+  const both = photo('x', { title: 'Evening Harbour', titleDe: 'Hafen am Abend' })
+
+  it('picks the title of the locale', () => {
+    expect(photoTitle(both, 'en')).toBe('Evening Harbour')
+    expect(photoTitle(both, 'de')).toBe('Hafen am Abend')
+  })
+
+  it('falls back to English when there is no translation', () => {
+    expect(photoTitle(photo('x', { title: 'Only English' }), 'de')).toBe('Only English')
+  })
+
+  it('defaults to English', () => {
+    expect(photoTitle(both)).toBe('Evening Harbour')
+  })
+})
+
+describe('photoAlt', () => {
+  it('picks the description of the locale', () => {
+    const entry = photo('x', { alt: 'Masts at dusk', altDe: 'Masten in der Dämmerung' })
+    expect(photoAlt(entry, 'en')).toBe('Masts at dusk')
+    expect(photoAlt(entry, 'de')).toBe('Masten in der Dämmerung')
+  })
+
+  it('falls back to the title of the same locale, not to the other description', () => {
+    const entry = photo('x', {
+      title: 'Evening Harbour',
+      titleDe: 'Hafen am Abend',
+      alt: 'Masts at dusk',
+    })
+    expect(photoAlt(entry, 'de')).toBe('Hafen am Abend')
+  })
+
+  it('falls back through both levels', () => {
+    expect(photoAlt(photo('x', { title: 'Only English' }), 'de')).toBe('Only English')
   })
 })

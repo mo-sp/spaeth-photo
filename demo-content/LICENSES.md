@@ -9,8 +9,8 @@ github.com/mo-sp)"`.
 Die Dateien in `photos/source/` sind **abgeleitete Werke**: aus jedem Original
 wurde mit `scripts/export-sources.ts` eine Web-Quelle erzeugt — auf 2560 px
 lange Kante verkleinert, ohne Metadaten, mit sRGB-Profil, JPEG q82. Die
-Slugs im Repo lauten `demo-weisskopfseeadler`, `demo-nebelwald` und
-`demo-segelboot`; die Zuordnung zum jeweiligen Originaldateinamen steht in
+Slugs im Repo lauten `demo-bald-eagle`, `demo-fog-over-forest` und
+`demo-sailboat`; die Zuordnung zum jeweiligen Originaldateinamen steht in
 `import-map.json`.
 
 Alle drei Lizenzen erlauben Bearbeitung und Weitergabe ohne Auflagen; die

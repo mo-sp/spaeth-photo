@@ -1,38 +1,57 @@
 import type { Tag } from '../types/photo.ts'
+import { DEFAULT_LOCALE, type Locale } from './i18n.ts'
 
 /**
- * Tag-Vokabular des Frontends. Liegt unter `shared/utils/`, weil Nuxt nur von
- * dort (und aus `shared/types/`) automatisch importiert — die Build-Skripte
- * importieren dieselbe Datei mit relativem Pfad.
+ * Tag vocabulary of the front end. It lives under `shared/utils/` because Nuxt
+ * only auto-imports from there (and from `shared/types/`) — the build scripts
+ * import the same file by relative path.
  */
 
 /**
- * Reihenfolge der Tags in der Filterleiste. Bewusst inhaltlich sortiert
- * (Motivgruppen zuerst, Stilmerkmal zuletzt), nicht alphabetisch.
+ * Order of the tags in the filter bar. Deliberately sorted by meaning (subject
+ * groups first, the stylistic one last), not alphabetically.
  */
-export const TAG_ORDER = ['tiere', 'natur', 'landschaft', 'segeln', 'schwarzweiss'] as const
+export const TAG_ORDER = [
+  'animals',
+  'nature',
+  'landscape',
+  'sailing',
+  'fire',
+  'architecture',
+  'black-and-white',
+] as const
 
-/**
- * Anzeige-Label mit Umlauten/ß. Im Datenmodell sind Tags kleingeschrieben und
- * ASCII, weil sie in URLs (`/galerie/schwarzweiss`) auftauchen.
- */
-export const TAG_LABELS: Record<Tag, string> = {
-  tiere: 'Tiere',
-  natur: 'Natur',
-  landschaft: 'Landschaft',
-  segeln: 'Segeln',
-  schwarzweiss: 'Schwarzweiß',
+/** Display labels per locale; the keys stay lowercase ASCII because they are URLs. */
+export const TAG_LABELS: Record<Locale, Record<Tag, string>> = {
+  en: {
+    animals: 'Animals',
+    nature: 'Nature',
+    landscape: 'Landscape',
+    sailing: 'Sailing',
+    fire: 'Fire',
+    architecture: 'Architecture',
+    'black-and-white': 'Black & White',
+  },
+  de: {
+    animals: 'Tiere',
+    nature: 'Natur',
+    landscape: 'Landschaft',
+    sailing: 'Segeln',
+    fire: 'Feuer',
+    architecture: 'Architektur',
+    'black-and-white': 'Schwarzweiß',
+  },
 }
 
-/** Label eines Tags; fällt auf den Slug zurück, falls unbekannt. */
-export function tagLabel(tag: string): string {
-  return TAG_LABELS[tag as Tag] ?? tag
+/** Label of a tag; falls back to the key itself if it is unknown. */
+export function tagLabel(tag: string, locale: Locale = DEFAULT_LOCALE): string {
+  return TAG_LABELS[locale][tag as Tag] ?? tag
 }
 
 /**
- * Prüft einen Routenparameter gegen das Vokabular. Alles, was kein bekannter
- * Tag ist, ergibt `null` — die Galerie-Seite macht daraus einen 404, statt
- * still den ungefilterten Bestand zu zeigen.
+ * Checks a route parameter against the vocabulary. Anything that is not a known
+ * tag yields `null` — the gallery page turns that into a 404 rather than
+ * quietly showing the unfiltered set.
  */
 export function parseTag(value: unknown): Tag | null {
   if (typeof value !== 'string' || value === '') return null

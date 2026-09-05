@@ -2,7 +2,7 @@
   <div v-if="photo" class="aside">
     <NuxtLink class="back" :to="backTo">
       <span aria-hidden="true">←</span>
-      Galerie
+      {{ t('photo.back') }}
     </NuxtLink>
 
     <!--
@@ -10,11 +10,11 @@
       <main> (siehe pages/foto/[slug].vue): die Überschrift einer Seite gehört
       in ihren Inhaltsbereich, das Design will sie aber in der Seitenleiste.
     -->
-    <p class="title">{{ photo.title }}</p>
+    <p class="title">{{ photoTitle(photo, locale) }}</p>
     <p class="year">{{ photo.year }}</p>
 
     <ul v-if="photo.tags.length > 0" class="tags">
-      <li v-for="tag in photo.tags" :key="tag">{{ tagLabel(tag) }}</li>
+      <li v-for="tag in photo.tags" :key="tag">{{ tagText(tag) }}</li>
     </ul>
 
     <!-- Kamera und Objektiv kommen aus dem EXIF und fehlen bei einigen
@@ -30,6 +30,7 @@
  * Sidebar-Fuß (`PhotoAsideFoot`), weil sie dort unten kleben sollen.
  */
 const { slug, backTo } = usePhotoNav()
+const { locale, t, tag: tagText } = useI18n()
 
 const photo = computed(() => usePhoto(slug.value))
 

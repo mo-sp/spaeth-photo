@@ -4,10 +4,12 @@ import { photoMetaSchema } from '../../scripts/lib/schema.ts'
 import type { PhotoMeta } from '../../shared/types/photo.ts'
 
 const complete: PhotoMeta = {
-  title: 'Watt bei Sonnenuntergang',
-  alt: 'Priele im nassen Sand, dahinter die tief stehende Sonne über der Nordsee',
+  title: 'Mudflats at Sunset',
+  title_de: 'Watt bei Sonnenuntergang',
+  alt: 'Channels in wet sand, the low sun over the North Sea behind them',
+  alt_de: 'Priele im nassen Sand, dahinter die tief stehende Sonne über der Nordsee',
   date: '2020-08-14',
-  tags: ['natur', 'landschaft'],
+  tags: ['nature', 'landscape'],
   collection: null,
   camera: 'Sony ILCE-7M4',
   lens: null,
@@ -46,7 +48,9 @@ describe('photoMetaSchema', () => {
     const parsed = photoMetaSchema.parse({ title: 'Ohne alles', date: '2024-01-02' })
     expect(parsed).toEqual({
       title: 'Ohne alles',
+      title_de: null,
       alt: null,
+      alt_de: null,
       date: '2024-01-02',
       tags: [],
       collection: null,
@@ -77,9 +81,15 @@ describe('YAML-Rundlauf', () => {
     expect(parsed.ok && parsed.value.alt).toBeNull()
   })
 
+  it('keeps the German title and description optional', () => {
+    const parsed = parseMeta(renderMetaYaml({ ...complete, title_de: null, alt_de: null }))
+    expect(parsed.ok && parsed.value.title_de).toBeNull()
+    expect(parsed.ok && parsed.value.alt_de).toBeNull()
+  })
+
   it('sortiert Tags in die kanonische Reihenfolge', () => {
-    const parsed = parseMeta(renderMetaYaml({ ...complete, tags: ['landschaft', 'tiere'] }))
-    expect(parsed.ok && parsed.value.tags).toEqual(['tiere', 'landschaft'])
+    const parsed = parseMeta(renderMetaYaml({ ...complete, tags: ['landscape', 'animals'] }))
+    expect(parsed.ok && parsed.value.tags).toEqual(['animals', 'landscape'])
   })
 
   it('nennt den Pfad, wenn etwas nicht stimmt', () => {

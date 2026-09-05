@@ -5,13 +5,13 @@
       :key="photo.slug"
       class="tile tile-focus"
       :data-slug="photo.slug"
-      :href="`/foto/${photo.slug}${tagQuery}`"
+      :href="`${path(`/photo/${photo.slug}`)}${tagQuery}`"
       :style="{ aspectRatio: `${photo.width} / ${photo.height}`, backgroundColor: photo.color }"
       @click="onTileClick($event, photo.slug)"
     >
       <PhotoImage
         :photo="photo"
-        :alt="photo.alt ?? photo.title"
+        :alt="photoAlt(photo, locale)"
         :sizes="TILE_SIZES"
         :eager="position < eager"
         :priority="position === 0"
@@ -21,7 +21,7 @@
            wiederholt ihn nur sichtbar. Für Screenreader wäre sie ein zweiter,
            halber Name. -->
       <span class="caption" aria-hidden="true">
-        <span class="caption-title">{{ photo.title }}</span>
+        <span class="caption-title">{{ photoTitle(photo, locale) }}</span>
         <span class="caption-year">{{ photo.year }}</span>
       </span>
     </a>
@@ -32,6 +32,8 @@
 import type { PhotoIndexEntry } from '#shared/types/photo'
 
 const props = defineProps<{ photos: PhotoIndexEntry[] }>()
+
+const { locale, path } = useI18n()
 
 const emit = defineEmits<{ open: [slug: string] }>()
 

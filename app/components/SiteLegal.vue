@@ -4,11 +4,15 @@
        statt „Impressum · Datenschutz": zwei 10-px-Links in einer Zeile liegen
        unter der Mindest-Zielgröße von 24 px. Vertikal mit `min-height` reicht
        jeder Link an 24 px heran, ohne dass die Schrift wächst. -->
-  <nav class="legal" aria-label="Rechtliches">
-    <NuxtLink to="/impressum">Impressum</NuxtLink>
-    <NuxtLink to="/datenschutz">Datenschutz</NuxtLink>
+  <nav class="legal" :aria-label="t('legal.aria')">
+    <NuxtLink :to="path('/legal-notice')">{{ t('legal.notice') }}</NuxtLink>
+    <NuxtLink :to="path('/privacy')">{{ t('legal.privacy') }}</NuxtLink>
   </nav>
 </template>
+
+<script setup lang="ts">
+const { t, path } = useI18n()
+</script>
 
 <style scoped>
 .legal {

@@ -7,12 +7,12 @@
       keine Überschrift *dieser* Seite. Beides zusammen geht nur so — sichtbar
       in der Sidebar (dort als <p>), semantisch hier.
     -->
-    <h1 class="sr-only">{{ photo.title }}</h1>
+    <h1 class="sr-only">{{ title }}</h1>
 
     <div class="stage">
       <PhotoImage
         :photo="photo"
-        :alt="photo.alt ?? photo.title"
+        :alt="photoAlt(photo, locale)"
         :sizes="sizes"
         :variant-max="variantMax"
         eager
@@ -28,10 +28,15 @@ definePageMeta({ aside: 'photo' })
 
 const route = useRoute()
 const router = useRouter()
+const { locale, t } = useI18n()
 const found = usePhoto(String(route.params.slug))
 
 if (!found) {
-  throw createError({ statusCode: 404, statusMessage: 'Dieses Foto gibt es nicht', fatal: true })
+  throw createError({
+    statusCode: 404,
+    statusMessage: translate(localeOf(route.path), 'photo.notFound'),
+    fatal: true,
+  })
 }
 
 const photo = found
@@ -74,15 +79,14 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
-const description = `${photo.title} – Fotografie von Moritz Späth, ${photo.year}.`
+const title = computed(() => photoTitle(photo, locale.value))
 
 useSiteSeo({
-  title: photo.title,
-  description,
-  // Ohne Query: `?tag=` ist ein Anzeigekontext, keine eigene Seite.
-  path: `/foto/${photo.slug}`,
+  title,
+  description: () =>
+    t('photo.description', { title: title.value, year: photo.year }),
   ogType: 'article',
-  image: { path: photo.og, alt: photo.alt ?? photo.title },
+  image: () => ({ path: photo.og, alt: photoAlt(photo, locale.value) }),
 })
 </script>
 

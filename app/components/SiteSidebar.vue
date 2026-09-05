@@ -27,22 +27,28 @@
         liefert <summary> weiterhin selbst.
       -->
       <details ref="menu" class="menu">
-        <summary class="menu-toggle" aria-controls="hauptnavigation">
+        <summary class="menu-toggle" aria-controls="main-navigation">
           <span aria-hidden="true">≡</span>
-          Menü
+          {{ t('nav.menu') }}
         </summary>
       </details>
-      <nav id="hauptnavigation" class="nav" aria-label="Hauptnavigation">
-        <NuxtLink
-          v-for="item in navigation"
-          :key="item.to"
-          :to="item.to"
-          class="nav-item"
-          :aria-current="currentState(item.to)"
-        >
-          {{ item.label }}
-        </NuxtLink>
-      </nav>
+      <!-- The panel is `display: contents` above 768 px, so the nav sits in
+           the sidebar exactly as before; below it, the panel is the drop-down
+           and carries the language switch as its last block. -->
+      <div class="panel">
+        <nav id="main-navigation" class="nav" :aria-label="t('nav.aria')">
+          <NuxtLink
+            v-for="item in navigation"
+            :key="item.to"
+            :to="path(item.to)"
+            class="nav-item"
+            :aria-current="currentState(item.to)"
+          >
+            {{ item.label }}
+          </NuxtLink>
+        </nav>
+        <SiteLang class="panel-lang" />
+      </div>
     </header>
 
     <!--
@@ -69,11 +75,14 @@
 </template>
 
 <script setup lang="ts">
-const navigation = [
-  { to: '/', label: 'Start' },
-  { to: '/galerie', label: 'Galerie' },
-  { to: '/ueber', label: 'Über' },
-]
+const { t, path } = useI18n()
+
+/** Unprefixed targets; `path()` puts them into the current language tree. */
+const navigation = computed(() => [
+  { to: '/', label: t('nav.home') },
+  { to: '/gallery', label: t('nav.gallery') },
+  { to: '/about', label: t('nav.about') },
+])
 
 const menu = useTemplateRef<HTMLDetailsElement>('menu')
 const route = useRoute()
@@ -95,9 +104,13 @@ const isPhotoPage = computed(() => route.meta.aside === 'photo')
  * „aktuelle Seiten" (die Navigation und den Filter-Chip).
  */
 function currentState(to: string): 'page' | 'true' | undefined {
-  const path = route.path.length > 1 ? route.path.replace(/\/$/, '') : route.path
-  if (path === to) return 'page'
-  return to !== '/' && path.startsWith(`${to}/`) ? 'true' : undefined
+  // Compared in the unprefixed form, never on the raw path: `/de` is the
+  // German home page, and a prefix test against it would mark „Home" as the
+  // current section on every German page.
+  const raw = stripLocale(route.path)
+  const current = raw.length > 1 ? raw.replace(/\/$/, '') : raw
+  if (current === to) return 'page'
+  return to !== '/' && current.startsWith(`${to}/`) ? 'true' : undefined
 }
 
 function closeMenu() {
@@ -143,6 +156,17 @@ watch(() => route.fullPath, closeMenu)
 }
 
 .menu {
+  display: none;
+}
+
+/* Above 768 px the wrapper is not there as far as layout is concerned. */
+.panel {
+  display: contents;
+}
+
+/* The language switch lives in the sidebar foot on the desktop; in the mobile
+   menu it is the second half of the drop-down. */
+.panel-lang {
   display: none;
 }
 
@@ -287,21 +311,32 @@ watch(() => route.fullPath, closeMenu)
     color: var(--color-text);
   }
 
-  .nav {
+  .panel {
     display: none;
     position: absolute;
     top: var(--topbar-h);
     right: 0;
     z-index: 20;
     min-width: 180px;
-    margin-top: 0;
     padding: var(--space-1) 0;
     background: var(--color-bg);
     border: var(--border);
   }
 
-  .menu[open] ~ .nav {
+  .menu[open] ~ .panel {
+    display: block;
+  }
+
+  .nav {
+    margin-top: 0;
+  }
+
+  .panel-lang {
     display: flex;
+    gap: 0 var(--space-2);
+    margin-top: var(--space-1);
+    padding: var(--space-1) var(--space-3) 0;
+    border-top: var(--border);
   }
 
   .side-main {

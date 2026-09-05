@@ -5,8 +5,10 @@
       <p class="head-count">
         <!-- Sichtbar zweistellig wie in der Spec, gesprochen als ganze Zahl:
              „null fünf Bilder" wäre eine Vorlesefassung des Layouts. -->
-        <span aria-hidden="true">{{ padCounter(visible.length) }} Bilder</span>
-        <span class="sr-only">{{ visible.length }} Bilder</span>
+        <span aria-hidden="true">{{
+          tn('count.photos', visible.length, padCounter(visible.length))
+        }}</span>
+        <span class="sr-only">{{ tn('count.photos', visible.length) }}</span>
       </p>
     </div>
 
@@ -29,6 +31,7 @@ const LightboxAsync = defineAsyncComponent(() => import('~/components/LightboxRo
 
 const route = useRoute()
 const { photos, knownTag } = usePhotos()
+const { locale, t, tn, tag: tagText } = useI18n()
 
 /**
  * Der Tag steckt im Pfad, nicht in einer Query. Ein unbekannter Tag ist
@@ -39,14 +42,16 @@ const tag = computed(() => knownTag(route.params.tag))
 if (route.params.tag && tag.value === null) {
   throw createError({
     statusCode: 404,
-    statusMessage: 'Diesen Filter gibt es nicht',
+    statusMessage: translate(localeOf(route.path), 'gallery.unknownTag'),
     fatal: true,
   })
 }
 
 const visible = computed(() => filterByTag(photos, tag.value))
 
-const heading = computed(() => (tag.value === null ? 'Galerie' : tagLabel(tag.value)))
+const heading = computed(() =>
+  tag.value === null ? t('gallery.title') : tagText(tag.value),
+)
 
 const { isOpen, open } = useLightbox(visible)
 
@@ -62,16 +67,22 @@ function onOpen(slug: string) {
 }
 
 useSiteSeo({
-  title: () => (tag.value === null ? 'Galerie' : tagLabel(tag.value)),
+  // The document title names the section as well; the visible <h1> is just the
+  // tag, because the page is already inside the gallery.
+  title: () =>
+    tag.value === null
+      ? t('gallery.title')
+      : t('gallery.tagTitle', { tag: tagText(tag.value) }),
   description: () =>
     tag.value === null
-      ? 'Alle Fotos: Tiere, Natur, Landschaft und Segeln.'
-      : `Fotos zum Motiv ${tagLabel(tag.value)}.`,
-  path: () => (tag.value === null ? '/galerie' : `/galerie/${tag.value}`),
+      ? t('gallery.description.all')
+      : t('gallery.description.tag', { tag: tagText(tag.value) }),
   // The first photo of the current filter previews the filter, not the site.
   image: () => {
     const first = visible.value[0]
-    return first === undefined ? null : { path: first.og, alt: first.alt ?? first.title }
+    return first === undefined
+      ? null
+      : { path: first.og, alt: photoAlt(first, locale.value) }
   },
 })
 </script>

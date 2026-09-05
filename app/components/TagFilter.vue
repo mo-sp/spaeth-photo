@@ -1,6 +1,6 @@
 <template>
-  <nav ref="bar" class="filter" aria-label="Nach Motiv filtern">
-    <p class="label">Filter</p>
+  <nav ref="bar" class="filter" :aria-label="t('filter.aria')">
+    <p class="label">{{ t('filter.label') }}</p>
     <ul class="items">
       <li v-for="item in items" :key="item.to">
         <NuxtLink
@@ -26,14 +26,15 @@
  */
 const { tags, knownTag } = usePhotos()
 const route = useRoute()
+const { t, path, tag: tagText } = useI18n()
 
 const active = computed(() => knownTag(route.params.tag))
 
 const items = computed(() => [
-  { to: '/galerie', label: 'Alle', active: active.value === null },
+  { to: path('/gallery'), label: t('filter.all'), active: active.value === null },
   ...tags.map((entry) => ({
-    to: `/galerie/${entry.tag}`,
-    label: tagLabel(entry.tag),
+    to: path(`/gallery/${entry.tag}`),
+    label: tagText(entry.tag),
     active: active.value === entry.tag,
   })),
 ])

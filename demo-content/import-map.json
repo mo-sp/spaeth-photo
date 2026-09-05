@@ -1,20 +1,23 @@
 [
   {
-    "slug": "demo-weisskopfseeadler",
+    "slug": "demo-bald-eagle",
     "file": "demo-tier.jpg",
-    "title": "Weißkopfseeadler",
-    "tags": ["Tiere", "Natur"]
+    "title": "Bald Eagle",
+    "title_de": "Weißkopfseeadler",
+    "tags": ["animals", "nature"]
   },
   {
-    "slug": "demo-nebelwald",
+    "slug": "demo-fog-over-forest",
     "file": "demo-landschaft.jpg",
-    "title": "Nebel über dem Nadelwald",
-    "tags": ["Landschaft", "Natur"]
+    "title": "Fog Over the Forest",
+    "title_de": "Nebel über dem Nadelwald",
+    "tags": ["nature", "landscape"]
   },
   {
-    "slug": "demo-segelboot",
+    "slug": "demo-sailboat",
     "file": "demo-segeln.jpg",
-    "title": "Segelboot von oben",
-    "tags": ["Segeln"]
+    "title": "Sailboat from Above",
+    "title_de": "Segelboot von oben",
+    "tags": ["sailing"]
   }
 ]
