@@ -37,7 +37,22 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC=scripts/fonts-src
 FONTS=public/fonts
-CHECK=${1:-}
+
+# A typo must not be read as "go ahead and write": this script overwrites the
+# delivered fonts, and `--chekc` used to do exactly that.
+case ${1:-} in
+  '' | --check) CHECK=${1:-} ;;
+  *)
+    echo "unknown argument: $1" >&2
+    echo "usage: scripts/subset-fonts.sh [--check]" >&2
+    exit 2
+    ;;
+esac
+if [ $# -gt 1 ]; then
+  echo "too many arguments" >&2
+  echo "usage: scripts/subset-fonts.sh [--check]" >&2
+  exit 2
+fi
 
 # --- character sets ----------------------------------------------------------
 #
