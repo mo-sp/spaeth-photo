@@ -101,6 +101,18 @@ a {
   transform: translateY(0);
 }
 
+/* While the intro gate is up, the page behind it is a modal's backdrop: it does
+   not scroll, and the skip link — the one focusable element outside the shell,
+   and so the one the hidden subtree does not take out of the tab order — is not
+   a way around the gate. */
+html[data-intro] {
+  overflow: hidden;
+}
+
+html[data-intro] .skip-link {
+  display: none;
+}
+
 /* The skip target is programmatically focusable but shows no ring: the jump
    itself is the feedback. */
 main:focus {

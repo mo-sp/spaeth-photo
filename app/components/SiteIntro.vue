@@ -11,7 +11,6 @@
     aria-modal="true"
     :aria-label="t('intro.aria')"
     tabindex="-1"
-    @keydown.escape="skip"
   >
     <p class="brand">{{ BRAND_NAME }}</p>
     <!-- Wrapped, so the fade sits on something other than the motto itself:
@@ -58,6 +57,8 @@ onMounted(() => {
   if (html.dataset.intro !== 'pending') return
   html.dataset.intro = 'running'
   root.value?.focus({ preventScroll: true })
+  document.addEventListener('keydown', onKeydown)
+  document.addEventListener('focusin', onFocusIn)
 
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     // No beats: the poster stands still and the whole overlay is there at once.
@@ -75,11 +76,63 @@ onMounted(() => {
   )
 })
 
-onBeforeUnmount(clearTimers)
+onBeforeUnmount(() => {
+  clearTimers()
+  release()
+})
 
 function clearTimers() {
   for (const timer of timers) clearTimeout(timer)
   timers.length = 0
+}
+
+function release() {
+  document.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('focusin', onFocusIn)
+}
+
+/**
+ * The controls the visitor can see. A phase that has not faded in yet is
+ * `visibility: hidden`, and something one cannot see must not be tabbed to.
+ */
+function focusable(): HTMLElement[] {
+  const element = root.value
+  if (element === null) return []
+  return [...element.querySelectorAll('button')].filter(
+    (node) => getComputedStyle(node).visibility !== 'hidden',
+  )
+}
+
+/**
+ * Escape leaves, Tab stays. The page below is hidden and therefore out of the
+ * tab order, but the skip link is not part of it and the browser's own chrome
+ * is not either — so the overlay cycles the focus itself, as a modal must.
+ */
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    skip()
+    return
+  }
+  if (event.key !== 'Tab') return
+  event.preventDefault()
+  const targets = focusable()
+  if (targets.length === 0) {
+    root.value?.focus({ preventScroll: true })
+    return
+  }
+  const step = event.shiftKey ? -1 : 1
+  const at = targets.indexOf(document.activeElement as HTMLElement)
+  const next = at === -1 ? (event.shiftKey ? targets.length - 1 : 0) : at + step
+  targets[(next + targets.length) % targets.length]?.focus()
+}
+
+/** Anything that takes the focus from outside — a click, a return from the
+ *  browser chrome — hands it straight back. */
+function onFocusIn(event: FocusEvent) {
+  const element = root.value
+  if (element !== null && !element.contains(event.target as Node)) {
+    element.focus({ preventScroll: true })
+  }
 }
 
 /**
@@ -89,11 +142,16 @@ function clearTimers() {
 function close() {
   if (closing.value) return
   clearTimers()
+  release()
   closing.value = true
   delete document.documentElement.dataset.intro
-  setTimeout(() => {
-    closing.value = false
-  }, FADE_MS)
+  // Tracked like the beats: a navigation during the fade would otherwise leave
+  // this firing into a component that no longer exists.
+  timers.push(
+    setTimeout(() => {
+      closing.value = false
+    }, FADE_MS),
+  )
 }
 
 /**
@@ -161,11 +219,12 @@ html[data-intro] .intro,
   animation: intro-in var(--t-intro) both;
 }
 
-/* The choice fades in slowly and last, and is not clickable before it is
-   readable — a target one cannot see yet must not take the click. */
+/* The choice fades in slowly and last. `visibility`, not only an opacity: an
+   invisible control must not take a click *or* a keystroke, and
+   `pointer-events` stops the pointer alone. */
 .choice {
   opacity: 0;
-  pointer-events: none;
+  visibility: hidden;
   transition: opacity 1200ms ease;
 }
 
@@ -175,7 +234,13 @@ html[data-intro] .intro,
 
 .intro--2 .choice {
   opacity: 1;
-  pointer-events: auto;
+  visibility: visible;
+}
+
+/* Over a moving picture a change of colour is not a focus indicator. */
+.choice :deep(.word:focus-visible) {
+  outline: 1px solid var(--color-text);
+  outline-offset: 6px;
 }
 
 .skip {
@@ -190,14 +255,12 @@ html[data-intro] .intro,
   text-transform: uppercase;
   color: var(--color-text-faint);
   cursor: pointer;
-  opacity: 0;
-  transition:
-    color var(--t-fast),
-    opacity var(--t-intro);
-}
-
-.intro--2 .skip {
-  opacity: 1;
+  /* Visible from the first frame: for the length of the wordmark beat it is the
+     only way out of a gate that covers the whole page, and a control one cannot
+     see is worse than a visible one nobody uses. Its own ground, because from
+     the second beat it stands over the clip. */
+  background: var(--color-bg);
+  transition: color var(--t-fast);
 }
 
 .skip:hover,
@@ -227,11 +290,7 @@ html[data-intro] .intro,
 @media (prefers-reduced-motion: reduce) {
   .choice {
     opacity: 1;
-    pointer-events: auto;
-  }
-
-  .skip {
-    opacity: 1;
+    visibility: visible;
   }
 }
 </style>

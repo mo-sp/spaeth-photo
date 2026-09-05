@@ -662,11 +662,31 @@ page itself). Without JavaScript nothing sets it, so a crawler and a reader with
 scripts see the plain page — the same page every returning visitor sees.
 
 While the overlay is up the layout stops painting the page (`visibility: hidden` on
-`.shell`) rather than removing it. Two things follow: the clip and the overlay undo it for
-themselves, because both have to be visible; and a hidden subtree drops out of the tab
-order, so the choice on top needs no focus trap. The script also arms a three-second
-failsafe that lifts `data-intro` again if the bundle has not hydrated by then — a slow
-connection gets the page rather than a blank screen, and no intro.
+`.shell`) rather than removing it, and the clip and the overlay undo that for themselves,
+because both have to be visible. The script also arms a three-second failsafe that lifts
+`data-intro` again if the bundle has not hydrated by then — a slow connection gets the page
+rather than a blank screen, and no intro.
+
+**The gate is a modal, and the hidden subtree is not enough to make it one.** A subtree at
+`visibility: hidden` does drop out of the tab order, but three things stand outside it and
+were measured escaping: the skip link, which sits above `.shell` in `app.vue` and was the
+fourth tab stop out of the dialog; the viewport, which still scrolled the invisible page
+under a wheel gesture; and a control that is only `opacity: 0` with `pointer-events: none`,
+which a pointer cannot reach but Enter can. So the root is `overflow: hidden` and the skip
+link is `display: none` while `data-intro` stands (both in `base.css`), a phase that has not
+faded in yet is `visibility: hidden` rather than transparent, and the overlay keeps the
+focus itself: Tab cycles the controls it can see, Escape leaves from anywhere, and a focus
+arriving from outside is handed straight back. A trap rather than `inert` on everything
+else, because the overlay is a descendant of `.shell` — `inert` there would disable the
+dialog with the page.
+
+**The skip control is an addition beyond the brief** (`AGENTS.md` §2 asks for the note). The
+concept describes the wordmark, the clip and the choice, and no way past them. But the page
+is invisible for the length of the sequence, and the choice does not exist for the first
+2.9 s of it: without a control there is no keyboard way out at all and no answer to
+impatience. It is therefore visible from the first frame — mono, faint, on its own ground,
+bottom centre — and it stores the palette already on screen, so it is a decision and not an
+evasion. Whether it survives the design round is P11's to say.
 
 **Theme.** `data-theme` on `<html>`, the choice in `localStorage` under `ms-theme` — never
 a cookie (hard rule, and hence no banner). Unset, the palette follows
