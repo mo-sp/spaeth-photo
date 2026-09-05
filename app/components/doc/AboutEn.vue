@@ -1,6 +1,6 @@
 <template>
   <p>
-    I have been photographing as a hobby since
+    My name is Moritz Späth. I have been photographing as a hobby since
     <span class="todo">TODO: starting year</span> — mostly within reach of Wedel on the Elbe:
     animals, nature and landscape, and sailing whenever I am on the water.
   </p>

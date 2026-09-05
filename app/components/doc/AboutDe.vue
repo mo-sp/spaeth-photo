@@ -1,6 +1,6 @@
 <template>
   <p>
-    Ich fotografiere als Hobby, seit
+    Ich heiße Moritz Späth und fotografiere als Hobby, seit
     <span class="todo">TODO: Startjahr</span> — meistens im Umkreis von Wedel an der Elbe: Tiere,
     Natur und Landschaft, dazu Segeln, wenn ich auf dem Wasser bin.
   </p>
