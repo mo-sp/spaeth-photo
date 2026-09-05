@@ -1,33 +1,26 @@
-/** How the background clip is shown; see `docs/architecture.md`, "Start page". */
-export type VideoVariant = 'full' | 'band'
+import { clipSlug } from '#shared/constants/video'
 
 /**
- * Prototype scaffolding: `?video=band` shows the clip as a hero band instead of
- * the full-page background, so the two light-mode treatments can be compared
- * side by side in the preview. Goes away once P11 has decided.
- */
-export const VIDEO_QUERY = 'video'
-
-/**
- * The clip and where it belongs. `videoSlug` is a build value: without a clip in
- * the private content repo it is empty, and the home page keeps its hero photo.
+ * The clip and whether this page shows one. Each palette has its own clip
+ * (`shared/constants/video.ts`); `hasClips` is a build value, false when the
+ * private content repo is not there, and the home page then keeps its hero
+ * photograph.
  */
 export function useSiteVideo() {
-  const { videoSlug } = useRuntimeConfig().public
+  const { hasClips } = useRuntimeConfig().public
   const route = useRoute()
-  const hydrated = useHydrated()
+  const { theme } = useTheme()
 
   // The home page of either tree, and nowhere else: a deep link opens on the
   // page it names, never on the start page's stage.
-  const active = computed(() => videoSlug !== '' && stripLocale(pagePath(route.path)) === '/')
+  const active = computed(() => hasClips && stripLocale(pagePath(route.path)) === '/')
 
-  // Read only after hydration: the prerendered HTML knows no query string, and
-  // the first client render has to match it.
-  const variant = computed<VideoVariant>(() =>
-    hydrated.value && route.query[VIDEO_QUERY] === 'band' ? 'band' : 'full',
-  )
+  // `theme` is the default until `useTheme` reads the DOM on mount, so the
+  // first client render still matches the prerendered HTML and only then
+  // changes — the same rule the rest of the theme state follows.
+  const slug = computed(() => clipSlug(theme.value))
 
-  return { slug: videoSlug, active, variant }
+  return { slug, active }
 }
 
 /**
