@@ -130,13 +130,19 @@ async function show(): Promise<void> {
   // The attribute alone does not satisfy every engine's autoplay policy.
   element.muted = true
   element.load()
+  // Back on screen before the first frame arrives, not after. The still of the
+  // new palette is this element's own background, so an element held at zero
+  // opacity until playback starts shows neither the clip nor the still — on a
+  // slow connection that is seconds of bare page background, and worst of all
+  // at the reveal, where the visitor has just chosen the other palette.
+  // Carrying that gap is exactly what the background still is for.
+  swapping.value = false
   try {
     await element.play()
   } catch {
     // A browser that refuses to autoplay keeps showing the still, which is
     // the same picture standing still.
   }
-  swapping.value = false
 }
 
 function decide(run: number, faded: boolean): ClipSwapAction {
