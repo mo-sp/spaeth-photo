@@ -4,7 +4,6 @@
       ref="clip"
       class="clip"
       :class="{ 'clip--swapping': swapping }"
-      :poster="poster"
       muted
       loop
       playsinline
@@ -17,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import { THEME_CLIPS } from '#shared/constants/video'
 import type { VideoSource } from '#shared/utils/video'
 
 /**
@@ -31,6 +31,18 @@ import type { VideoSource } from '#shared/utils/video'
  */
 const props = defineProps<{ slug: string }>()
 
+/**
+ * The still frame is the stylesheet's, not the `poster` attribute's. The server
+ * cannot know the palette, so a `poster` baked into the prerendered HTML is the
+ * wrong picture for anyone whose system asks for the other one — and it is
+ * fetched before the swap can correct it. As a background image the palette
+ * picks it in CSS, before the first paint and without JavaScript, and exactly
+ * one of the two is ever downloaded. Both come from the same constant the clips
+ * do, so there is still one place where a slug is written down.
+ */
+const posterDark = `url("${posterUrl(THEME_CLIPS.dark)}")`
+const posterLight = `url("${posterUrl(THEME_CLIPS.light)}")`
+
 /** In step with `--t-clip`: how long the outgoing picture takes to go. */
 const FADE_MS = 320
 
@@ -43,8 +55,6 @@ const allowed = ref(false)
 /** Read once, on mount: the rendition is chosen for the viewport the visit began in. */
 let viewport = 0
 let fade: ReturnType<typeof setTimeout> | undefined
-
-const poster = computed(() => posterUrl(props.slug))
 
 onMounted(() => {
   viewport = window.innerWidth
@@ -120,8 +130,20 @@ async function show(): Promise<void> {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: var(--color-surface);
+  /* `cover` twice over: the still and the moving picture have to sit in the
+     frame the same way, or the clip jumps when its first frame arrives. */
+  background: var(--color-surface) v-bind(posterDark) center / cover no-repeat;
   transition: opacity var(--t-clip);
+}
+
+@media (prefers-color-scheme: light) {
+  html:not([data-theme='dark']) .clip {
+    background-image: v-bind(posterLight);
+  }
+}
+
+html[data-theme='light'] .clip {
+  background-image: v-bind(posterLight);
 }
 
 /* The palette has changed and this picture belongs to the old one. */
