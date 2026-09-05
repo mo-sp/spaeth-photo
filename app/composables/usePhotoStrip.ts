@@ -13,12 +13,35 @@ export const STRIP_SPEED = 48
  * The strip's offset after `dtMs`, wrapped into `[0, span)`. `span` is the width
  * of one copy of the list including its trailing gap, so wrapping there puts the
  * second copy exactly where the first one stood — the seam is never visible.
+ *
+ * The wrap is a jump of one whole copy in `scrollLeft`, and it is invisible for
+ * that reason alone: at offset `span` the pixels under the viewport are the
+ * second copy, at offset 0 they are the first, and the two are the same list at
+ * the same widths. Nothing on screen moves; only the number does.
  */
 export function advanceStrip(offset: number, dtMs: number, speed: number, span: number): number {
   if (!(span > 0)) return 0
   const dt = Math.min(Math.max(dtMs, 0), MAX_FRAME_MS)
   const next = offset + (speed * dt) / 1000
   return ((next % span) + span) % span
+}
+
+/**
+ * Where a wheel gesture leaves the strip: the offset plus the vertical delta,
+ * clamped to the scrollable range. Clamped rather than refused — the last
+ * fraction of a notch at either end has to be reachable too.
+ */
+export function nextStripScroll(scrollLeft: number, deltaY: number, max: number): number {
+  return Math.max(0, Math.min(max, scrollLeft + deltaY))
+}
+
+/**
+ * The width of one copy of the list including its trailing gap. Both copies are
+ * in the flow, so one copy plus its gap is half of the scroll width plus half a
+ * gap — which is the distance the drift wraps at.
+ */
+export function stripSpan(scrollWidth: number, gap: number): number {
+  return (scrollWidth + gap) / 2
 }
 
 /**
@@ -42,7 +65,7 @@ export function usePhotoStrip(
 
   let frame = 0
   let last = 0
-  let span = 0
+  let metrics: { span: number; max: number } | null = null
 
   onMounted(() => {
     const element = strip.value
@@ -51,23 +74,46 @@ export function usePhotoStrip(
       window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
       element.scrollWidth > element.clientWidth
+    window.addEventListener('resize', forget, { passive: true })
   })
+
+  /**
+   * Both measurements come from the layout, and a wheel event is not the place
+   * to ask for them: read once per gesture series and kept until the width the
+   * visible part is measured against can have changed.
+   */
+  function measure(element: HTMLElement) {
+    if (metrics === null) {
+      const gap =
+        track.value === null ? 0 : Number.parseFloat(getComputedStyle(track.value).columnGap) || 0
+      metrics = {
+        span: stripSpan(element.scrollWidth, gap),
+        max: Math.max(0, element.scrollWidth - element.clientWidth),
+      }
+    }
+    return metrics
+  }
+
+  function forget() {
+    metrics = null
+  }
 
   function step(now: number) {
     const element = strip.value
     if (element === null) return
-    element.scrollLeft = advanceStrip(element.scrollLeft, now - last, STRIP_SPEED, span)
+    element.scrollLeft = advanceStrip(
+      element.scrollLeft,
+      now - last,
+      STRIP_SPEED,
+      measure(element).span,
+    )
     last = now
     frame = requestAnimationFrame(step)
   }
 
   function start() {
     const element = strip.value
-    if (!animated.value || frame !== 0 || element === null || track.value === null) return
-    // Both copies are in the flow, so one copy plus its trailing gap is half of
-    // the scroll width plus half a gap.
-    const gap = Number.parseFloat(getComputedStyle(track.value).columnGap) || 0
-    span = (element.scrollWidth + gap) / 2
+    if (!animated.value || frame !== 0 || element === null) return
     last = performance.now()
     frame = requestAnimationFrame(step)
   }
@@ -80,20 +126,24 @@ export function usePhotoStrip(
 
   /**
    * A plain mouse wheel has no horizontal axis, so its vertical delta drives
-   * the row instead — but only while the row can still go that way. At either
-   * end the gesture belongs to the page again, which is what keeps the strip
-   * from swallowing the scroll of everyone who wanted to read on.
+   * the row instead. The gesture is taken only where it moves something: at
+   * either end the row is already there and the scroll belongs to the page
+   * again, which is what keeps the strip from swallowing the scroll of everyone
+   * who wanted to read on.
    */
   function onWheel(event: WheelEvent) {
     const element = strip.value
     if (element === null || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
-    const next = element.scrollLeft + event.deltaY
-    if (next < 0 || next > element.scrollWidth - element.clientWidth) return
+    const next = nextStripScroll(element.scrollLeft, event.deltaY, measure(element).max)
+    if (next === element.scrollLeft) return
     event.preventDefault()
     element.scrollLeft = next
   }
 
-  onBeforeUnmount(stop)
+  onBeforeUnmount(() => {
+    stop()
+    window.removeEventListener('resize', forget)
+  })
 
   return { animated, start, stop, onWheel }
 }
