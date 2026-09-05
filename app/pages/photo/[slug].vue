@@ -5,7 +5,7 @@
          the sidebar, semantic here. -->
     <h1 class="sr-only">{{ title }}</h1>
 
-    <div class="stage">
+    <div class="stage" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
       <PhotoImage
         :photo="photo"
         :alt="photoAlt(photo, locale)"
@@ -43,31 +43,13 @@ const variantMax = detailVariantMax(photo.aspectRatio)
 
 const { nav, pathTo } = usePhotoNav()
 
-/**
- * ← and → page as in the lightbox. The guards are the point: with a modifier the
- * key belongs to the browser, in a field to the field, and while a dialog is
- * open to the lightbox.
- */
-function onKeydown(event: KeyboardEvent) {
-  if (event.defaultPrevented) return
-  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-
-  const target = event.target as HTMLElement | null
-  if (target?.isContentEditable) return
-  if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return
-  if (document.querySelector('dialog[open]')) return
-
-  const step =
-    event.key === 'ArrowLeft' ? nav.value.prev : event.key === 'ArrowRight' ? nav.value.next : null
-  const to = pathTo(step)
-  if (!to) return
-
-  event.preventDefault()
+/** Arrow keys and a swipe reach the same neighbours the sidebar links to. */
+const { onTouchStart, onTouchEnd } = usePhotoStepKeys((step) => {
+  const to = pathTo(nav.value[step])
+  if (to === null) return false
   void router.push(to)
-}
-
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
+  return true
+})
 
 const title = computed(() => photoTitle(photo, locale.value))
 
@@ -80,6 +62,12 @@ useSiteSeo({
 </script>
 
 <style scoped>
+/* Every other page opens with the padding of its header block; without it the
+   stage would sit flush against the top edge. */
+.page {
+  padding-block: var(--space-4);
+}
+
 /* The stage carries the page background so the image is never cropped and both
    orientations sit in the same frame. Below 768 px width drives the height. */
 .stage {
@@ -103,6 +91,11 @@ useSiteSeo({
 }
 
 @media (max-width: 767px) {
+  /* The sticky top bar already separates the page from the edge here. */
+  .page {
+    padding-block: var(--space-2);
+  }
+
   .stage {
     height: auto;
   }

@@ -146,12 +146,14 @@ watch(() => route.fullPath, closeMenu)
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   margin-top: var(--space-brand);
 }
 
+/* Size only; the mono capitals and their letter spacing come from `.t-ui`. */
 .nav-item {
   padding: 12px var(--space-3);
+  font-size: var(--text-nav-item-size);
   border-left: var(--nav-marker) solid transparent;
   color: var(--color-text-muted);
   transition:

@@ -97,8 +97,8 @@ describe('localeLinks', () => {
     ])
   })
 
-  it('drops the query - a filter or an open lightbox is a view, not a page', () => {
-    expect(localeLinks('/gallery/sailing?foto=x', 'en').map((link) => link.to)).toEqual([
+  it('drops the query - a filter context is a view, not a page', () => {
+    expect(localeLinks('/gallery/sailing?tag=sailing', 'en').map((link) => link.to)).toEqual([
       '/gallery/sailing',
       '/de/gallery/sailing',
     ])

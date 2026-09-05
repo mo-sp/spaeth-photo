@@ -346,20 +346,19 @@ exactly one image per page. How many tiles start without `loading="lazy"` does n
 a guessed number but from a simulation of the column break across the aspect ratios — the
 browser's lazy loader only decides after layout, and with CSS columns layout comes late.
 
-**The tile stays a link.** `<a href="/photo/…">` with an intercepted click: only a plain
-left click without modifiers opens the lightbox, everything else (middle click, Ctrl,
-„In neuem Tab öffnen" / open in new tab) goes to the detail page. That way the gallery works
-without JavaScript, and the 26 detail pages are real links in the source.
+**The tile is a plain link.** `<a href="/photo/…">`, no intercepted click: every click,
+middle click and „In neuem Tab öffnen" / open in new tab lands on the detail page. That way
+the gallery works without JavaScript, and the 26 detail pages are real links in the source.
 
-**The lightbox is a native `<dialog>` with `showModal()`.** The browser handles the focus
-trap, inerting the background, Esc and the role in the accessibility tree — rebuilding all
-of that by hand is the classic route to a lightbox one cannot get out of with the keyboard.
-Its state lives in the URL (`?foto=<slug>`), not in a store: shareable, closable with the
-back button, and page and dialog both derive their state from the same source. Opening adds
-exactly one history entry, paging replaces it, closing goes exactly one step back — and only
-if this tab placed the entry itself. The component is only loaded on opening
-(`defineAsyncComponent` behind a `v-if`); the gallery is the page that can afford the least
-bundle.
+**The lightbox was removed on 2026-09-05; a click opens the detail page.** Until then a
+plain left click opened a `<dialog>` over the gallery while every other way of following the
+link went to `/photo/<slug>`. The detail page already offers the larger stage, the metadata
+and prev/next inside the filter context, so the two were two navigation models for the same
+photos — one too many, and the one with less in it was the modal. What the lightbox could do
+and the page could not has moved with it: the arrow keys and a horizontal swipe on the image
+stage now step through the neighbours (`usePhotoStepKeys`, pure decision logic with tests).
+With the dialog went the `?foto=<slug>` query, the async component and the scroll lock in
+`base.css`.
 
 **The `<h1>` of the detail page sits invisibly inside `<main>`.** The design gives the title
 to the sidebar and leaves the content area to the image alone. But a heading in the
@@ -392,8 +391,8 @@ pass congruent (unfiltered neighbours), after which the filter applies;
 that the filter only applies if the image occurs in it:
 `/photo/jetty-against-the-light?tag=sailing` is a hand-built or stale link, and without this
 check it would show "00 / 04" with no neighbours and a way back into a gallery without that
-image. Prev/next pass `?tag=` along, and the ← and → arrow keys do the same — with guards
-against modifiers, input fields and an open dialog. The canonical is stated without a query.
+image. Prev/next pass `?tag=` along, and so do the arrow keys and the swipe — with guards
+against modifiers and input fields. The canonical is stated without a query.
 
 **On the detail page the sidebar swaps its foot rather than gaining a second one.** Down
 there sit prev/next, the counter and the legal links (`PhotoAsideFoot`); `SiteFoot` with
@@ -566,6 +565,21 @@ so its foot could take the `foot` grid area — but it would then sit before `<m
 DOM while appearing after it, which is the reading-order problem noted for the mobile
 detail page below. Two instances, one hidden, keeps reading order and visual order
 together; the cost is a duplicated subtree in the markup.
+
+**Review round 1, 2026-09-05: the three findings that changed values, not structure.** The
+navigation items are 20 px (`--text-nav-item-size` in the project block), not the 11 px
+`.t-ui` size they shared with counters and micro labels — three links in a 220 px column are
+the primary navigation and read as such only above the size the site uses for footnotes.
+Family, capitals and letter spacing are unchanged, as are the 2 px active marker and the
+hover, which still only brightens the text. The home page and the detail page open with
+`--space-4` at the top, the padding every other page gets from its header block; below
+768 px it is `--space-2`, because the sticky top bar already separates the page from the
+edge. And prev/next on the detail page is one row — previous left, next right, the counter
+centred between them in a three-column grid, so a missing neighbour leaves its cell empty
+instead of pulling the counter off centre. Each control is 44 px tall and its arrow is an
+inline SVG chevron: the ← and → glyphs came from whatever the system font had, at whatever
+weight it had. The visible words are gone because the row has 124 px at the 180 px sidebar
+width; they stay as the links' accessible names.
 
 **`prettier --check` is not part of `pnpm lint`** yet. Files untouched by this package fail
 it, and formatting them would put a repo-wide reflow into a diff that is about something

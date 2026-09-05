@@ -49,7 +49,7 @@ export function stripLocale(path: string): string {
   return path
 }
 
-/** Drops query and hash: `?tag=`/`?foto=` are views of a page, not pages. */
+/** Drops query and hash: `?tag=` is a view of a page, not a page. */
 export function pagePath(path: string): string {
   return path.split(/[?#]/)[0] ?? path
 }

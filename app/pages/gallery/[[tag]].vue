@@ -12,20 +12,12 @@
       </p>
     </div>
 
-    <PhotoGrid :photos="visible" @open="onOpen" />
-
-    <!-- Loaded only when opened; the gallery is where the bundle can carry the
-         least weight. The `hydrated` gate keeps the first client render equal to
-         the prerendered HTML: `/gallery?foto=x` is the same static file as
-         `/gallery`. -->
-    <LightboxAsync v-if="hydrated && isOpen" :photos="visible" />
+    <PhotoGrid :photos="visible" />
   </div>
 </template>
 
 <script setup lang="ts">
 definePageMeta({ aside: 'gallery' })
-
-const LightboxAsync = defineAsyncComponent(() => import('~/components/LightboxRoot.vue'))
 
 const route = useRoute()
 const { photos, knownTag } = usePhotos()
@@ -45,16 +37,6 @@ if (route.params.tag && tag.value === null) {
 const visible = computed(() => filterByTag(photos, tag.value))
 
 const heading = computed(() => (tag.value === null ? t('gallery.title') : tagText(tag.value)))
-
-const { isOpen, open } = useLightbox(visible)
-
-// The `?foto=<slug>` deep link may only take effect after hydration: the
-// prerendered page has no query.
-const hydrated = useHydrated()
-
-function onOpen(slug: string) {
-  void open(slug)
-}
 
 useSiteSeo({
   // The document title names the section as well; the visible <h1> is just the
