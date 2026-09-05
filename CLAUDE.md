@@ -63,13 +63,6 @@ All three know `--help`.
   in `app/i18n/{en,de}.json`, read through `useI18n()` — no plain text in components. Link
   through `path('/gallery')` so links stay in the current language; photo titles come from
   the index (`photoTitle`/`photoAlt`). See "Internationalisation".
-- **The start-page clip follows the same rules as the photographs**: renditions in the
-  private `content/video/<slug>/`, served from `/video/<slug>/…` by convention
-  (`shared/utils/video.ts`), never in this repo, and absent without the submodule — in
-  which case the home page falls back to its hero photograph.
-- **Theme**: `data-theme` on `<html>`, the choice in `localStorage` (never a cookie),
-  default from `prefers-color-scheme`. The one inline head script
-  (`shared/utils/theme.ts`) applies it before the first paint and marks the intro.
 - No colour values hard-coded in Vue files — only tokens from `tokens.css` (the one colour
   correction lives in the project block there; the light palette is a P11 placeholder).
 - **Read `AGENTS.md` before every change.**

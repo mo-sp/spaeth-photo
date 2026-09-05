@@ -472,14 +472,32 @@ gallery's order, each at the height the grid tiles had (`--curated-h`) and in it
 ratio, and it moves: while the pointer is on it, it scrolls to the left at 48 px per second
 and stops when the pointer leaves. It loops by rendering the list twice and wrapping the
 offset once the first copy has scrolled out — the arithmetic is one pure function
-(`advanceStrip` in `app/composables/usePhotoStrip.ts`, with tests), the motion is
-`requestAnimationFrame` and a `transform`, never a layout property. The second copy is
+(`advanceStrip` in `app/composables/usePhotoStrip.ts`, with tests). The second copy is
 `aria-hidden` and out of the tab order; the same 26 links twice would be noise. Where the
 strip must not move by itself — a coarse pointer has no hover to leave, `prefers-reduced-motion`
 is a request, and a list narrower than the visible area would show a gap at every wrap — the
-copy is not rendered at all and the strip is a plain scrollable row with `scroll-snap`. That
-fallback is the CSS default and the enhancement is added by script, so the delivered HTML is
-the version that works without JavaScript. With the row went the "All photos" link and the
+copy is not rendered at all and the strip is a plain scrollable row. That fallback is the CSS
+default and the enhancement is added by script, so the delivered HTML is the version that
+works without JavaScript.
+
+**In P12 the drift and the reader move the same number** (deviation from the sentence above,
+which said the motion was a `transform` and never a layout property). The strip became freely
+scrollable — touch, trackpad, wheel — and the drift writes `scrollLeft` too, because two
+mechanisms moving one row have to compose rather than fight: a transform on top of a scroll
+offset would double the distance and fight the reader's own gesture. `scroll-snap` went with
+it: a row one moves through is not a carousel of positions. `requestAnimationFrame` still
+drives the drift, and the cost of writing a scroll offset per frame instead of a transform is
+one that the row — a flat list of fixed-width cells, no filters, its own stacking context —
+does not pay noticeably. The wrap is now a jump of one whole copy in `scrollLeft` and is
+invisible for the same reason it always was: at the wrap the pixels under the viewport are the
+second copy, and the two copies are the same list at the same widths.
+
+A plain mouse wheel has no horizontal axis, so the row takes the vertical delta — but only
+where that moves something. The delta is clamped into the scrollable range and the default is
+prevented only where the clamped value differs from the current one, so the last fraction of a
+notch is reachable at either end and the gesture returns to the page the moment the row is
+against a stop. Refusing an overshooting notch outright, as the first version did, made both
+untrue at once: the end of the row was unreachable and the scroll was swallowed there. With the row went the "All photos" link and the
 photo count beneath it: the strip _is_ all photos, and the count said nothing the gallery
 does not. `featured` and `order` stay in the schema and `curated()` stays in
 `shared/utils/photos.ts` — the hero still comes from the YAML, and phase 2 may want a
@@ -496,13 +514,14 @@ little. The strip below it keeps its tile height at every width instead: a row o
 sideways does not need the tiles to grow, and a fixed height is the one thing that lets the
 loop measure its span before the first image has decoded.
 
-**„Licht / Schatten" (light / shadow) is the `<h1>` of the home page.** The project's motif
-stands as its own band below the hero caption: `Licht` italic at 400 and in full text
-colour, a mono slash at 11 px as the hinge, `Schatten` upright at 600 and muted. The heading
-of the home page is thereby the statement of the site and not the word „Start" (home); the
-wordmark in the sidebar remains a link. The page title is set here without the
-`%s – Moritz Späth` template as an exception (`titleTemplate: null`), because otherwise the
-tab would read „Start – Moritz Späth" or the name would appear twice.
+**„Licht / Schatten" (light / shadow) is the `<h1>` of the home page.** `Licht` italic at 400
+and in full text colour, a mono slash at 11 px as the hinge, `Schatten` upright at 600 and
+muted. The heading of the home page is thereby the statement of the site and not the word
+„Start" (home); the wordmark in the sidebar remains a link. Until P12 it stood as its own band
+below the hero caption; over the background clip it is the full-height stage instead, and the
+two words became the theme switch — see "Start page: brand, clip and theme". The page title is
+set here without the `%s – MS-Media` template as an exception (`titleTemplate: null`), because
+otherwise the tab would read „Start – MS-Media" or the name would appear twice.
 
 **The three text pages share one component, not three stylesheets.** `<DocPage title>`
 brings the header bar and the column with a 62-character line length; the typography of
@@ -616,8 +635,10 @@ content does. It is `vw`, not `vh`, because a phone is taller than a laptop and 
 value would give the phone the largest distance of all; and not a percentage, because
 vertical padding resolves against the container _width_. `--text-wordmark-size:
 clamp(15px, 0.26vw + 13px, 18px)` lifts the wordmark off the 13 px nav size by the ~40 % the
-review asked for at the top end, while both lines still fit the 180 px sidebar; its line
-height stays 1.3, which is what keeps the dots of the Ä inside the line box.
+review asked for at the top end, while it still fits the 180 px sidebar. It was two lines with
+an Ä while the wordmark was the name; since P12 it is „MS-Media" on one line and neither the
+break nor the umlaut is at stake, but the line height stays 1.3 — the value the type was set
+at, and nothing asks for it to change.
 
 _The sidebar grows instead of scrolling._ `.side` is `min-height: 100dvh` with no inner
 scroll region; the `overflow-y: auto` that used to let the metadata block scroll is gone,
@@ -688,6 +709,11 @@ impatience. It is therefore visible from the first frame — mono, faint, on its
 bottom centre — and it stores the palette already on screen, so it is a decision and not an
 evasion. Whether it survives the design round is P11's to say.
 
+These are prototype mechanics, and they are written down here rather than in `CLAUDE.md`:
+the rulebook records what every change has to obey, and the clip convention and the theme
+switch are both P11's to confirm or replace. What does belong there is the hard rule that
+`public/video/` is never committed, and the command that produces the renditions.
+
 **Theme.** `data-theme` on `<html>`, the choice in `localStorage` under `ms-theme` — never
 a cookie (hard rule, and hence no banner). Unset, the palette follows
 `prefers-color-scheme`, which is a CSS media query and needs no script. `useTheme()` reads
@@ -699,12 +725,15 @@ does not stand there again on the next visit.
 **The clip.** Renditions live in the private content repo under `content/video/<slug>/`
 and are served from `/video/<slug>/…` — the same convention as the photographs
 (`shared/utils/video.ts`), and the same rule: generated files never enter this repository.
-Nitro serves the directory as a second public asset root and copies it into
-`.output/public` at build time, so there is no copy step and nothing to gitignore beyond
-`public/video/`. `scripts/encode-video.ts` writes 1080p and 720p H.264 MP4, a 720p VP9
+Nitro serves the directory as a second public asset root, so the renditions are reachable in
+dev and land in `.output/public` at build time without a copy step of ours; `public/video/`
+never exists, and the `.gitignore` line for it is insurance against someone creating it by
+hand rather than a rule about generated output. `scripts/encode-video.ts` writes 1080p and 720p H.264 MP4, a 720p VP9
 WebM and a poster frame from a source clip that lives outside every repository; audio,
 subtitles, the camera's data stream and all metadata are dropped, and a rendition taller
-than the source is never written.
+than the source is never written. Unlike a photograph's slug, a clip's is not a product URL
+and is not immutable: it names a background, nothing links to it, and replacing the prototype
+clip `motorway-drive` — or renaming it — breaks no rule.
 
 Delivery is poster-first: the `<video>` element carries only `poster` and
 `preload="none"`, and its `<source>` elements appear only once the page has decided to
@@ -1059,27 +1088,38 @@ adjust. The fix helps every visitor on Windows, macOS and iOS and is inert elsew
 `NUXT_PUBLIC_SITE_URL` unset in both runs, so the SEO score is not comparable to the
 table above; before = one run, after = five runs):
 
-| `/` mobile | perf           | FCP       | LCP       | TBT      | CLS   |
-| ---------- | -------------- | --------- | --------- | -------- | ----- |
-| before P12 | 95             | 2.0 s     | 2.7 s     | 40 ms    | 0     |
-| after P12  | **94** (94–96) | 1.7–2.1 s | 2.6–2.8 s | 30–50 ms | **0** |
+| `/` mobile | perf           | FCP       | LCP       | SI               | TBT      | CLS   | transfer   | SEO    |
+| ---------- | -------------- | --------- | --------- | ---------------- | -------- | ----- | ---------- | ------ |
+| before P12 | 95             | 2.0 s     | 2.7 s     | 2027 ms          | 40 ms    | 0     | 390 KB     | 85     |
+| after P12  | **94** (94–96) | 1.7–2.1 s | 2.6–2.8 s | **2370–2536 ms** | 30–50 ms | **0** | **630 KB** | **83** |
 
-The clip does not move the metrics, and the reason is worth stating rather than
-celebrating: Lighthouse always sees a first visit, so it measures the intro. The LCP
-element changes from the hero photograph to the intro wordmark — text, in the prerendered
-HTML, needing no request of its own; its breakdown is time to first byte plus render delay
-and no resource load at all. The poster frame is 35 KB, and the 1.1 MB rendition is
-requested only after the first beat, 1.4 s in, by which time LCP is settled. So the number
-is honest for a first visit but says nothing about how long the visitor waits before seeing
-the _page_: that is the length of the intro, by design, and a design decision rather than a
-performance one.
+**The LCP number is the one to distrust, in both directions.** Lighthouse reports 2.6–2.8 s
+and picks the intro wordmark, but that is not what a visitor's browser ends up reporting.
+Measured in the page itself, the final LCP candidate on a first visit is the choice button
+("Shadow") at **≈4.3 s** — hydration plus the 2.9 s beat the choice waits for, which is the
+sequence working exactly as designed. Lighthouse's run is over before that candidate exists,
+so its figure is not wrong so much as early. In the other direction, a _returning_ visitor —
+no intro, the page straight away — gets an LCP element of a 10 px line in the sidebar foot
+at **80 ms**: a flattering number that measures nothing anyone came for. Neither figure is
+worth optimising against. The timings of the beats are a design decision, not a performance
+one, and they are the owner's to set.
 
-One consequence of the overlay does need watching: while the page is `visibility: hidden`
-beneath it, axe skips the whole subtree, and Lighthouse reports `image-alt`,
-`heading-order`, `list`, `listitem` and `valid-lang` as _not applicable_ on `/`. The 100
-for accessibility on that page is therefore a weaker statement after P12 than before it —
-it audits the overlay, not the page. The page's own audits still hold; they have to be read
-on a route without an intro (`/gallery`, `/photo/<slug>`) or on a second visit.
+What the clip does cost is real and small: the Speed Index rises by 17–25 % (2027 ms →
+2370–2536 ms) because the first seconds of the page are a wordmark on an empty ground rather
+than a photograph, and the transfer of `/` grows from 390 KB to 630 KB — the WebM rendition,
+requested only after the first beat, 1.4 s in. The poster frame is 35 KB. CLS stays at 0 and
+TBT does not move.
+
+Two consequences of the overlay are artefacts of the audit rather than regressions, and both
+have the same cause: while the page is `visibility: hidden` beneath the intro, axe skips the
+whole subtree. Lighthouse then reports `image-alt`, `heading-order`, `list`, `listitem` and
+`valid-lang` as _not applicable_ on `/` — which is why accessibility's 100 on that page is a
+weaker statement after P12 than before it (it audits the overlay, not the page), and why SEO
+drops 85 → 83: `image-alt` is one of its weighted audits, and an audit that does not apply
+scores nothing. Nothing about the images changed. Both runs had `NUXT_PUBLIC_SITE_URL`
+unset, which is what keeps the SEO score below 100 in the first place. The page's own audits
+still hold; they have to be read on a route without an intro (`/gallery`, `/photo/<slug>`)
+or on a second visit.
 
 **Two optimisations that were measured and rejected.** Both are the kind that get added on
 faith:
