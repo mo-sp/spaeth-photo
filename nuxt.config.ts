@@ -87,7 +87,11 @@ export default defineNuxtConfig({
       // Query-Varianten (`?foto=…`) sind derselbe Inhalt; sie zu prerendern
       // würde Dateien mit Fragezeichen im Namen erzeugen.
       ignore: [/\?/],
-      routes: ['/', ...indexRoutes()],
+      // sitemap.xml and robots.txt are Nitro routes (server/routes/), not
+      // files in public/: both need the absolute site URL, which only exists
+      // once NUXT_PUBLIC_SITE_URL is set for the build. Nothing links to them,
+      // so crawlLinks would never reach them.
+      routes: ['/', '/sitemap.xml', '/robots.txt', ...indexRoutes()],
     },
   },
 })

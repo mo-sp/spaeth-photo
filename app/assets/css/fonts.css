@@ -3,6 +3,15 @@
    deckt die deutschen Umlaute und ß ab). Lizenz beider Familien: SIL OFL 1.1,
    siehe public/fonts/LICENSE-OFL.txt.
 
+   The three files are subset further, to the characters this site renders and
+   to the weight range declared below: 105 KB -> 53 KB. `scripts/subset-fonts.sh`
+   does it and documents the character set; changing a `font-weight` here means
+   re-running it. Two consequences worth knowing: U+2190/U+2192 (the arrows) and
+   U+2261 (the mobile menu glyph) are not in Google's `latin` subset and were
+   never in these files, so they render from a system font; and the weight
+   ranges below are now the literal capability of the files, not a subset of a
+   wider axis.
+
    Hinweis: Google liefert für beide Familien Variable Fonts aus — pro Familie und
    Stil genau eine Datei, die den ganzen Gewichtsbereich abdeckt. Statt fünf bzw.
    zwei Einzelschnitten liegen deshalb drei Dateien in public/fonts/; die
@@ -34,4 +43,89 @@
   font-weight: 400 500;
   font-display: swap;
   src: url('/fonts/jetbrains-mono-variable.woff2') format('woff2');
+}
+
+/* ---------------------------------------------------------------------------
+   Metric-matched fallbacks.
+
+   `font-display: swap` shows the fallback font first and repaints once the
+   webfont arrives. If the two differ in width or line height, that repaint
+   moves text: Lighthouse measured CLS 0.129 on /ueber, blamed on exactly these
+   two font loads, on a page whose layout is otherwise perfectly stable.
+
+   The fix is not to remove `swap` (invisible text is worse than moved text)
+   and not to preload (the fonts would compete with the LCP image, which is the
+   photograph). It is to make the fallback occupy the same space: the four
+   override descriptors scale a *local* font to the webfont's metrics, so the
+   swap changes the shape of the letters and nothing else.
+
+   How the numbers were derived - `size-adjust` is the ratio of mean advance
+   width between the webfont and the fallback, weighted by how often each
+   character actually occurs in the generated pages; the three overrides are
+   the webfont's own ascent/descent/line-gap (OS/2 sTypo*, upem 1000) divided
+   by that ratio, so the line box matches too. Measured with fontTools against
+   Liberation Sans and DejaVu Sans Mono, which are metrically compatible with
+   Arial and Menlo respectively. Re-derive them if a font is replaced; the
+   recipe is in docs/architecture.md, section "Fonts".
+
+   The families are referenced from the `--font-sans` / `--font-mono` stacks in
+   tokens.css. They carry no `src` URL - `local()` only, so they cost no
+   request.
+
+   Only fonts that are metrically compatible with the one the numbers were
+   computed against are listed, which is the whole discipline here: a
+   `size-adjust` derived from Arial and then applied to a font of a different
+   width makes the shift worse, not better. So Arial/Helvetica/Liberation
+   Sans/Arimo for the sans (all Arial-metric), and Menlo/DejaVu Sans
+   Mono/Liberation Mono/Cascadia Mono for the monospace (all 0.6 em advance;
+   Consolas at 0.55 em is deliberately absent). Where none of them exists the
+   declaration simply does not match, the next family in the stack takes over
+   unadjusted, and the site behaves exactly as it did before - the adjustment
+   can help or do nothing, but it cannot hurt.
+
+   Measured: /ueber on emulated mobile went from CLS 0.133 to 0.003 once an
+   Arial-metric font was present, which is also worth ~5 Lighthouse points. */
+
+@font-face {
+  font-family: 'Archivo Fallback';
+  font-style: normal;
+  src:
+    local('Arial'),
+    local('Helvetica Neue'),
+    local('Helvetica'),
+    local('Liberation Sans'),
+    local('Arimo');
+  size-adjust: 95.77%;
+  ascent-override: 91.68%;
+  descent-override: 21.93%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Archivo Fallback';
+  font-style: italic;
+  src:
+    local('Arial Italic'),
+    local('Helvetica Neue Italic'),
+    local('Helvetica Oblique'),
+    local('Liberation Sans Italic'),
+    local('Arimo Italic');
+  size-adjust: 95.01%;
+  ascent-override: 92.41%;
+  descent-override: 22.1%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono Fallback';
+  font-style: normal;
+  src:
+    local('Menlo'),
+    local('DejaVu Sans Mono'),
+    local('Liberation Mono'),
+    local('Cascadia Mono');
+  size-adjust: 99.66%;
+  ascent-override: 102.35%;
+  descent-override: 30.1%;
+  line-gap-override: 0%;
 }

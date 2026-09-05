@@ -5,7 +5,7 @@
       :key="photo.slug"
       class="tile tile-focus"
       :data-slug="photo.slug"
-      :href="`/foto/${photo.slug}`"
+      :href="`/foto/${photo.slug}${tagQuery}`"
       :style="{ aspectRatio: `${photo.width} / ${photo.height}`, backgroundColor: photo.color }"
       @click="onTileClick($event, photo.slug)"
     >
@@ -48,6 +48,22 @@ const TILE_SIZES = [
 ].join(', ')
 
 const eager = computed(() => eagerCount(props.photos))
+
+/**
+ * The href carries the active filter, the click does not need to.
+ *
+ * A middle click, "open in new tab" and a visit without JavaScript all follow
+ * the href, so without the query they would land on the unfiltered neighbours
+ * while a plain click keeps the filter. `parseTag` is the guard: on routes
+ * without a tag parameter (the home page uses this grid too) it yields null.
+ * The detail page's canonical link stays query-free, and
+ * `nitro.prerender.ignore` keeps `?tag=` out of the generated files.
+ */
+const route = useRoute()
+const tagQuery = computed(() => {
+  const tag = parseTag(route.params.tag)
+  return tag === null ? '' : `?tag=${tag}`
+})
 
 /**
  * Die Kachel ist und bleibt ein Link auf die Detailseite: ohne JavaScript,

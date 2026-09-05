@@ -14,7 +14,10 @@ Doku und messbare Performance sind Teil des Ziels.
 - Eigenes CSS mit Custom Properties (`app/assets/css/tokens.css`). Kein Tailwind, kein UI-Framework.
 - Bildverarbeitung: eigene Sharp-Skripte (`scripts/export-sources.ts`, `scripts/build-images.ts`),
   kein @nuxt/image. Tests mit vitest.
-- Schriften Archivo und JetBrains Mono selbst gehostet in `public/fonts/`.
+- Schriften Archivo und JetBrains Mono selbst gehostet in `public/fonts/`, subgesetzt
+  (`scripts/subset-fonts.sh`, 105 → 53 KB).
+- `sitemap.xml` und `robots.txt` sind Nitro-Routen unter `server/routes/`, keine statischen
+  Dateien: beide brauchen die absolute Site-URL aus `NUXT_PUBLIC_SITE_URL` (Build-Variable).
 
 ## Kommandos
 
@@ -31,6 +34,7 @@ Doku und messbare Performance sind Teil des Ziels.
 | `pnpm typecheck`              | `nuxt typecheck` + `tsc -p tsconfig.scripts.json` (baut vorher die Bilder) |
 | `pnpm test`                   | vitest, nur Unit-Tests (< 1 s)                                             |
 | `pnpm test:integration`       | Farb-Regressionstest der Bild-Pipeline (kodiert echte Bilder)              |
+| `scripts/subset-fonts.sh`     | Schriften neu subsetten (nur nötig, wenn Zeichenvorrat/Gewicht sich ändern) |
 
 Flags von `build-images`: `--dry-run` (nichts schreiben oder löschen), `--force` (Cache
 ignorieren), `--only <slug>`, `--strict` (Warnungen als Fehler, für CI), `--source-dir <dir>`

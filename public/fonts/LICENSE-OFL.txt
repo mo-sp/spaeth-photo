@@ -19,6 +19,23 @@ Die Dateien sind die `latin`-Subsets, wie sie die Google-Fonts-API am
 2026-08-29 ausgeliefert hat, und werden hier selbst gehostet, damit beim
 Seitenaufruf kein Request an Dritte entsteht.
 
+Änderung gegenüber dem Original: SUBSET
+---------------------------------------
+Alle drei Dateien sind veränderte Fassungen. Sie wurden mit fontTools auf den
+Zeichenvorrat reduziert, den diese Seite tatsächlich darstellt, und ihre
+Gewichtsachse wurde auf den in `app/assets/css/fonts.css` deklarierten Bereich
+begrenzt (Archivo 400–600 bzw. kursiv 400–500, JetBrains Mono 400–500).
+Zusammen 105 KB → 53 KB. Der genaue Vorgang steht in `scripts/subset-fonts.sh`
+und ist damit wiederholbar; die unveränderten Originale sind über die oben
+genannten Projektseiten und die Google-Fonts-API weiterhin erhältlich.
+
+Die OFL erlaubt das ausdrücklich (Ziffer 1: „in Original or Modified
+Versions"). Die Bedingungen bleiben gewahrt: die Schriften werden nicht
+einzeln verkauft, dieser Lizenzhinweis liegt ihnen bei, und die Reservierten
+Namen „Archivo" und „JetBrains Mono" werden nicht verändert weitergegeben —
+die Dateien tragen weiterhin die Originalnamen, weil sie unveränderte
+Buchstabenformen der Originale enthalten und nur deren Umfang beschränken.
+
 Bedingungen der OFL-1.1 in Kürze: Die Schriften dürfen frei verwendet,
 eingebettet, verändert und weitergegeben werden, solange dies unter derselben
 Lizenz und nicht unter dem Namen des ursprünglichen Autors geschieht; sie

@@ -58,12 +58,11 @@
 </template>
 
 <script setup lang="ts">
-const { siteUrl } = useRuntimeConfig().public
-
-useSeoMeta({
+useSiteSeo({
   title: 'Impressum',
-  description: 'Anbieterkennzeichnung nach § 5 DDG für diese Seite.',
+  description:
+    'Anbieterkennzeichnung nach § 5 DDG für diese Seite.',
+  path: '/impressum',
+  ogType: 'website',
 })
-
-useHead({ link: [{ rel: 'canonical', href: absoluteUrl(siteUrl, '/impressum') }] })
 </script>

@@ -113,6 +113,14 @@
     rgba(8, 9, 11, 0) 100%
   );
 
+  /* Font stacks with the metric-matched fallback families in front of the
+     generic ones. The handoff line above is untouched; this override only
+     inserts the adjusted families, which occupy the same space as the webfont
+     and so remove the layout shift the swap used to cause (see fonts.css).
+     Same families, same order, same generic ending. */
+  --font-sans: 'Archivo', 'Archivo Fallback', Helvetica, Arial, sans-serif; /* 400 / 500 / 600 */
+  --font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', ui-monospace, monospace; /* 400 / 500 */
+
   /* KORREKTUR gegenüber dem Handoff.
      #5E6874 auf #08090B ergibt 3,52:1. Das reicht für 10-px-Text nicht für
      WCAG AA (4,5:1) — und faint trägt genau die 10-px-Labels, Zähler und
