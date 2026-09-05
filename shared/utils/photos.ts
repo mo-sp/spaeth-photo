@@ -123,3 +123,25 @@ export function eagerCount(
 export function padCounter(value: number): string {
   return String(value).padStart(2, '0')
 }
+
+/**
+ * Die kuratierte Auswahl der Startseite.
+ *
+ * `featured` sagt, welche Bilder überhaupt in Frage kommen, `order` in welcher
+ * Reihenfolge — beides steht im YAML und ist damit eine Entscheidung des
+ * Fotografen, keine des Codes. Bilder ohne `order` hängen sich hinten an
+ * (nach Slug), damit ein vergessenes Feld die Reihe nicht umsortiert. Die
+ * Zahl der gezeigten Bilder ist ein Argument, weil sie am Layout hängt: eine
+ * volle Reihe des 5-spaltigen Rasters.
+ */
+export function curated(photos: readonly PhotoIndexEntry[], limit = 5): PhotoIndexEntry[] {
+  return photos
+    .filter((photo) => photo.featured)
+    .sort((a, b) => {
+      const orderA = a.order ?? Number.MAX_SAFE_INTEGER
+      const orderB = b.order ?? Number.MAX_SAFE_INTEGER
+      if (orderA !== orderB) return orderA - orderB
+      return a.slug.localeCompare(b.slug, 'en')
+    })
+    .slice(0, limit)
+}

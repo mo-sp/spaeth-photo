@@ -122,3 +122,21 @@
      content/OFFEN.md). */
   --color-text-faint: #767f8b;
 }
+
+@media (max-width: 767px) {
+  :root {
+    /* KORREKTUR gegenüber dem Handoff (dort `--hero-h: 60vh`).
+       Eine Höhe in vh koppelt die Anzeigebreite eines `cover`-Bilds vom
+       Viewport ab: `sizes` kann sie nicht ausdrücken, und der Browser wählt
+       die Stufe nach einer Breite, die nicht stimmt — ausgerechnet beim
+       LCP-Bild. Mobil ist der Hero deshalb breitengetrieben: Höhe auto, das
+       Format kommt aus `aspect-ratio: 3/2` in der Startseite. */
+    --hero-h: auto;
+
+    /* Die Auswahlreihe wird zur Spalte: fünf Kacheln nebeneinander sind auf
+       390 px je 70 px breit. Ohne feste Höhe bestimmt auch hier die Breite das
+       Format. */
+    --curated-cols: 1;
+    --curated-h: auto;
+  }
+}

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { PhotoIndexEntry, Tag } from '../../types/photo.ts'
-import { eagerCount, filterByTag, neighbours, padCounter, sortPhotos, tagCounts } from '../photos.ts'
+import {
+  curated,
+  eagerCount,
+  filterByTag,
+  neighbours,
+  padCounter,
+  sortPhotos,
+  tagCounts,
+} from '../photos.ts'
 
 /** Nur die Felder, die die reinen Funktionen anfassen. */
 function photo(slug: string, options: Partial<PhotoIndexEntry> = {}): PhotoIndexEntry {
@@ -166,5 +174,28 @@ describe('padCounter', () => {
   it('lässt zwei- und dreistellige Zahlen unangetastet', () => {
     expect(padCounter(14)).toBe('14')
     expect(padCounter(104)).toBe('104')
+  })
+})
+
+describe('curated', () => {
+  const pool = [
+    photo('e', { featured: false, order: 1 }),
+    photo('c', { featured: true, order: 3 }),
+    photo('a', { featured: true, order: 1 }),
+    photo('d', { featured: true, order: null }),
+    photo('b', { featured: true, order: 2 }),
+  ]
+
+  it('nimmt nur featured und sortiert nach order', () => {
+    expect(curated(pool, 3).map((entry) => entry.slug)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('hängt Bilder ohne order hinten an', () => {
+    expect(curated(pool, 10).map((entry) => entry.slug)).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('deckelt auf die Zahl der Kacheln', () => {
+    expect(curated(pool, 2)).toHaveLength(2)
+    expect(curated([], 5)).toEqual([])
   })
 })

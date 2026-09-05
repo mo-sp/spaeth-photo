@@ -425,6 +425,46 @@ vom Verlauf nur noch rund ein Drittel bis die Hälfte übrig, und über einem he
 bei 60 % hält die Deckkraft dort, wo der Text steht, und lässt den Verlauf darüber
 weiterhin weich auslaufen; sichtbar ändert sich nur, dass die Unterschrift lesbar bleibt.
 
+**Die Startseite zeigt fünf kuratierte Bilder, nicht sechs bis neun** (Abweichung von
+PLAN.md). Das Raster der Spec hat fünf Spalten; sechs Bilder brechen in eine zweite Reihe
+um, in der vier Plätze leer bleiben. Fünf ist die einzige Zahl, die eine volle Reihe ergibt
+— und eine Auswahl, die man auf einen Blick fasst, ist ohnehin der Punkt. Welche Bilder es
+sind und in welcher Reihenfolge, steht als `featured` und `order` im YAML: eine Entscheidung
+des Fotografen, keine des Codes (`curated()` in `shared/utils/photos.ts`, mit Tests).
+
+**Der Hero ist mobil breitengetrieben — und `sizes` sagt 100vw, nicht 66vw.** Der Handoff
+setzt unter 768 px `--hero-h: 60vh`. Eine Höhe in Viewporthöhen koppelt aber bei
+`object-fit: cover` die Anzeigebreite vom Viewport ab, und genau diese Breite ist das
+Einzige, was `sizes` ausdrücken kann: der Browser wählte die Stufe nach einer Zahl, die
+nicht stimmt — ausgerechnet für das LCP-Bild. Mobil ist der Hero deshalb 3:2 bei
+`height: auto` (`--hero-h` im Projekt-Block überschrieben). Damit ist seine Breite exakt
+100vw, und das steht auch in `sizes`; die im Vorurteil genannten 66vw stammen aus der
+60vh-Fassung und wären jetzt ein Drittel zu wenig. Dieselbe Überlegung gilt für die
+Auswahlreihe: unter 768 px wird sie einspaltig (`--curated-cols: 1`, `--curated-h: auto`,
+3:2) statt fünf Kacheln à 70 px.
+
+**„Licht / Schatten" ist die `<h1>` der Startseite.** Das Motiv des Projekts steht als
+eigene Bande unter der Hero-Caption: `Licht` kursiv in 400 und voller Textfarbe, ein
+Mono-Schrägstrich in 11 px als Scharnier, `Schatten` aufrecht in 600 und gedämpft. Die
+Überschrift der Startseite ist damit die Aussage der Seite und nicht das Wort „Start"; die
+Wortmarke in der Seitenleiste bleibt ein Link. Der Seitentitel wird hier ausnahmsweise ohne
+die Vorlage `%s – Moritz Späth` gesetzt (`titleTemplate: null`), sonst stünde im Tab
+„Start – Moritz Späth" oder der Name zweimal.
+
+**Die drei Textseiten teilen eine Komponente, nicht drei Stylesheets.** `<DocPage title>`
+bringt die Kopfleiste und die Spalte mit 62 Zeichen Zeilenlänge mit; die Typografie von
+Überschriften, Absätzen, Listen und Definitionslisten greift über `:deep()` in den
+Slot-Inhalt. Die Seiten selbst enthalten deshalb nur Text in einfachem HTML — was sie
+unterscheidet, ist ihr Inhalt, und das soll man auch beim Lesen des Quelltexts sehen.
+Abschnittsüberschriften sind Mikro-Labels in Mono mit Hairline, kein zweiter Titelgrad: die
+Seite kennt nur eine Textgröße für Fließtext und eine für Labels. Offene Angaben stehen als
+sichtbarer Text „TODO: …" mit Rahmen auf der Seite, nicht als Kommentar im Quelltext — was
+fehlt, soll beim Lesen auffallen und sich im erzeugten HTML finden lassen. Impressum und
+Datenschutz sind ausdrücklich Entwürfe: § 5 DDG ohne ODR-Klausel (die Schlichtungsstelle
+gilt für Verbraucherverträge, die es hier nicht gibt), Datenschutz mit Server-Logs,
+lokalen Schriften, metadatenfreien Bildern und der Aufsichtsbehörde — jeweils mit einem
+TODO für die Rechtsprüfung.
+
 **Kein `overflow: hidden` auf Mono-Versalien mit `line-height: 1`.** Die Spec setzt die
 Mikro-Labels auf 10 bzw. 11 px bei Zeilenhöhe 1; der Zeilenkasten ist damit genau so hoch
 wie die Schrift, und `overflow: hidden` schneidet ab, was darüber hinausragt — die Punkte
