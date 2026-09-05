@@ -90,10 +90,14 @@
      itself, not decoration, and 160 ms would read as a jump cut. */
   --t-intro: 900ms ease;
 
+  /* The clip changes with the palette, and a cut between two moving pictures
+     reads as a fault. Longer than a hover (the eye has to accept a new
+     picture), far shorter than the intro (nothing is being staged). */
+  --t-clip: 320ms ease;
+
   /* The scrim between the background clip and the page. Dark mode dims the
      clip; the light values sit with the rest of the light palette below. */
   --video-scrim: rgba(8, 9, 11, 0.62);
-  --video-scrim-band: rgba(8, 9, 11, 0.22);
 
   /* Inactive filter label: the handoff's rgba(244,246,248,0.55) as an opacity on
      the text token (see TagFilter). A token, because the light palette needs a
@@ -156,6 +160,36 @@
      #767F8B reaches 4.9:1 in the same hue, still below muted (#7C8590, 5.3:1).
      Working assumption; the alternative is collapsing faint into muted. */
   --color-text-faint: #767f8b;
+
+  /* ---- Motto ----
+     "Light / Shadow" is the site's heading and its theme switch, and P11 gives
+     it two display faces of its own: a script for the light word, Archivo at
+     900 for the shadow word (see fonts.css). Sizes from the design canvas at a
+     1440 px viewport - 120/46 px on the page, 165/64 px in the intro - scaled
+     down to a phone with the slope between those two ends. The upright word and
+     the mono hinge are both 0.385 of the script size, so one number moves the
+     whole line. */
+  --font-motto: 'Italianno', 'Snell Roundhand', 'Segoe Script', cursive;
+  --motto-size: clamp(56px, 6.1vw + 32px, 120px);
+  --motto-size-intro: clamp(60px, 10vw + 21px, 165px);
+  --motto-caps-size: 0.385em;
+
+  /* The words keep their meaning when the ground changes: light is always the
+     pale one, shadow always the dark one. What changes is which of the two is
+     *executed* - the current palette's word is filled in, the other is faded
+     (the script, whose strokes an outline would break) or drawn as an outline
+     (the upright, which carries one well). That is the visible half of
+     `aria-pressed`, and it is expressed in CSS rather than in a class, so it is
+     right in the prerendered HTML and without JavaScript too.
+     Dark = shadow is the current palette. */
+  --motto-script-color: rgba(253, 252, 249, 0.45);   /* 4.4:1 on the page ground */
+  --motto-script-color-hover: rgba(253, 252, 249, 0.75);
+  --motto-script-glow: none;
+  --motto-caps-color: #0b0c0e;      /* filled: a silhouette against the clip */
+  --motto-caps-color-flat: #0b0c0e; /* the same, where text-stroke is unknown */
+  --motto-caps-stroke-width: 0;
+  --motto-caps-stroke-color: transparent;
+  --motto-caps-stroke-color-hover: transparent;
 }
 
 @media (max-width: 767px) {
@@ -169,12 +203,18 @@
 }
 
 /* ==========================================================================
-   SECOND THEME — placeholder, not from the handoff.
-   The handoff describes one palette; P11 designs the light one properly
-   ("both modes have to be genuinely beautiful"). Until then these values exist
-   to make the switch work: same hues, same roles, contrast checked against the
-   light background (text 16.2:1, muted 5.9:1, faint 4.7:1 — all AA). Photographs
-   are never filtered; only the surface around them changes.
+   SECOND THEME — not from the handoff.
+   The handoff describes one palette; the start page turns "Light / Shadow"
+   into a switch between two, and P11 designs the light one properly ("both
+   modes have to be genuinely beautiful"). A warm paper ground rather than a
+   grey one: the dark palette is cool and neutral, and the light side earns its
+   own character instead of being the same page inverted. Same roles, same
+   token names. Photographs are never filtered; only the surface around them
+   changes.
+
+   Contrast on the ground (#F2EFE9): text 15.3:1, muted 6.9:1, faint 5.1:1;
+   on the surface (#E8E4DB): 13.9 / 6.2 / 4.6:1. All AA at every size the
+   tokens carry.
 
    Two blocks on purpose. The system preference has to work without JavaScript,
    and an explicit choice has to beat it in both directions — which is one rule
@@ -182,26 +222,43 @@
    ========================================================================== */
 
 :root {
-  --light-bg: #f4f3ef;
-  --light-surface: #e8e6e0;
-  --light-line: #dfddd6;
-  --light-line-strong: #b4b0a6;
-  --light-text: #15171c;
-  --light-text-muted: #585e68;
-  --light-text-faint: #666d77;
+  --light-bg: #f2efe9;
+  --light-surface: #e8e4db;
+  --light-line: #ded9ce;
+  --light-line-strong: #b0a99a;
+  --light-text: #1a1916;
+  --light-text-muted: #565148;
+  --light-text-faint: #6a6459;
   --light-overlay-caption: linear-gradient(
     to top,
-    rgba(244, 243, 239, 0.92) 0%,
-    rgba(244, 243, 239, 0.8) 60%,
-    rgba(244, 243, 239, 0) 100%
+    rgba(242, 239, 233, 0.92) 0%,
+    rgba(242, 239, 233, 0.8) 60%,
+    rgba(242, 239, 233, 0) 100%
   );
-  /* The scrim between the background clip and the page. Dark mode dims it, light
-     mode washes it out — the two candidates P12 asks Moritz to judge. */
-  --light-video-scrim: rgba(244, 243, 239, 0.8);
-  --light-video-scrim-band: rgba(244, 243, 239, 0.24);
-  /* 0.55 of the dark text over the light ground is 3.9:1 — under AA for an
-     11 px label. 0.68 reaches 5.2:1 and still reads as the dimmer state. */
+  /* The scrim between the background clip and the page. Dark mode dims its clip
+     hard; light mode has a clip of its own that is already bright, so this is a
+     veil that settles it into the palette rather than the wash P12 tried. */
+  --light-video-scrim: rgba(242, 239, 233, 0.22);
+  /* 0.55 of the dark text over the light ground is 3.8:1 — under AA for an
+     11 px label. 0.68 reaches 5.7:1, close to the 5.9:1 the dark side's 0.55
+     gives, and still reads as the dimmer state. */
   --light-filter-inactive-opacity: 0.68;
+
+  /* The motto, light side: now "Light" is the current palette. The pale word is
+     filled and carries the dark halo that lifts it off a bright clip; the
+     upright word becomes an outline. The halo is not contrast in the WCAG sense
+     — see docs/architecture.md, "Start page". */
+  --light-motto-script-color: #fdfcf9;
+  --light-motto-script-color-hover: #fdfcf9;
+  --light-motto-script-glow: 0 2px 22px rgba(26, 25, 22, 0.55), 0 0 5px rgba(26, 25, 22, 0.3);
+  --light-motto-caps-color: transparent;
+  /* Without text-stroke a transparent fill is an invisible word, so the
+     @supports fallback fills it faintly instead: 4.2:1, above the 3:1 AA asks
+     of text this size. */
+  --light-motto-caps-color-flat: rgba(11, 12, 14, 0.55);
+  --light-motto-caps-stroke-width: 1.2px;
+  --light-motto-caps-stroke-color: rgba(11, 12, 14, 0.8);  /* 10.0:1 on the ground */
+  --light-motto-caps-stroke-color-hover: rgba(11, 12, 14, 1);
 }
 
 @media (prefers-color-scheme: light) {
@@ -216,8 +273,15 @@
     --color-text-faint: var(--light-text-faint);
     --overlay-caption: var(--light-overlay-caption);
     --video-scrim: var(--light-video-scrim);
-    --video-scrim-band: var(--light-video-scrim-band);
     --filter-inactive-opacity: var(--light-filter-inactive-opacity);
+    --motto-script-color: var(--light-motto-script-color);
+    --motto-script-color-hover: var(--light-motto-script-color-hover);
+    --motto-script-glow: var(--light-motto-script-glow);
+    --motto-caps-color: var(--light-motto-caps-color);
+    --motto-caps-color-flat: var(--light-motto-caps-color-flat);
+    --motto-caps-stroke-width: var(--light-motto-caps-stroke-width);
+    --motto-caps-stroke-color: var(--light-motto-caps-stroke-color);
+    --motto-caps-stroke-color-hover: var(--light-motto-caps-stroke-color-hover);
   }
 }
 
@@ -232,6 +296,13 @@
   --color-text-faint: var(--light-text-faint);
   --overlay-caption: var(--light-overlay-caption);
   --video-scrim: var(--light-video-scrim);
-  --video-scrim-band: var(--light-video-scrim-band);
   --filter-inactive-opacity: var(--light-filter-inactive-opacity);
+  --motto-script-color: var(--light-motto-script-color);
+  --motto-script-color-hover: var(--light-motto-script-color-hover);
+  --motto-script-glow: var(--light-motto-script-glow);
+  --motto-caps-color: var(--light-motto-caps-color);
+  --motto-caps-color-flat: var(--light-motto-caps-color-flat);
+  --motto-caps-stroke-width: var(--light-motto-caps-stroke-width);
+  --motto-caps-stroke-color: var(--light-motto-caps-stroke-color);
+  --motto-caps-stroke-color-hover: var(--light-motto-caps-stroke-color-hover);
 }
