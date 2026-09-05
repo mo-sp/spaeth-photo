@@ -18,6 +18,7 @@
 <script setup lang="ts">
 import { THEME_CLIPS } from '#shared/constants/video'
 import type { VideoSource } from '#shared/utils/video'
+import type { ClipSwapAction } from '~/composables/useSiteVideo'
 
 /**
  * The start page's moving background. Poster first, clip second: the `<source>`
@@ -49,13 +50,17 @@ const FADE_MS = 320
 const started = useVideoStarted()
 const clip = useTemplateRef<HTMLVideoElement>('clip')
 const sources = ref<VideoSource[]>([])
+/** The slug the element carries sources for; empty until the first load. */
+const showing = ref('')
 const swapping = ref(false)
 const allowed = ref(false)
 
 /** Read once, on mount: the rendition is chosen for the viewport the visit began in. */
 let viewport = 0
-/** Ends a fade that is still running, at its own time or because the page left. */
-let endFade: (() => void) | undefined
+/** Runs of `show()`, so a run that wakes from its fade can tell it was overtaken. */
+let latest = 0
+/** Cuts short every fade still waiting; each run adds and removes its own. */
+const fades = new Set<() => void>()
 
 onMounted(() => {
   viewport = window.innerWidth
@@ -67,10 +72,14 @@ onMounted(() => {
   }
 })
 
-// Cut short rather than merely cancelled: a navigation during the fade must not
-// leave the timer firing into a component that is gone, and must not leave the
-// wait below pending either.
-onBeforeUnmount(() => endFade?.())
+// Cut short rather than merely cancelled: a navigation during a fade must not
+// leave a timer firing into a component that is gone, and must not leave the
+// wait below pending either. Bumping the run first makes every waking run
+// abandon, so none of them writes on the way out.
+onBeforeUnmount(() => {
+  latest += 1
+  for (const cutShort of [...fades]) cutShort()
+})
 
 watch([allowed, started, () => props.slug], ([mayPlay, wanted]) => {
   if (mayPlay && wanted) void show()
@@ -87,28 +96,34 @@ function savesData(): boolean {
 /**
  * Puts the current palette's clip on screen. A first start is immediate; a
  * switch takes the old picture out first, so the two never cut into each other.
- * The rendition is chosen here rather than through `<source media>`, which every
- * engine reads differently.
+ * The decision is `clipSwapAction`, asked once here and again on the far side of
+ * the fade — 320 ms in which the visitor can pick the other palette again.
  */
 async function show(): Promise<void> {
-  // Chosen here rather than through `<source media>`: the picked rendition
-  // depends on the viewport, and every engine reads that attribute differently.
-  const next = videoSources(props.slug, viewport)
-  if (next[0]?.src === sources.value[0]?.src) return
+  const run = (latest += 1)
 
-  if (sources.value.length > 0) {
+  if (decide(run, false) === 'fade') {
     swapping.value = true
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, FADE_MS)
-      endFade = () => {
-        clearTimeout(timer)
-        resolve()
-      }
-    })
-    endFade = undefined
+    await waitOutFade()
   }
 
-  sources.value = next
+  const action = decide(run, true)
+  // Overtaken: the run that overtook this one owns the state now, including
+  // whether the picture is faded out.
+  if (action === 'abandon') return
+  // The palette came back to the picture that is already on the element while
+  // this run was fading it out. Nothing to load — just show it again.
+  if (action === 'nothing') {
+    swapping.value = false
+    return
+  }
+
+  // Read now, not before the fade: the wanted palette may have changed twice
+  // since this run started. The rendition is chosen here rather than through
+  // `<source media>`, which every engine reads differently.
+  const wanted = props.slug
+  sources.value = videoSources(wanted, viewport)
+  showing.value = wanted
   await nextTick()
   const element = clip.value
   if (element === null) return
@@ -118,10 +133,26 @@ async function show(): Promise<void> {
   try {
     await element.play()
   } catch {
-    // A browser that refuses to autoplay keeps showing the poster, which is
+    // A browser that refuses to autoplay keeps showing the still, which is
     // the same picture standing still.
   }
   swapping.value = false
+}
+
+function decide(run: number, faded: boolean): ClipSwapAction {
+  return clipSwapAction({ showing: showing.value, wanted: props.slug, run, latest, faded })
+}
+
+function waitOutFade(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const cutShort = () => {
+      clearTimeout(timer)
+      fades.delete(cutShort)
+      resolve()
+    }
+    const timer = setTimeout(cutShort, FADE_MS)
+    fades.add(cutShort)
+  })
 }
 </script>
 
