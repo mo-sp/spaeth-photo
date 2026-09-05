@@ -7,6 +7,7 @@
   },
   "packageManager": "pnpm@11.24.0",
   "scripts": {
+    "predev": "pnpm build-images",
     "dev": "nuxt dev",
     "export-sources": "node scripts/export-sources.ts",
     "build-images": "node scripts/build-images.ts",
@@ -16,6 +17,7 @@
     "preview": "nuxt preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "pretypecheck": "pnpm build-images",
     "typecheck": "nuxt typecheck && tsc -p tsconfig.scripts.json",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",

@@ -261,7 +261,7 @@ Auflösung gesetzt statt aus der YAML abgeschrieben; beide können damit nicht a
 **Tags** sind ein geschlossener Satz (`tiere`, `natur`, `landschaft`, `segeln`,
 `schwarzweiss`), im Datenmodell kleingeschrieben und ASCII, weil sie in URLs auftauchen
 (`?tag=schwarzweiss`). Reihenfolge und Anzeige-Label mit Umlaut stehen in
-`shared/constants/tags.ts`. Der Index führt nur die tatsächlich vergebenen Tags mit ihrer
+`shared/utils/tags.ts`. Der Index führt nur die tatsächlich vergebenen Tags mit ihrer
 Anzahl.
 
 **Demo-Fallback.** `build-images` wählt die Quelle in dieser Reihenfolge: expliziter
@@ -270,6 +270,129 @@ Quellen enthält), sonst `demo-content/`. Der gewählte Modus steht als `sourceM
 Manifest. Die CI checkt das Submodule absichtlich nicht aus und prüft anschließend, dass
 `sourceMode` gleich `demo` ist — damit ist der Fallback nicht behauptet, sondern bei jedem
 Lauf bewiesen.
+
+## Frontend
+
+Die Bilder dominieren, die Bedienung tritt an den Rand: feste Seitenleiste links, randloser
+Inhalt rechts, Struktur nur über 1-px-Hairlines. Das Design kommt aus dem Handoff; die
+Entscheidungen darunter sind die Stellen, an denen die Umsetzung von der Vorlage abweicht
+oder eine Wahl hatte.
+
+**Der Tag-Filter ist eine Pfadroute, keine Query** (Abweichung von PLAN.md §6 und vom
+Handoff, der `?tag=segeln` vorschlägt). `/galerie` und `/galerie/segeln` sind zwei
+prerenderte Seiten statt einer Seite mit clientseitiger Filterung. Der Unterschied ist
+nicht kosmetisch: eine Query lässt sich nicht statisch vorrendern, also käme die gefilterte
+Liste erst nach der Hydration — mit einem Moment ungefilterter Galerie davor, ohne
+JavaScript gar nicht, und `aria-current="page"` auf dem aktiven Filter wäre eine
+Behauptung statt einer Tatsache. Als Pfad ist der aktive Tag die Adresse: die Seite steht
+fertig im HTML, jeder Filterlink ist ein echter Link, und ein unbekannter Tag ist ein 404
+statt einer stillschweigend ungefilterten Ansicht. Eine clientseitige Middleware schreibt
+`/galerie?tag=x` auf `/galerie/x` um, damit Links aus der Entwurfsphase am Ziel ankommen.
+
+**Der Sidebar-Inhalt kommt aus den Routen-Metadaten, nicht aus einem Teleport.** Galerie
+und Detailseite füllen denselben Platz in der Seitenleiste mit Unterschiedlichem. Der
+naheliegende Weg — die Seite teleportiert ihren Block in die Sidebar — funktioniert im SSG
+nicht: Teleports werden beim statischen Rendern verworfen, die Sidebar bliebe im
+ausgelieferten HTML leer und füllte sich erst nach der Hydration. Stattdessen trägt jede
+Seite `definePageMeta({ aside: 'gallery' | 'photo' })`, Nuxt liest den Schlüssel dank
+`experimental.extraPageMetaExtractionKeys` schon zur Buildzeit aus, und das Layout
+entscheidet daraus, was in der Seitenleiste steht — und mobil auch, an welcher Stelle des
+Grids es steht (Filter über den Kacheln, Bildmetadaten unter dem Bild). Ein Store käme aus
+demselben Grund nicht in Frage wie der Teleport.
+
+**Masonry über CSS-Columns, mit einer dokumentierten Nebenwirkung.** `grid-template-rows:
+masonry` ist 2026 noch nicht überall Baseline, also bleibt es bei `columns: 3`. Die Kacheln
+füllen damit Spalte für Spalte statt Zeile für Zeile: die Tabulator-Reihenfolge läuft die
+erste Spalte hinunter und dann die zweite, nicht in Leserichtung. Für eine Galerie ohne
+inhaltliche Reihenfolge ist das vertretbar — die Alternative wäre ein Raster mit fester
+Zeilenhöhe, und das beschnitte jedes Hochformat.
+
+**Kachelhintergrund ist die Durchschnittsfarbe, kein Blur.** Jede Kachel trägt ihr
+`aspect-ratio` und die Durchschnittsfarbe aus dem Index; CLS bleibt bei 0, ohne dass
+26 Base64-Vorschauen im HTML stehen. Der Blur-up bleibt Hero und Detailseite vorbehalten,
+wo es je Seite genau ein Bild ist. Wie viele Kacheln ohne `loading="lazy"` starten, ergibt
+sich nicht aus einer geratenen Zahl, sondern aus einer Simulation des Spaltenumbruchs über
+die Seitenverhältnisse — der Lazy-Loader des Browsers entscheidet erst nach dem Layout, und
+bei CSS-Columns steht das Layout spät.
+
+**Die Kachel bleibt ein Link.** `<a href="/foto/…">` mit abgefangenem Klick: nur der
+einfache Linksklick ohne Modifier öffnet die Lightbox, alles andere (Mittelklick, Strg,
+„In neuem Tab öffnen") führt zur Detailseite. Damit funktioniert die Galerie ohne
+JavaScript, und die 26 Detailseiten stehen als echte Links im Quelltext.
+
+**Die Lightbox ist ein natives `<dialog>` mit `showModal()`.** Der Browser übernimmt
+Fokusfalle, Inertisierung des Hintergrunds, Esc und die Rolle im Accessibility-Baum —
+alles davon von Hand nachzubauen ist der klassische Weg zu einer Lightbox, aus der man mit
+der Tastatur nicht mehr herauskommt. Ihr Zustand steht in der URL (`?foto=<slug>`), nicht
+in einem Store: teilbar, mit dem Zurück-Knopf schließbar, und Seite wie Dialog leiten ihren
+Zustand aus derselben Quelle ab. Öffnen legt genau einen Verlaufseintrag an, Blättern
+ersetzt ihn, Schließen geht genau einen Schritt zurück — und nur dann, wenn dieser Tab den
+Eintrag selbst gelegt hat. Geladen wird die Komponente erst beim Öffnen
+(`defineAsyncComponent` hinter einem `v-if`); die Galerie ist die Seite, die am wenigsten
+Bundle verträgt.
+
+**`payloadExtraction: 'client'`.** Der Client-Index liegt bereits im JavaScript-Bundle.
+Ohne diese Einstellung legte Nuxt die im HTML gerenderten Daten ein zweites Mal als
+`_payload.json` daneben — dieselben Bytes, zweimal ausgeliefert.
+
+**Kein zod im Browser.** Der Index ist beim Build gegen das Schema geprüft worden; ihn im
+Browser ein zweites Mal zu validieren, kostet eine Bibliothek im Bundle und beweist nichts,
+was nicht schon bewiesen wäre. Genau ein `as unknown as PhotoIndexFile` in
+`usePhotos.ts` bringt das strukturell typlose JSON auf das Datenmodell — eine Stelle,
+absichtlich sichtbar. Die reine Logik darunter (Sortieren, Filtern, Nachbarn, `srcset`)
+liegt in `shared/utils/` und ist ohne Vue testbar; nur Dateien direkt in `shared/utils/`
+und `shared/types/` importiert Nuxt automatisch, deshalb liegen die Tests in einem
+Unterordner `__tests__/`.
+
+**Der faint-Ton ist angehoben: #5E6874 → #767F8B** (Abweichung vom Handoff, dessen Werte
+sonst unverändert sind). `--color-text-faint` trägt genau die Elemente, die ohnehin am
+kleinsten sind: 10-px-Labels, Zähler, Fußnoten. Auf dem Seitenhintergrund ergibt der
+Handoff-Wert 3,52:1 und verfehlt WCAG AA (4,5:1) bei dieser Größe deutlich. #767F8B kommt
+auf 4,9:1, bleibt im selben Grauton und liegt weiter erkennbar unter
+`--color-text-muted` (5,3:1). Das ist eine Arbeitsannahme, keine Designentscheidung: die
+Alternative wäre, `faint` ganz auf `muted` zu kollabieren und die Abstufung aufzugeben.
+Die Korrektur steht als einzige Farbüberschreibung in einem klar markierten Projekt-Block
+am Ende von `tokens.css`; der Handoff-Teil darüber ist unangetastet.
+
+**Landmarken und Zielgrößen.** Die Seitenleiste ist ein `<header>`, kein `<aside>`; jede
+`<nav>` trägt ein `aria-label` (Hauptnavigation / Nach Motiv filtern / Rechtliches); es
+gibt genau ein `<main id="inhalt" tabindex="-1">` als Ziel der Sprungmarke und genau eine
+`<h1>` je Seite. Zähler wie „03 / 14" stehen sichtbar als `aria-hidden`-Text neben einer
+`.sr-only`-Fassung in ganzen Worten — ein `aria-label` auf einem Absatz oder Span wird von
+vielen Screenreadern ignoriert. Die Rechtslinks stehen untereinander mit `min-height: 24px`
+und das Filter-Padding ist 8 statt der 7 px der Spec, damit beide die Mindest-Zielgröße
+erreichen; sichtbar ändert das nichts.
+
+**Der Sidebar-Fuß ist ein `<footer>` neben dem `<header>`, nicht darin.** Ein `<footer>`
+innerhalb eines `<header>` ist nicht erlaubt; als Geschwisterelement ist er gültig und
+liefert die `contentinfo`-Landmarke, sodass auch Ort und Koordinaten in einer Landmarke
+stehen. Mobil ist er ausgeblendet, dafür trägt ein Seitenfuß dieselben Angaben — es ist
+immer genau einer sichtbar.
+
+**Mobiles Menü: `<details>` als Schalter, Navigation als Geschwisterelement.** Unter 768 px
+klappt die Navigation aus einer 56-px-Kopfleiste auf, darüber steht sie dauerhaft. Die
+Liste liegt bewusst _neben_ dem `<details>` und wird über `[open] ~ .nav` eingeblendet,
+statt in ihm zu stecken: ein geschlossenes `<details>` versteckt seine Kinder je nach
+Engine über `display: none` auf einem Shadow-Slot oder über `content-visibility` auf
+`::details-content`, und beides lässt sich nicht überall zuverlässig wieder aufheben. Eine
+Hauptnavigation, die im falschen Browser verschwindet, ist kein akzeptabler Ausfall. Die
+Zustandsanzeige (`aria-expanded`) liefert `<summary>` weiterhin selbst; Vue schließt das
+Menü nur bei Routenwechsel und auf Esc.
+
+**Prefetch nur bei Absicht.** `nuxtLink.prefetchOn` steht auf `interaction` statt
+`visibility`: in einer Galerie mit 26 Kacheln lädt „sichtbar" sofort jede Detailseite vor.
+Beim Hovern oder Fokussieren ist die Absicht belegt, und die Zeit bis zum Klick reicht.
+
+**`sizes` steht auf jeder `<source>`.** Ohne das Attribut rechnet der Browser je Quelle mit
+100vw und lädt für eine Kachel von 260 px die 2560er-Stufe. Es ist die häufigste stille
+Fehlerquelle in einem `<picture>` und deshalb ein Pflicht-Prop von `<PhotoImage>` — ebenso
+wie `alt`: welcher Text das ist, entscheidet die Einsatzstelle, dass es einen gibt, nicht.
+
+**Optionales `alt` im YAML.** Ein guter Titel („Delfine vor dem Bug") und eine gute
+Bildbeschreibung sind selten derselbe Satz. Das Metadaten-Schema kennt deshalb ein
+optionales Feld `alt`, das durch Manifest und Index bis zur Komponente durchläuft; fehlt
+es, tritt der Titel an seine Stelle. Kein Skript kann es erfinden, also bleibt es leer, bis
+jemand es schreibt.
 
 ## Phase-2-Vorgriff
 

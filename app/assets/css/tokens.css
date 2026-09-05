@@ -72,3 +72,38 @@
     --detail-h: auto;
   }
 }
+
+/* ==========================================================================
+   PROJEKT-BLOCK — nicht aus dem Handoff.
+   Alles oberhalb dieser Linie stammt unverändert aus dem Design-Handoff 1C.
+   Hier stehen nur Werte, die die Umsetzung zusätzlich braucht, plus genau
+   eine Korrektur (siehe --color-text-faint).
+   ========================================================================== */
+
+:root {
+  /* Übergänge. Die Spec erlaubt 120–160 ms ease auf color und opacity,
+     sonst nichts. Zwei Tokens, damit „sonst nichts" prüfbar bleibt. */
+  --t-fast: 120ms ease;
+  --t-slow: 160ms ease;
+
+  /* Sidebar-Fußzeile (Ort/Koordinaten, Rechtliches): 10px/1.6, ls 0.1em. */
+  --text-foot-lh: 1.6;
+  --text-foot-ls: 0.1em;
+
+  /* Abstände aus der Spec, die nicht auf der 8/14/28/32/72/96-Leiter liegen. */
+  --space-brand: 44px; /* Wortmarke → Navigation */
+  --space-back: 36px;  /* Zurück-Link → Titel auf der Detailseite */
+
+  /* Mobile Struktur (<768px), im Handoff nur als Empfehlung beschrieben. */
+  --topbar-h: 56px;
+  --filterbar-h: 44px;
+
+  /* KORREKTUR gegenüber dem Handoff.
+     #5E6874 auf #08090B ergibt 3,52:1. Das reicht für 10-px-Text nicht für
+     WCAG AA (4,5:1) — und faint trägt genau die 10-px-Labels, Zähler und
+     Fußnoten. #767F8B kommt auf 4,9:1 und bleibt im selben Grauton, also
+     deutlich unter --color-text-muted (#7C8590, 5,3:1). Arbeitsannahme;
+     die Alternative wäre, faint ganz auf muted zu kollabieren (siehe
+     content/OFFEN.md). */
+  --color-text-faint: #767f8b;
+}

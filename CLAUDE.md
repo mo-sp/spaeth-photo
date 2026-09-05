@@ -18,19 +18,19 @@ Doku und messbare Performance sind Teil des Ziels.
 
 ## Kommandos
 
-| Befehl                        | Wirkung                                                       |
-| ----------------------------- | ------------------------------------------------------------- |
-| `pnpm dev`                    | Dev-Server                                                    |
-| `pnpm export-sources`         | Originale → Web-Quellen + YAML im Content-Repo (siehe unten)  |
-| `pnpm build-images`           | Bild-Varianten, `photos.manifest.json`, Client-Index          |
-| `pnpm check-manifest`         | erzeugtes Manifest prüfen (CI-Torwächter)                     |
-| `pnpm generate`               | statische Seite bauen                                         |
-| `pnpm build`                  | `build-images` + `generate` (Coolify-Build-Befehl)            |
-| `pnpm preview`                | gebaute Seite lokal ansehen                                   |
-| `pnpm lint` / `pnpm lint:fix` | ESLint (Flat Config über @nuxt/eslint)                        |
-| `pnpm typecheck`              | `nuxt typecheck` + `tsc -p tsconfig.scripts.json`             |
-| `pnpm test`                   | vitest, nur Unit-Tests (< 1 s)                                |
-| `pnpm test:integration`       | Farb-Regressionstest der Bild-Pipeline (kodiert echte Bilder) |
+| Befehl                        | Wirkung                                                                    |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| `pnpm dev`                    | Dev-Server (`predev` baut vorher die Bilder, Cache: ~40 ms)                |
+| `pnpm export-sources`         | Originale → Web-Quellen + YAML im Content-Repo (siehe unten)               |
+| `pnpm build-images`           | Bild-Varianten, `photos.manifest.json`, Client-Index                       |
+| `pnpm check-manifest`         | erzeugtes Manifest prüfen (CI-Torwächter)                                  |
+| `pnpm generate`               | statische Seite bauen                                                      |
+| `pnpm build`                  | `build-images` + `generate` (Coolify-Build-Befehl)                         |
+| `pnpm preview`                | gebaute Seite lokal ansehen                                                |
+| `pnpm lint` / `pnpm lint:fix` | ESLint (Flat Config über @nuxt/eslint)                                     |
+| `pnpm typecheck`              | `nuxt typecheck` + `tsc -p tsconfig.scripts.json` (baut vorher die Bilder) |
+| `pnpm test`                   | vitest, nur Unit-Tests (< 1 s)                                             |
+| `pnpm test:integration`       | Farb-Regressionstest der Bild-Pipeline (kodiert echte Bilder)              |
 
 Flags von `build-images`: `--dry-run` (nichts schreiben oder löschen), `--force` (Cache
 ignorieren), `--only <slug>`, `--strict` (Warnungen als Fehler, für CI), `--source-dir <dir>`
@@ -52,8 +52,15 @@ Beide Skripte kennen `--help`.
 - **Content kommt aus dem privaten Submodule `content/`** (`content/photos/source|meta`).
   Fehlt es (fremder Clone ohne Zugriff), greift der Fallback auf `demo-content/`.
   Der Build darf dadurch **nie** fehlschlagen.
+- **Reine Logik gehört nach `shared/utils/`** (`photos.ts`, `img.ts`, `tags.ts`): Nuxt
+  importiert von dort — und aus `shared/types/` — automatisch, die Build-Skripte greifen
+  mit relativem Pfad auf dieselben Dateien zu. Nur die oberste Ebene wird
+  auto-importiert; die Tests liegen deshalb in `shared/utils/__tests__/`.
+- **Der Tag-Filter ist eine Pfadroute** (`/galerie/segeln`), nicht `?tag=`; der
+  Sidebar-Inhalt kommt aus `definePageMeta({ aside })`, nicht aus einem Teleport oder
+  Store. Begründungen in `docs/architecture.md`, Abschnitt „Frontend".
 - Alle UI-Texte auf Deutsch. Keine Farbwerte hart in Vue-Dateien — nur Tokens aus
-  `tokens.css`.
+  `tokens.css` (die einzige Farbkorrektur steht im Projekt-Block dort).
 
 ## Harte Regeln (PLAN.md §9)
 

@@ -12,6 +12,7 @@ import type { RenderResult } from '../../scripts/lib/variants.ts'
 function meta(overrides: Partial<PhotoMeta> = {}): PhotoMeta {
   return {
     title: 'Titel',
+    alt: null,
     date: '2024-01-01',
     tags: [],
     collection: null,

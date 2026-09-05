@@ -5,6 +5,7 @@ import type { PhotoMeta } from '../../shared/types/photo.ts'
 
 const complete: PhotoMeta = {
   title: 'Watt bei Sonnenuntergang',
+  alt: 'Priele im nassen Sand, dahinter die tief stehende Sonne über der Nordsee',
   date: '2020-08-14',
   tags: ['natur', 'landschaft'],
   collection: null,
@@ -45,6 +46,7 @@ describe('photoMetaSchema', () => {
     const parsed = photoMetaSchema.parse({ title: 'Ohne alles', date: '2024-01-02' })
     expect(parsed).toEqual({
       title: 'Ohne alles',
+      alt: null,
       date: '2024-01-02',
       tags: [],
       collection: null,
@@ -68,6 +70,11 @@ describe('YAML-Rundlauf', () => {
     const tricky: PhotoMeta = { ...complete, title: 'Der "Anleger": Licht & Schatten' }
     const parsed = parseMeta(renderMetaYaml(tricky))
     expect(parsed.ok && parsed.value.title).toBe(tricky.title)
+  })
+
+  it('lässt die Bildbeschreibung weg, wenn keine gesetzt ist', () => {
+    const parsed = parseMeta(renderMetaYaml({ ...complete, alt: null }))
+    expect(parsed.ok && parsed.value.alt).toBeNull()
   })
 
   it('sortiert Tags in die kanonische Reihenfolge', () => {
