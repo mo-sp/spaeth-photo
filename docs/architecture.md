@@ -142,7 +142,7 @@ until then.
   heavy upright, which is a third family (Italianno, OFL) and a weight the body file does
   not carry (Archivo 900). Both are subset to the letters of "Light", "Licht", "Shadow" and
   "Schatten" and nothing else, so the pair costs 8.4 KB and the font budget goes from 55 KB
-  to 62 KB. Everything outside the motto still uses the handoff's two families at the
+  to 63 KB. Everything outside the motto still uses the handoff's two families at the
   handoff's weights. See "Fonts".
 - **One inline script in `<head>`.** The site otherwise ships no inline script. A stored
   theme has to be on the document before the first paint, and on a prerendered page no
@@ -958,7 +958,7 @@ _is_ translated, with a note on the English version that the German one is autho
 
 **Subsetting.** `scripts/subset-fonts.sh` reduces five woff2 files to the characters this
 site renders and pins or clamps their weight axis to what `fonts.css` declares:
-**373 KB → 62 KB (-83 %)**.
+**373 KB → 63 KB (-83 %)**.
 
 | file                            |        source |           subset |
 | ------------------------------- | ------------: | ---------------: |
