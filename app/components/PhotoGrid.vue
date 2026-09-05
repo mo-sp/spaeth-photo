@@ -107,7 +107,17 @@ function onTileClick(event: MouseEvent, slug: string) {
   color: var(--color-text);
 }
 
+/*
+  `overflow: hidden` schneidet am Rand des Zeilenkastens ab — und bei
+  `line-height: 1` ist dieser Kasten genau so hoch wie die Schriftgröße. Die
+  Punkte über Ü und Ö ragen darüber hinaus: aus „LACHMÖWEN" wurde
+  „LACHMOWEN". Die Zeile bekommt deshalb 1,4 Zeilenhöhe und holt die
+  Differenz über negative Blockränder wieder herein — die Geometrie der
+  Unterschrift bleibt dieselbe, der Kasten reicht nur über die Umlautpunkte.
+*/
 .caption-title {
+  line-height: 1.4;
+  margin-block: -0.2em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

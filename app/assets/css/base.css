@@ -106,8 +106,10 @@ html:has(dialog[open]) {
   }
 
   /* Der Blur-up ist eine Bewegung im Bild selbst; unter „reduce" bleibt nur
-     die ruhige Durchschnittsfarbe stehen. */
-  [data-lqip] {
-    background-image: none !important;
+     die ruhige Durchschnittsfarbe stehen, bis das Bild da ist. Das Einblenden
+     selbst bleibt — es dauert durch die Regel oben 0,01 ms und ist damit
+     praktisch ein Umschalten. */
+  [data-lqip]::before {
+    display: none !important;
   }
 }

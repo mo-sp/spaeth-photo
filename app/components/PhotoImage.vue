@@ -1,5 +1,5 @@
 <template>
-  <picture>
+  <picture :class="{ 'has-lqip': lqip }" :data-lqip="lqip ? '' : undefined" :style="frame">
     <source
       v-for="source in sources"
       :key="source.type"
@@ -15,11 +15,10 @@
       :alt="alt"
       :width="photo.width"
       :height="photo.height"
+      :class="{ 'is-loaded': loaded }"
       :loading="eager || priority ? 'eager' : 'lazy'"
       :decoding="priority ? undefined : 'async'"
       :fetchpriority="priority ? 'high' : undefined"
-      :data-lqip="showLqip ? '' : undefined"
-      :style="style"
       @load="loaded = true"
     />
   </picture>
@@ -62,23 +61,18 @@ const fallbackSrcset = computed(() =>
   srcSet(props.photo, fallbackFormat(props.photo), props.variantMax),
 )
 
-const showLqip = computed(() => props.lqip && !loaded.value)
-
 /**
- * Die Durchschnittsfarbe steht immer als Hintergrund: sie kommt aus den Daten,
- * nicht aus einem Token, und füllt den reservierten Kasten, bevor das Bild da
- * ist. `aspect-ratio` plus width/height halten CLS bei 0.
+ * Was am Element hängt, statt im Stylesheet zu stehen: die Durchschnittsfarbe
+ * und das Seitenverhältnis kommen aus den Daten. Beides steht als Custom
+ * Property, nicht als fertige Deklaration — so kann die Einsatzstelle das
+ * Verhältnis überschreiben (die Auswahlreihe der Startseite schneidet auf 3:2),
+ * was gegen ein Inline-`aspect-ratio` nicht möglich wäre. Zusammen mit den
+ * `width`/`height`-Attributen hält es CLS bei 0.
  */
-const style = computed(() => ({
-  backgroundColor: props.photo.color,
-  aspectRatio: `${props.photo.width} / ${props.photo.height}`,
-  ...(showLqip.value
-    ? {
-        backgroundImage: `url("${props.photo.lqip}")`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : {}),
+const frame = computed(() => ({
+  '--photo-color': props.photo.color,
+  '--photo-ratio': `${props.photo.width} / ${props.photo.height}`,
+  ...(props.lqip ? { '--photo-lqip': `url("${props.photo.lqip}")` } : {}),
 }))
 
 const img = useTemplateRef<HTMLImageElement>('img')
@@ -93,10 +87,56 @@ onMounted(() => {
 <style scoped>
 picture {
   display: block;
+  background-color: var(--photo-color);
 }
 
 img {
   width: 100%;
   height: auto;
+  aspect-ratio: var(--photo-ratio);
+  background-color: var(--photo-color);
+}
+
+/*
+  Blur-up: das 20-px-Vorschaubild liegt als Pseudo-Element unter dem echten
+  Bild, unscharf und minimal überskaliert, damit die weichen Ränder des Blurs
+  nicht als heller Saum stehen bleiben. `overflow: hidden` fängt diese
+  Überskalierung. Das echte Bild blendet darüber ein, statt zu springen.
+*/
+.has-lqip {
+  position: relative;
+  overflow: hidden;
+}
+
+.has-lqip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--photo-lqip);
+  background-position: center;
+  background-size: cover;
+  filter: blur(12px);
+  transform: scale(1.06);
+}
+
+.has-lqip img {
+  position: relative;
+  opacity: 0;
+  transition: opacity var(--t-slow);
+}
+
+.has-lqip img.is-loaded {
+  opacity: 1;
+}
+
+/*
+  Ohne JavaScript wird `is-loaded` nie gesetzt — dann darf das Bild nicht
+  unsichtbar bleiben. Der Vorschauwisch entfällt in diesem Fall, das Bild ist
+  sofort da.
+*/
+@media (scripting: none) {
+  .has-lqip img {
+    opacity: 1;
+  }
 }
 </style>

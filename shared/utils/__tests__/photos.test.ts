@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PhotoIndexEntry, Tag } from '../../types/photo.ts'
-import { eagerCount, filterByTag, neighbours, sortPhotos, tagCounts } from '../photos.ts'
+import { eagerCount, filterByTag, neighbours, padCounter, sortPhotos, tagCounts } from '../photos.ts'
 
 /** Nur die Felder, die die reinen Funktionen anfassen. */
 function photo(slug: string, options: Partial<PhotoIndexEntry> = {}): PhotoIndexEntry {
@@ -154,5 +154,17 @@ describe('eagerCount', () => {
   it('lädt nie mehr Kacheln als vorhanden', () => {
     expect(eagerCount([photo('a'), photo('b')], 3)).toBe(2)
     expect(eagerCount([], 3)).toBe(0)
+  })
+})
+
+describe('padCounter', () => {
+  it('füllt einstellige Zahlen auf zwei Stellen auf', () => {
+    expect(padCounter(3)).toBe('03')
+    expect(padCounter(0)).toBe('00')
+  })
+
+  it('lässt zwei- und dreistellige Zahlen unangetastet', () => {
+    expect(padCounter(14)).toBe('14')
+    expect(padCounter(104)).toBe('104')
   })
 })

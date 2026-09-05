@@ -111,3 +111,15 @@ export function eagerCount(
   }
   return Math.min(photos.length, Math.max(Math.min(count, max), Math.min(min, photos.length)))
 }
+
+/**
+ * Zweistellige Zähldarstellung: `3` → `„03"`.
+ *
+ * Die Spec schreibt sie an drei Stellen vor (Galerie-Kopfzeile „14 Bilder",
+ * Lightbox-Caption und Detail-Zähler „03 / 14"). Dreimal dasselbe
+ * `padStart` wäre dreimal die Gelegenheit, es unterschiedlich zu machen.
+ * Ab drei Stellen wächst die Zahl mit — abgeschnitten würde aus 104 sonst 04.
+ */
+export function padCounter(value: number): string {
+  return String(value).padStart(2, '0')
+}

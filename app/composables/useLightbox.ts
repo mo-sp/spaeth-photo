@@ -45,6 +45,16 @@ export function useLightbox(photos: MaybeRefOrGetter<readonly PhotoIndexEntry[]>
     return router.replace({ path: route.path, query: { ...route.query, foto: target } })
   }
 
+  /**
+   * Schließt der Browser-Zurück-Knopf die Lightbox, läuft `close()` nie — das
+   * Flag bliebe gesetzt, und das nächste `close()` ginge einen Schritt zu weit
+   * zurück (aus der Galerie heraus). Deshalb wird es zurückgesetzt, sobald der
+   * Zustand von „offen" auf „zu" kippt, egal wodurch.
+   */
+  watch(isOpen, (open) => {
+    if (!open) pushedByLightbox.value = false
+  })
+
   function close() {
     if (pushedByLightbox.value) {
       pushedByLightbox.value = false

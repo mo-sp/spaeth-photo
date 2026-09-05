@@ -81,3 +81,55 @@ export function fallbackSrc(photo: PhotoIndexEntry, variantMax?: number): string
   const width = widths[0]
   return width === undefined ? '' : imgUrl(photo, width, format)
 }
+
+/**
+ * Höhe der Detail-Bühne in CSS-Pixeln — dieselbe Zahl wie `--detail-h` in
+ * `tokens.css`. Sie steht hier ein zweites Mal, weil aus ihr die
+ * Auslieferungsbreite folgt und CSS-Variablen zur Bauzeit nicht lesbar sind;
+ * ändert sich der Token, gehört diese Konstante mitgeändert.
+ */
+export const DETAIL_STAGE_H = 820
+
+/**
+ * Die größte Breite, die das Detailbild auf der Bühne je einnehmen kann.
+ *
+ * `object-fit: contain` in einem 820 px hohen Kasten deckelt die Breite auf
+ * `820 · aspectRatio`: ein Hochformat (0,67) füllt nie mehr als 547 px, egal
+ * wie breit der Bildschirm ist. Ohne diesen Deckel verspräche `sizes` dem
+ * Browser die volle Contentbreite, und er lüde für ein Hochformat die
+ * 1707er-Stufe, wo 960 reichen.
+ */
+export function detailCap(aspectRatio: number): number {
+  return Math.round(DETAIL_STAGE_H * aspectRatio)
+}
+
+/**
+ * `sizes` des Detailbilds, pro Foto verschieden.
+ *
+ * Unter 768 px ist die Bühne höhenlos (`--detail-h: auto`), das Bild also
+ * breitengetrieben und exakt 100vw breit. Darüber ist es die Contentbreite
+ * (Viewport minus Seitenleiste, 180 bzw. 220 px), gedeckelt auf `detailCap`.
+ */
+export function detailSizes(aspectRatio: number): string {
+  const cap = detailCap(aspectRatio)
+  return [
+    '(max-width: 767px) 100vw',
+    `(max-width: 1023px) min(calc(100vw - 180px), ${cap}px)`,
+    `min(calc(100vw - 220px), ${cap}px)`,
+  ].join(', ')
+}
+
+/**
+ * Der Deckel für das `srcset` des Detailbilds.
+ *
+ * `sizes` nennt CSS-Pixel, der Browser multipliziert selbst mit der
+ * Pixeldichte — ein Deckel in Höhe von `detailCap` würde auf jedem
+ * Retina-Display eine zu kleine Stufe erzwingen. Deshalb der Faktor 2. Und er
+ * darf nie unter das fallen, was ein Telefon braucht: dort ist das Bild
+ * 100vw breit (bis 767 CSS-px), bei doppelter Dichte also rund 1534 px — die
+ * nächste erzeugte Stufe darüber ist 1600.
+ */
+export function detailVariantMax(aspectRatio: number): number {
+  const MOBILE_MIN = 1600
+  return Math.max(MOBILE_MIN, detailCap(aspectRatio) * 2)
+}

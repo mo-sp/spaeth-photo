@@ -1,16 +1,20 @@
 <template>
   <article class="page">
-    <div class="head">
-      <h1 class="head-title">{{ photo.title }}</h1>
-      <p class="head-year">{{ photo.year }}</p>
-    </div>
+    <!--
+      Der sichtbare Titel steht laut Spec in der Seitenleiste, damit das Bild
+      den Inhaltsbereich allein hat. Die Überschrift der Seite gehört trotzdem
+      in ihren Inhalt: eine <h1> in der seitenübergreifenden Kopfpartie wäre
+      keine Überschrift *dieser* Seite. Beides zusammen geht nur so — sichtbar
+      in der Sidebar (dort als <p>), semantisch hier.
+    -->
+    <h1 class="sr-only">{{ photo.title }}</h1>
 
     <div class="stage">
       <PhotoImage
         :photo="photo"
         :alt="photo.alt ?? photo.title"
-        :sizes="SIZES"
-        :variant-max="1600"
+        :sizes="sizes"
+        :variant-max="variantMax"
         eager
         priority
         lqip
@@ -20,11 +24,10 @@
 </template>
 
 <script setup lang="ts">
-// Gerüst für P5: genug, damit die Route existiert, verlinkbar ist und
-// prerendert. Metadaten in der Sidebar, Prev/Next und Zähler folgen dort.
 definePageMeta({ aside: 'photo' })
 
 const route = useRoute()
+const router = useRouter()
 const found = usePhoto(String(route.params.slug))
 
 if (!found) {
@@ -32,42 +35,74 @@ if (!found) {
 }
 
 const photo = found
-const SIZES = '(max-width: 767px) 100vw, calc(100vw - 220px)'
 
-useSeoMeta({ title: photo.title })
+/**
+ * Anzeigebreite und `srcset`-Deckel folgen der Bühnengeometrie: `contain` in
+ * einem 820 px hohen Kasten deckelt die Breite auf `820 · aspectRatio`.
+ * Beides steht als reine Funktion in `shared/utils/img.ts` und ist dort
+ * getestet.
+ */
+const sizes = detailSizes(photo.aspectRatio)
+const variantMax = detailVariantMax(photo.aspectRatio)
+
+const { nav, pathTo } = usePhotoNav()
+
+/**
+ * ← und → blättern wie in der Lightbox. Die Wächter sind der eigentliche
+ * Inhalt: mit Modifier gehört der Tastendruck dem Browser (Verlauf, Wortsprung),
+ * in einem Eingabefeld dem Feld, und solange ein Dialog offen ist, blättert die
+ * Lightbox — nicht die Seite dahinter.
+ */
+function onKeydown(event: KeyboardEvent) {
+  if (event.defaultPrevented) return
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+
+  const target = event.target as HTMLElement | null
+  if (target?.isContentEditable) return
+  if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return
+  if (document.querySelector('dialog[open]')) return
+
+  const step =
+    event.key === 'ArrowLeft' ? nav.value.prev : event.key === 'ArrowRight' ? nav.value.next : null
+  const to = pathTo(step)
+  if (!to) return
+
+  event.preventDefault()
+  void router.push(to)
+}
+
+onMounted(() => document.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
+
+const { siteUrl } = useRuntimeConfig().public
+
+useSeoMeta({
+  title: photo.title,
+  description: `${photo.title} – Fotografie von Moritz Späth, ${photo.year}.`,
+  ogType: 'article',
+  ogTitle: photo.title,
+  ogDescription: `${photo.title} – Fotografie von Moritz Späth, ${photo.year}.`,
+  ogImage: absoluteUrl(siteUrl, photo.og),
+  // Die Maße stehen nicht im Client-Index; die Pipeline erzeugt jedes OG-Bild
+  // mit genau 1200×630 (`fit: cover`), die Angabe ist also keine Schätzung.
+  ogImageWidth: 1200,
+  ogImageHeight: 630,
+  ogImageAlt: photo.alt ?? photo.title,
+  twitterCard: 'summary_large_image',
+})
+
+useHead({
+  // Ohne Query: `?tag=` ist ein Anzeigekontext, keine eigene Seite.
+  link: [{ rel: 'canonical', href: absoluteUrl(siteUrl, `/foto/${photo.slug}`) }],
+})
 </script>
 
 <style scoped>
-.head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 22px var(--space-4);
-  border-bottom: var(--border);
-}
-
-.head-title {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--text-title-s-size);
-  line-height: var(--text-title-s-lh);
-  letter-spacing: var(--text-title-s-ls);
-  color: var(--color-text);
-}
-
-.head-year {
-  flex: 0 0 auto;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: var(--text-ui-size);
-  line-height: var(--text-ui-lh);
-  letter-spacing: var(--text-ui-ls);
-  color: var(--color-text-muted);
-}
-
+/*
+  Die Bühne ist so hoch wie die Spec sagt und trägt den Seitenhintergrund: das
+  Bild wird nie beschnitten, Hoch- und Querformat sitzen im selben Rahmen.
+  Unter 768 px ist `--detail-h: auto` — dort bestimmt die Breite die Höhe.
+*/
 .stage {
   display: flex;
   align-items: center;
@@ -89,11 +124,16 @@ useSeoMeta({ title: photo.title })
 }
 
 @media (max-width: 767px) {
-  .head {
-    padding: var(--space-2);
+  .stage {
+    height: auto;
   }
 
-  .stage {
+  .stage :deep(picture) {
+    width: 100%;
+  }
+
+  .stage :deep(img) {
+    width: 100%;
     height: auto;
   }
 }

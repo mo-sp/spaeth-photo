@@ -331,6 +331,69 @@ Eintrag selbst gelegt hat. Geladen wird die Komponente erst beim Öffnen
 (`defineAsyncComponent` hinter einem `v-if`); die Galerie ist die Seite, die am wenigsten
 Bundle verträgt.
 
+**Die `<h1>` der Detailseite steht unsichtbar im `<main>`.** Das Design gibt den Titel der
+Seitenleiste und lässt den Inhaltsbereich dem Bild allein. Eine Überschrift in der
+seitenübergreifenden Kopfpartie wäre aber keine Überschrift *dieser* Seite: sie stünde
+außerhalb des `<main>`, in einem Block, der auf jeder Seite gleich aussieht. Deshalb trägt
+das `<main>` eine `.sr-only`-`<h1>` mit dem Bildtitel, und die Seitenleiste zeigt denselben
+Titel sichtbar als `<p>`. Der Preis ist eine Wiederholung für Screenreader — die Alternative
+(die Seitenleiste bekommt die `<h1>`) verlegt die Dokumentstruktur in die Navigation, und
+das wiegt schwerer. Die Kopfleiste mit Titel und Jahr, die das P4-Gerüst über dem Bild
+hatte, ist damit entfallen; sie stand so auch nicht in der Spec.
+
+**Anzeigebreite des Detailbilds folgt der Bühnengeometrie — mit zwei Aufschlägen.**
+`object-fit: contain` in einem 820 px hohen Kasten deckelt die Breite auf `820 · aspect`;
+ein Hochformat wird nie breiter als 547 px, egal wie groß der Bildschirm ist. Dieser Deckel
+steht in `sizes` (`min(calc(100vw - 220px), 547px)`) und spart dort die großen Stufen. Für
+das `srcset` (`variantMax`) ist derselbe Wert allerdings zu klein: `sizes` nennt
+CSS-Pixel, der Browser multipliziert selbst mit der Pixeldichte — daher der Faktor 2. Und
+er darf nicht unter das fallen, was ein Telefon braucht, denn dort ist die Bühne höhenlos
+und das Bild volle 100vw breit (bis 767 CSS-px, bei doppelter Dichte rund 1534): die
+Untergrenze ist deshalb die 1600er-Stufe. In Zahlen: ein Querformat bekommt 480/960/1600
+statt zusätzlich 2560, ein Hochformat 480/960/1600 statt zusätzlich 1707. Beide Funktionen
+(`detailSizes`, `detailVariantMax`) liegen in `shared/utils/img.ts` und sind getestet; die
+820 stehen dort als Konstante neben dem Hinweis auf `--detail-h`.
+
+**Der Tag-Kontext der Detailseite ist weicher Zustand — und wird geprüft.** `/foto/<slug>`
+ist ohne Query prerendert. Läse die Seite `?tag=` schon beim ersten Rendern, unterschiede
+sich der hydrierte Baum vom ausgelieferten HTML. Ein `hydrated`-Flag aus `onMounted` hält
+den ersten Durchlauf deckungsgleich (ungefilterte Nachbarn), danach zieht der Filter;
+`import.meta.client` reicht dafür nicht, es ist beim Hydrieren schon wahr. Zusätzlich gilt
+der Filter nur, wenn das Bild in ihm vorkommt: `/foto/anleger-im-gegenlicht?tag=segeln`
+ist ein von Hand gebauter oder alt gewordener Link, und ohne diese Prüfung stünde dort
+„00 / 04" ohne Nachbarn und ein Rückweg in eine Galerie ohne dieses Bild. Prev/Next reichen
+`?tag=` weiter, die Pfeiltasten ← und → tun dasselbe — mit Wächtern gegen Modifier,
+Eingabefelder und einen offenen Dialog. Das Canonical steht ohne Query.
+
+**Auf der Detailseite tauscht die Seitenleiste ihren Fuß, statt einen zweiten zu bekommen.**
+Dort unten stehen Prev/Next, der Zähler und die Rechtslinks (`PhotoAsideFoot`); `SiteFoot`
+mit Ort und Koordinaten entfällt — im Handoff ist er ohnehin eine Zutat der Startseite.
+Stünden beide, stünde „Impressum" zweimal auf derselben Seite. Mobil ist es umgekehrt: dort
+trägt der Seitenfuß des Layouts Ort und Rechtliches, und `PhotoAsideFoot` blendet seine
+Rechtslinks aus. Sichtbar ist damit in jeder Breite genau ein Satz. Dieselbe Routen-Meta
+(`aside === 'photo'`) blendet die Navigationsliste aus — aber nur oberhalb von 768 px:
+mobil ist sie das Menü der Kopfleiste und der einzige Weg zu den übrigen Seiten. Die
+Wortmarke bleibt in beiden Fällen der Weg zur Startseite.
+
+**Blur-up als Pseudo-Element, nicht als Bildhintergrund.** Das 20-px-Vorschaubild liegt
+unter dem echten Bild (`picture::before`, `blur(12px)`, `scale(1.06)` gegen den hellen
+Saum, den ein Blur an der Kante hinterlässt), und das echte Bild blendet mit 160 ms darüber
+ein. Als `background-image` auf dem `<img>` selbst — die naheliegende Fassung — ließe sich
+das Bild nicht über dem Blur einblenden, weil beide dasselbe Element wären. Unter
+`prefers-reduced-motion` entfällt das Pseudo-Element ganz; dann steht bis zum Laden die
+ruhige Durchschnittsfarbe. Ohne JavaScript (`@media (scripting: none)`) ist das Bild sofort
+sichtbar, statt auf ein `load`-Ereignis zu warten, das niemand mehr auswertet.
+
+**Bekannte Abweichung: mobil steht der Metadatenblock der Detailseite im DOM vor dem Bild,
+sichtbar aber darunter.** Die Seitenleiste ist auf dem Desktop ein zusammenhängender,
+klebender Block und muss dafür ein Element sein; unter 768 px löst `display: contents` ihn
+in Grid-Felder auf, und dann liegt das Feld mit den Metadaten zwangsläufig vor dem
+`<main>`. Die Reihenfolge im DOM (Titel, Jahr, Tags, Prev/Next, dann Bild) bleibt eine
+sinnvolle Lesefolge — sie liest sich wie eine vorangestellte Bildunterschrift, und die
+Fokusreihenfolge folgt ihr —, deckt sich aber nicht mit der visuellen. Die saubere Lösung
+wäre, den Block zweimal zu rendern und je Breite einen auszublenden; das dupliziert Inhalt
+im HTML und wurde bewusst nicht gemacht. Vermerkt für P7.
+
 **`payloadExtraction: 'client'`.** Der Client-Index liegt bereits im JavaScript-Bundle.
 Ohne diese Einstellung legte Nuxt die im HTML gerenderten Daten ein zweites Mal als
 `_payload.json` daneben — dieselben Bytes, zweimal ausgeliefert.
@@ -353,6 +416,23 @@ auf 4,9:1, bleibt im selben Grauton und liegt weiter erkennbar unter
 Alternative wäre, `faint` ganz auf `muted` zu kollabieren und die Abstufung aufzugeben.
 Die Korrektur steht als einzige Farbüberschreibung in einem klar markierten Projekt-Block
 am Ende von `tokens.css`; der Handoff-Teil darüber ist unangetastet.
+
+**Der Caption-Gradient ist zweistufig statt linear** (zweite Abweichung vom Handoff, in
+demselben Projekt-Block). Die Vorlage blendet von 85 % Deckkraft linear auf 0 aus. Der
+Titel steht aber nicht am unteren Rand des Streifens, sondern in seiner Mitte — dort ist
+vom Verlauf nur noch rund ein Drittel bis die Hälfte übrig, und über einem hellen Foto
+(Watt, Wolkenbank) fällt der Kontrast des weißen 10-px-Texts unter AA. Eine Stützstelle
+bei 60 % hält die Deckkraft dort, wo der Text steht, und lässt den Verlauf darüber
+weiterhin weich auslaufen; sichtbar ändert sich nur, dass die Unterschrift lesbar bleibt.
+
+**Kein `overflow: hidden` auf Mono-Versalien mit `line-height: 1`.** Die Spec setzt die
+Mikro-Labels auf 10 bzw. 11 px bei Zeilenhöhe 1; der Zeilenkasten ist damit genau so hoch
+wie die Schrift, und `overflow: hidden` schneidet ab, was darüber hinausragt — die Punkte
+über Ü und Ö. Im Grid stand deshalb „LACHMOWEN" statt „LACHMÖWEN". Wo eine Zeile beides
+braucht (Kürzen mit Ellipse *und* die enge Geometrie), bekommt sie `line-height: 1.4` und
+holt die Differenz über `margin-block: -0.2em` zurück: sichtbar ändert sich nichts, der
+Kasten reicht nur wieder über die Umlautpunkte. Deutsche Titel sind hier der Regelfall,
+nicht der Sonderfall.
 
 **Landmarken und Zielgrößen.** Die Seitenleiste ist ein `<header>`, kein `<aside>`; jede
 `<nav>` trägt ein `aria-label` (Hauptnavigation / Nach Motiv filtern / Rechtliches); es

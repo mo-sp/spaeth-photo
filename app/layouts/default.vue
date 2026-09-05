@@ -6,7 +6,7 @@
         <PhotoAside v-else-if="asideKind === 'photo'" />
       </template>
       <template #asideFoot>
-        <!-- Prev/Next und Zähler der Detailseite folgen in P5. -->
+        <PhotoAsideFoot v-if="asideKind === 'photo'" />
       </template>
     </SiteSidebar>
 

@@ -2,14 +2,23 @@
   <div class="page">
     <div class="head">
       <h1 class="head-title">{{ heading }}</h1>
-      <p class="head-count">{{ pad(visible.length) }} Bilder</p>
+      <p class="head-count">
+        <!-- Sichtbar zweistellig wie in der Spec, gesprochen als ganze Zahl:
+             „null fünf Bilder" wäre eine Vorlesefassung des Layouts. -->
+        <span aria-hidden="true">{{ padCounter(visible.length) }} Bilder</span>
+        <span class="sr-only">{{ visible.length }} Bilder</span>
+      </p>
     </div>
 
     <PhotoGrid :photos="visible" @open="onOpen" />
 
     <!-- Erst laden, wenn jemand sie öffnet: die Galerie ist die Seite, auf der
-         das Bundle am wenigsten Gewicht vertragen kann. -->
-    <LightboxAsync v-if="isOpen" :photos="visible" />
+         das Bundle am wenigsten Gewicht vertragen kann. Der `hydrated`-Wächter
+         hält den ersten Durchlauf im Browser deckungsgleich mit dem
+         prerenderten HTML: `/galerie?foto=x` ist dieselbe statische Datei wie
+         `/galerie`, und ohne den Wächter hinge es am Zufall des
+         Async-Platzhalters, ob Vue den Baum verwirft. -->
+    <LightboxAsync v-if="hydrated && isOpen" :photos="visible" />
   </div>
 </template>
 
@@ -39,11 +48,14 @@ const visible = computed(() => filterByTag(photos, tag.value))
 
 const heading = computed(() => (tag.value === null ? 'Galerie' : tagLabel(tag.value)))
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
 const { isOpen, open } = useLightbox(visible)
+
+// Der Deep-Link `?foto=<slug>` darf erst nach der Hydration greifen — die
+// prerenderte Seite kennt keine Query.
+const hydrated = ref(false)
+onMounted(() => {
+  hydrated.value = true
+})
 
 function onOpen(slug: string) {
   void open(slug)
