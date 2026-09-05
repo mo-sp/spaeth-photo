@@ -129,11 +129,21 @@ until then.
   than 255. A wrong colour space conversion would be dozens of steps off, so the test stays
   sharp enough.
 - **The handoff palette is extended by a second theme.** The tokens of handoff 1C are
-  binding and unchanged, but the handoff describes one palette and P12's start page turns
-  "Light / Shadow" into a switch between two. The light values are therefore an addition,
-  marked as a placeholder in `tokens.css`: same hues, same roles, contrast checked against
-  the light background (text 16.2:1, muted 5.9:1, faint 4.7:1), and photographs are never
-  filtered — only the surface around them changes. P11 designs the light mode properly.
+  binding and unchanged, but the handoff describes one palette and the start page turns
+  "Light / Shadow" into a switch between two. The light values are therefore an addition.
+  P12 parked a placeholder there — the dark hues on a grey ground — and P11 replaced it
+  with a palette of its own: a warm paper ground (`#F2EFE9`), because the light side is
+  meant to be a second design rather than the same page inverted. Same roles, same token
+  names, contrast checked at every size the roles carry (text 15.3:1, muted 6.9:1, faint
+  5.1:1 on the ground; 13.9 / 6.2 / 4.6:1 on the surface). Photographs are never filtered —
+  only the surface around them changes.
+- **Two display faces beyond the handoff's two families.** The handoff names Archivo and
+  JetBrains Mono, and P11's motto needs neither: the brief asks for a fine script against a
+  heavy upright, which is a third family (Italianno, OFL) and a weight the body file does
+  not carry (Archivo 900). Both are subset to the letters of "Light", "Licht", "Shadow" and
+  "Schatten" and nothing else, so the pair costs 8.4 KB and the font budget goes from 55 KB
+  to 62 KB. Everything outside the motto still uses the handoff's two families at the
+  handoff's weights. See "Fonts".
 - **One inline script in `<head>`.** The site otherwise ships no inline script. A stored
   theme has to be on the document before the first paint, and on a prerendered page no
   component can do that: by the time Vue hydrates, the other palette has already been on
@@ -674,8 +684,8 @@ repo-wide `prettier --write` pass.
 
 ## Start page: brand, clip and theme
 
-P12, prototype. Typography and colours are placeholders — the design round P11 replaces
-them. What is decided here is the mechanism.
+The mechanism is P12's; the design on top of it is P11's. The wordmark of the intro is
+still a placeholder face — it was not part of P11's brief.
 
 **The sequence.** A first visit to `/` (or `/de`) opens on the wordmark, then the clip
 starts behind it, then "Light / Shadow" fades in, centred. Clicking a word picks the
@@ -715,12 +725,12 @@ is invisible for the length of the sequence, and the choice does not exist for t
 2.9 s of it: without a control there is no keyboard way out at all and no answer to
 impatience. It is therefore visible from the first frame — mono, faint, on its own ground,
 bottom centre — and it stores the palette already on screen, so it is a decision and not an
-evasion. Whether it survives the design round is P11's to say.
+evasion. The design round kept it.
 
-These are prototype mechanics, and they are written down here rather than in `CLAUDE.md`:
-the rulebook records what every change has to obey, and the clip convention and the theme
-switch are both P11's to confirm or replace. What does belong there is the hard rule that
-`public/video/` is never committed, and the command that produces the renditions.
+These mechanics are written down here rather than in `CLAUDE.md`: the rulebook records what
+every change has to obey, and the clip convention and the theme switch are decisions this
+document is for. What does belong there is the hard rule that `public/video/` is never
+committed, and the command that produces the renditions.
 
 **Theme.** `data-theme` on `<html>`, the choice in `localStorage` under `ms-theme` — never
 a cookie (hard rule, and hence no banner). Unset, the palette follows
@@ -733,50 +743,85 @@ does not stand there again on the next visit.
 **The clip.** Renditions live in the private content repo under `content/video/<slug>/`
 and are served from `/video/<slug>/…` — the same convention as the photographs
 (`shared/utils/video.ts`), and the same rule: generated files never enter this repository.
-Nitro serves the directory as a second public asset root, so the renditions are reachable in
-dev and land in `.output/public` at build time without a copy step of ours; `public/video/`
-never exists, and the `.gitignore` line for it is insurance against someone creating it by
-hand rather than a rule about generated output. `scripts/encode-video.ts` writes 1080p and 720p H.264 MP4, a 720p VP9
-WebM and a poster frame from a source clip that lives outside every repository; audio,
-subtitles, the camera's data stream and all metadata are dropped, and a rendition taller
-than the source is never written. Unlike a photograph's slug, a clip's is not a product URL
-and is not immutable: it names a background, nothing links to it, and replacing the prototype
-clip `motorway-drive` — or renaming it — breaks no rule.
+Nitro serves each clip's directory as a public asset root of its own, so the renditions are
+reachable in dev and land in `.output/public` at build time without a copy step of ours;
+`public/video/` never exists, and the `.gitignore` line for it is insurance against someone
+creating it by hand rather than a rule about generated output. A root per clip rather than
+one for `content/video/` means only the clips the site actually shows are published, so a
+clip that is no longer mapped stays in the content repo and out of the build.
+`scripts/encode-video.ts` writes 1080p and 720p H.264 MP4, a 720p VP9 WebM and a poster
+frame from a source clip that lives outside every repository; audio, subtitles, the camera's
+data stream and all metadata are dropped, and a rendition taller than the source is never
+written. Unlike a photograph's slug, a clip's is not a product URL and is not immutable: it
+names a background, nothing links to it, and replacing or renaming one breaks no rule.
 
-Delivery is poster-first: the `<video>` element carries only `poster` and
-`preload="none"`, and its `<source>` elements appear only once the page has decided to
-play. So `prefers-reduced-motion: reduce` and `navigator.connection.saveData` cost exactly
-one poster frame and no video bytes, and a browser without JavaScript shows that poster —
-which is the clip standing still. The rendition is chosen in JavaScript by viewport width
-rather than through `<source media>`, which engines read differently: a wide viewport gets
-the 1080p MP4, a narrow one the 720p pair with the WebM first.
+**A clip per palette.** Light and shadow are two pictures, not one picture treated twice:
+`shared/constants/video.ts` maps each theme to a clip slug, and that constant is the only
+place a slug is written down — the build reads it to decide which directories to publish,
+the component reads it for the sources and the still. Exactly one clip is ever fetched. The
+inactive one is not preloaded, and on a switch the outgoing picture fades out (`--t-clip`)
+before the incoming one is loaded, so the two never cut into each other.
+
+Delivery is poster-first: the `<video>` element carries `preload="none"` and no sources, and
+its `<source>` elements appear only once the page has decided to play. So
+`prefers-reduced-motion: reduce` and `navigator.connection.saveData` cost exactly one still
+frame and no video bytes. The still is a CSS background rather than the `poster` attribute,
+and that is the one part worth explaining: `poster` is baked into the prerendered HTML,
+where the palette is not yet known, so a visitor whose system asks for the other one was
+served the wrong still and paid for it before the swap could correct it. As a background
+image the stylesheet picks it — before the first paint, from the same media query and
+`data-theme` rule the palette uses, and with no JavaScript involved. Both URLs come from the
+constant above, through `v-bind()` in the component's stylesheet. The rendition, by
+contrast, is chosen in JavaScript by viewport width rather than through `<source media>`,
+which engines read differently: a wide viewport gets the 1080p MP4, a narrow one the 720p
+pair with the WebM first.
 
 **Without a clip there is no clip.** `content/video/` is part of the private submodule, so
-a clone without access has none. `videoSlug()` in `nuxt.config.ts` then resolves to `''`,
-the backdrop is not rendered and the home page keeps the hero photograph and its caption
-it had before P12 — the same graceful path the demo content takes for the photographs. The
-build never fails over it, and the intro still works: brand, then the choice, over the
-plain background.
+a clone without access has none. `clipDirs()` in `nuxt.config.ts` then finds nothing, the
+backdrop is not rendered and the home page keeps the hero photograph and its caption it had
+before P12 — the same graceful path the demo content takes for the photographs. The build
+never fails over it, and the intro still works: brand, then the choice, over the plain
+background. The clips are all-or-nothing on purpose: a switch that changes the ground but
+not the picture is a half-built feature, not a graceful fallback.
 
-**Open, for P11 to decide.** Two treatments of the clip in light mode are implemented so
-they can be compared in the preview, reachable through a temporary query flag:
-`?video=full` (the default — full-page background behind a washed-out scrim) and
-`?video=band` (a hero band where the hero photograph stood, page background normal). The
-flag is prototype scaffolding and goes with the decision. One thing is unresolved and it is
-a design question, not a mechanic: the motto is centred in the content column, which over a
-full-bleed clip reads as off-centre against the viewport.
+That state also changes the motto, and it is the one place where the design's premise does
+not hold. Over a clip the executed word is a silhouette — black on the dark side, pale on
+the light one. On the page's own ground those are the ground: `#0B0C0E` on `#08090B` is
+1.01:1 and `#FDFCF9` on `#F2EFE9` is 1.11:1, and axe flags both. So the motto carries a
+second set of five colour roles for a groundless background, in which the executed word
+takes the text colour (18.4:1 and 15.3:1) and loses the halo, while the other word is
+unchanged. `SiteMotto` swaps the set in one rule, keyed on whether a clip is there at all.
 
 **Small text over the clip has a ground of its own — a guardrail, not a design.** Text over
 a moving picture cannot be contrast-checked the way text over a token colour can, and the
-measurement is not close: sampled against the p90 luminance of the bright frames of the
-prototype clip, the 11 px strip label (`--color-text-muted`) comes to **2.06:1** and the
-10 px sidebar foot (`--color-text-faint`) to **1.90:1**, where AA at those sizes asks for
-4.5:1. So in the full-bleed variant the sidebar column, its mobile foot and the strip label
-get the page background back as an opaque panel; the ratios are then the ones the palette is
-checked at (4.9:1 dark, 4.7:1 light) and no frame can change them. The cost is visible and
-deliberate: the clip shows in the content column and not behind the navigation. Photographs
-are not touched and no filter goes near them. The version that keeps the clip whole and the
-text readable is a design problem, and P11's.
+measurement is not close: sampled against the p90 luminance of the bright frames, the 11 px
+strip label (`--color-text-muted`) comes to **2.06:1** and the 10 px sidebar foot
+(`--color-text-faint`) to **1.90:1**, where AA at those sizes asks for 4.5:1. So the sidebar
+column, its mobile foot and the strip label get the page background back as an opaque panel;
+the ratios are then the ones the palette is checked at (4.9:1 dark, 5.1:1 light) and no
+frame can change them. The cost is visible and deliberate: the clip shows in the content
+column and not behind the navigation. Photographs are not touched and no filter goes near
+them.
+
+**The motto over the clip does not reach AA, and that is a recorded decision, not an
+oversight.** The two words were fixed at the design canvas: on the dark side the shadow word
+is filled black so that it reads as a silhouette against the clip, on the light side the
+light word is filled pale and lifted by a dark halo. Both are large text, where AA asks for
+3:1. Measured against the frames they actually stand on — every pixel of each word's own box
+over six frames of its clip, the word composited over the frame in sRGB:
+
+| palette | word     |  worst |  p10 | median |
+| ------- | -------- | -----: | ---: | -----: |
+| dark    | "Shadow" | 1.00:1 | 1.34 | 1.95:1 |
+| dark    | "Light"  | 2.50:1 | 2.87 | 3.04:1 |
+| light   | "Light"  | 1.30:1 | 2.63 | 3.68:1 |
+| light   | "Shadow" | 1.95:1 | 3.00 | 3.60:1 |
+
+The silhouette is the design and the measurement is the cost of it; the halo and the outline
+help the eye but count for nothing in the WCAG sense. The knobs, if the cost is judged too
+high, are the scrim (one token per palette), a plate behind the words in the pattern the
+small text already uses, or a colour that is no longer the extreme. None of them was applied
+silently. Every other page is clean under axe in both palettes.
 
 ## SEO
 
@@ -911,36 +956,54 @@ _is_ translated, with a note on the English version that the German one is autho
 
 ## Fonts
 
-**Subsetting.** `scripts/subset-fonts.sh` reduces three woff2 files to the characters this
-site renders and clamps their weight axis to what `fonts.css` declares:
-**114 KB → 55 KB (-52 %)**.
+**Subsetting.** `scripts/subset-fonts.sh` reduces five woff2 files to the characters this
+site renders and pins or clamps their weight axis to what `fonts.css` declares:
+**373 KB → 62 KB (-83 %)**.
 
 | file                            |        source |           subset |
 | ------------------------------- | ------------: | ---------------: |
 | `archivo-variable.woff2`        |      34,928 B | 15,004 B (-57 %) |
 | `archivo-italic-variable.woff2` |      39,156 B | 15,940 B (-59 %) |
 | `jetbrains-mono-variable.woff2` |      40,404 B | 23,940 B (-40 %) |
-| **total**                       | **114,488 B** |     **54,884 B** |
+| `italianno-motto.woff2`         |     223,708 B |  7,176 B (-97 %) |
+| `archivo-motto.woff2`           |      34,928 B |  1,368 B (-96 %) |
+| **total**                       | **373,124 B** |     **63,428 B** |
 
-**Source and output are separate directories.** The unsubset `latin` files live in
+**A character set per font, not per run.** The first three files carry everything the pages
+render; the last two carry ten capitals and six lowercase between them, which is exactly the
+letters of "Light", "Licht", "Shadow" and "Schatten". `unicode-range` would not do the job —
+those are ordinary Latin letters the body text uses as well, so the split is by CSS class,
+not by codepoint, and the two motto files simply contain nothing else. The script therefore
+carries named sets and a table that gives each output file its source, its axis and its set;
+adding a face is a row.
+
+**Source and output are separate directories.** The unsubset files live in
 `scripts/fonts-src/` and the subsets in `public/fonts/`. Subsetting a file that is already
-subset cannot add a glyph back, so widening the character set without the sources means
-refetching them and hoping the URLs still resolve. 114 KB of committed source is the
-cheaper answer, and the fetch URLs are pinned in the script header as well.
+subset cannot add a glyph back, so widening a character set without the sources means
+refetching them and hoping the URLs still resolve. The committed source is the cheaper
+answer, and the fetch URLs are pinned in the script header as well. Italianno is the whole
+upstream TTF from the Google Fonts repository rather than a `latin` subset from the API: it
+is a versioned file in a repository instead of a hashed URL, which is what makes 224 KB of
+committed source worth its place.
 
-Most of the saving is the weight axis, not the character set: these are variable fonts,
-Archivo ships a 100–900 axis and JetBrains Mono a 400–800 one, and the design uses 400–600
-and 400–500. `fontTools.varLib.instancer` clamps the axis, `pyftsubset` then cuts the
-glyphs with `--layout-features='*'` — dropping features to save more bytes would break the
-tabular figures the counters depend on. The script is idempotent, prints before/after
-sizes, and verifies afterwards that every requested character survived.
+Most of the saving on the body faces is the weight axis, not the character set: these are
+variable fonts, Archivo ships a 100–900 axis and JetBrains Mono a 400–800 one, and the
+design uses 400–600 and 400–500. The motto's upright face is the same Archivo source pinned
+to a single weight, 900 — a weight the body range deliberately does not reach, so the two
+files can share the family name and the browser picks by weight.
+`fontTools.varLib.instancer` clamps or pins the axis, `pyftsubset` then cuts the glyphs with
+`--layout-features='*'` — dropping features to save more bytes would break the tabular
+figures the counters depend on. The script prints before/after sizes and verifies afterwards
+that every requested character survived. It is not byte-reproducible: fontTools stamps
+`head.modified`, so a re-run rewrites every file even when nothing changed. Re-run it when a
+character set or a weight changes, and commit only the files that had a reason to move.
 
 fontTools is **not** a project dependency. The site builds without it; the script installs
 it into a throwaway virtualenv and is run by hand when the character set or a weight
-changes. The character set is listed in the script with a reason per line, and the sources
-(Google Fonts API, `latin` subset, 2026-08-29) are named there so the set can be widened
-again later. `public/fonts/LICENSE-OFL.txt` records that the files are modified versions,
-which the OFL requires.
+changes. Each character set is listed with a reason per line, and the sources are named
+there so a set can be widened again later. `public/fonts/LICENSE-OFL.txt` records that the
+files are modified versions, which the OFL requires; all three families are OFL 1.1 and none
+declares a Reserved Font Name, so the modified files keep the original names.
 
 **Two characters the fonts never had.** U+2190/U+2192 (the ← → arrows) and U+2261 (the
 mobile menu glyph) are outside Google's `latin` subset and were absent before this change
@@ -998,6 +1061,15 @@ against Archivo's 0.45543 em), and at 95.77 % the fallback rendered about 2.9 % 
 than the webfont, so text still grew on swap. The monospace row reproduces exactly and is
 unchanged — and that is not evidence the old method was sound: JetBrains Mono is a flat
 0.600 em and DejaVu Sans Mono a flat 0.60205 em, so every method returns 99.66 %.
+
+**The two motto faces get no such fallback, deliberately.** There is no metric-compatible
+local font for a script like Italianno, and the discipline above is precisely that a
+`size-adjust` derived from one font and applied to another makes the shift worse rather than
+better. The exposure is small and was measured rather than assumed: the two files are 7.2 KB
+and 1.4 KB, they set two words on one page, and Lighthouse reports CLS 0 on `/` at mobile
+emulation, unchanged from before the motto existed. If a slow connection ever turns that
+into a visible shift, the answer is a measured fallback for the upright face — where an
+Arial-metric local at weight 900 is at least a real comparison — and not one for the script.
 
 To re-run, with fontTools in a throwaway venv (not a project dependency, the same
 arrangement as `scripts/subset-fonts.sh`) and Liberation Sans plus DejaVu Sans Mono from the

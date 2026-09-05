@@ -13,8 +13,9 @@ performance are part of the goal.
 - Own CSS with custom properties (`app/assets/css/tokens.css`). No Tailwind, no UI kit.
 - Image processing: own sharp scripts (`export-sources.ts`, `build-images.ts`), not
   `@nuxt/image`. Tests with vitest.
-- Archivo and JetBrains Mono self-hosted in `public/fonts/`, subset from
-  `scripts/fonts-src/` (`scripts/subset-fonts.sh`, 114 → 55 KB).
+- Archivo and JetBrains Mono self-hosted in `public/fonts/`, plus two motto-only cuts
+  (Italianno, Archivo 900), subset from `scripts/fonts-src/` (`scripts/subset-fonts.sh`,
+  373 → 62 KB).
 - `sitemap.xml` and `robots.txt` are Nitro routes under `server/routes/`, not static files:
   both need the absolute site URL from `NUXT_PUBLIC_SITE_URL` (a build variable).
 
@@ -63,8 +64,9 @@ All three know `--help`.
   in `app/i18n/{en,de}.json`, read through `useI18n()` — no plain text in components. Link
   through `path('/gallery')` so links stay in the current language; photo titles come from
   the index (`photoTitle`/`photoAlt`). See "Internationalisation".
-- No colour values hard-coded in Vue files — only tokens from `tokens.css` (the one colour
-  correction lives in the project block there; the light palette is a P11 placeholder).
+- No colour values hard-coded in Vue files — only tokens from `tokens.css` (the corrections
+  and both palettes live in the project block there; the light one is a design of its own,
+  not the dark one inverted).
 - **Read `AGENTS.md` before every change.**
 
 ## Hard rules
