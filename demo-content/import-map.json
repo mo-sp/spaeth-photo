@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "demo-weisskopfseeadler",
+    "file": "demo-tier.jpg",
+    "title": "Weißkopfseeadler",
+    "tags": ["Tiere", "Natur"]
+  },
+  {
+    "slug": "demo-nebelwald",
+    "file": "demo-landschaft.jpg",
+    "title": "Nebel über dem Nadelwald",
+    "tags": ["Landschaft", "Natur"]
+  },
+  {
+    "slug": "demo-segelboot",
+    "file": "demo-segeln.jpg",
+    "title": "Segelboot von oben",
+    "tags": ["Segeln"]
+  }
+]
