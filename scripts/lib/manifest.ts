@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { TAG_ORDER } from '../../shared/constants/tags.ts'
+import { TAG_ORDER } from '../../shared/utils/tags.ts'
 import type {
   ManifestPhoto,
   PhotoIndexEntry,
@@ -157,6 +157,7 @@ export function buildManifest(options: BuildManifestOptions): BuildManifestResul
   const manifestPhotos: ManifestPhoto[] = sorted.map((photo) => ({
     slug: photo.slug,
     title: photo.meta.title,
+    alt: photo.meta.alt,
     date: photo.meta.date,
     year: year(photo.meta.date),
     tags: photo.meta.tags,
@@ -204,6 +205,7 @@ export function toIndex(manifest: PhotoManifest): PhotoIndexFile {
   const photos: PhotoIndexEntry[] = manifest.photos.map((photo) => ({
     slug: photo.slug,
     title: photo.title,
+    alt: photo.alt,
     date: photo.date,
     year: photo.year,
     tags: photo.tags,

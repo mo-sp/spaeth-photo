@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { TAG_ORDER } from '../../shared/constants/tags.ts'
+import { TAG_ORDER } from '../../shared/utils/tags.ts'
 import type {
   ManifestFile,
   ManifestPhoto,
@@ -46,6 +46,7 @@ export const dateSchema = z
 export const photoMetaSchema = z
   .object({
     title: z.string().trim().min(1, 'title darf nicht leer sein'),
+    alt: z.string().trim().min(1).nullable().default(null),
     date: dateSchema,
     // Alles außer Titel und Datum darf in einer handgeschriebenen Datei fehlen
     // und wird auf den dokumentierten Standardwert gesetzt. Unbekannte
@@ -81,6 +82,7 @@ export const tagCountTypeCheck: AssertExact<z.infer<typeof tagCountSchema>, TagC
 const indexEntryShape = {
   slug: slugSchema,
   title: z.string().min(1),
+  alt: z.string().min(1).nullable(),
   date: dateSchema,
   year: z.int(),
   tags: z.array(tagSchema),

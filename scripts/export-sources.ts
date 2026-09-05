@@ -281,6 +281,9 @@ async function main(): Promise<void> {
     if (!existsSync(metaFile)) {
       const meta: PhotoMeta = {
         title: mapped?.title ?? 'TODO',
+        // Eine Bildbeschreibung kann kein Skript erfinden; sie wird von Hand
+        // nachgetragen und fällt bis dahin auf den Titel zurück.
+        alt: null,
         date: exif.date ?? todayIso(),
         tags: mapped?.tags ?? [],
         collection: null,

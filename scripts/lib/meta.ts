@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { parse as parseYaml } from 'yaml'
 import type { PhotoMeta, Tag } from '../../shared/types/photo.ts'
-import { TAG_ORDER } from '../../shared/constants/tags.ts'
+import { TAG_ORDER } from '../../shared/utils/tags.ts'
 import { formatIssues, photoMetaSchema } from './schema.ts'
 import { formatExifDate } from './exif.ts'
 
@@ -23,7 +23,7 @@ export function yamlString(value: string): string {
 }
 
 /**
- * Tags in der kanonischen Reihenfolge aus `shared/constants/tags.ts`, ohne
+ * Tags in der kanonischen Reihenfolge aus `shared/utils/tags.ts`, ohne
  * Dubletten. Nimmt nur bereits geprüfte Tags entgegen — beide Aufrufer haben
  * sie zuvor durch `tagSchema` geschickt, ein zweiter Filter hier wäre toter
  * Code, der Unbekanntes stillschweigend verschlucken würde.
@@ -38,6 +38,7 @@ export function renderMetaYaml(meta: PhotoMeta): string {
   return (
     [
       `title: ${yamlString(meta.title)}`,
+      `alt: ${optional(meta.alt)}`,
       `date: ${meta.date}`,
       `tags: ${tags}`,
       `collection: ${optional(meta.collection)}`,

@@ -8,7 +8,7 @@
  * gegen `T` geprüft. Eine Änderung hier bricht dort den Typecheck und umgekehrt.
  */
 
-/** Erlaubte Tags. Reihenfolge und Anzeige-Label in `shared/constants/tags.ts`. */
+/** Erlaubte Tags. Reihenfolge und Anzeige-Label in `shared/utils/tags.ts`. */
 export type Tag = 'tiere' | 'natur' | 'landschaft' | 'segeln' | 'schwarzweiss'
 
 export type Orientation = 'landscape' | 'portrait' | 'square'
@@ -19,6 +19,13 @@ export type VariantFormat = 'avif' | 'webp' | 'jpeg'
 export interface PhotoMeta {
   /** Pflicht, nicht leer. */
   title: string
+  /**
+   * Bildbeschreibung für Screenreader. Optional: fehlt sie, tritt der Titel an
+   * ihre Stelle. Sie steht getrennt, weil ein guter Titel („Delfine vor dem
+   * Bug") und eine gute Beschreibung („Zwei Delfine springen dicht vor dem Bug
+   * eines fahrenden Segelboots aus dem Wasser") selten derselbe Satz sind.
+   */
+  alt: string | null
   /** Aufnahmedatum, `YYYY-MM-DD`. */
   date: string
   tags: Tag[]
@@ -51,6 +58,8 @@ export interface PhotoVariants {
 export interface PhotoIndexEntry {
   slug: string
   title: string
+  /** Bildbeschreibung; `null` bedeutet: der Titel ist die Beschreibung. */
+  alt: string | null
   /** `YYYY-MM-DD` */
   date: string
   year: number
