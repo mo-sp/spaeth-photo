@@ -155,9 +155,15 @@ function choose(theme: Theme) {
 
 /* The hinge, in the mono face of the labels and at the height of the upright
    word, so the three parts read as one line rather than as two words with a
-   mark between them. */
+   mark between them.
+
+   The margin resolves against this element's own size, which is 0.385 of the
+   script's — so the canvas's 28 px gap at a 165 px script is 28/(165 × 0.385)
+   = 0.44em, and it stays that proportion at every scale. Measured 27.9 px at
+   the reference; 0.5em, the figure the placeholder motto used, came out at
+   31.8 px and read as two words with a mark between them. */
 .slash {
-  margin: 0 0.5em;
+  margin: 0 0.44em;
   font-family: var(--font-mono);
   font-weight: 400;
   font-size: var(--motto-caps-size);
