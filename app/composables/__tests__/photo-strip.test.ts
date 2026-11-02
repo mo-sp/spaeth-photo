@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advanceStrip, nextStripScroll, stripSpan } from '../usePhotoStrip.ts'
+import { advanceStrip, driftOrigin, nextStripScroll, stripSpan } from '../usePhotoStrip.ts'
 
 describe('advanceStrip', () => {
   it('advances by speed times the elapsed time', () => {
@@ -20,6 +20,71 @@ describe('advanceStrip', () => {
 
   it('ignores a negative frame gap', () => {
     expect(advanceStrip(120, -16, 48, 1000)).toBe(120)
+  })
+})
+
+describe('driftOrigin', () => {
+  it('keeps its own position while scrollLeft only shows it rounded', () => {
+    expect(driftOrigin(10.4, 10)).toBe(10.4)
+    expect(driftOrigin(10.6, 11)).toBe(10.6)
+  })
+
+  it('takes over the offset once the reader has scrolled', () => {
+    expect(driftOrigin(10.4, 130)).toBe(130)
+    expect(driftOrigin(10.4, 9)).toBe(9)
+  })
+})
+
+describe('the drift in a browser that rounds scrollLeft', () => {
+  const span = 1000
+  const dt = 1000 / 144
+
+  /** A scroll container that stores what it is given rounded to whole pixels, as Chromium does. */
+  function roundingStrip() {
+    let stored = 0
+    return {
+      get scrollLeft() {
+        return stored
+      },
+      set scrollLeft(value: number) {
+        stored = Math.round(value)
+      },
+    }
+  }
+
+  // The regression: reading the step back from scrollLeft loses it every frame
+  // once it is under half a pixel, which at 144 Hz and 48 px/s it is.
+  it('stands still at 144 Hz when the offset is read back from scrollLeft', () => {
+    const strip = roundingStrip()
+    for (let frame = 0; frame < 144; frame++) {
+      strip.scrollLeft = advanceStrip(strip.scrollLeft, dt, 48, span)
+    }
+    expect(strip.scrollLeft).toBe(0)
+  })
+
+  it('moves at its speed at 144 Hz when it keeps its own position', () => {
+    const strip = roundingStrip()
+    let position = 0
+    for (let frame = 0; frame < 144; frame++) {
+      position = advanceStrip(driftOrigin(position, strip.scrollLeft), dt, 48, span)
+      strip.scrollLeft = position
+    }
+    expect(strip.scrollLeft).toBe(48)
+  })
+
+  it('continues from where the reader scrolled to', () => {
+    const strip = roundingStrip()
+    let position = 0
+    for (let frame = 0; frame < 72; frame++) {
+      position = advanceStrip(driftOrigin(position, strip.scrollLeft), dt, 48, span)
+      strip.scrollLeft = position
+    }
+    strip.scrollLeft = 500
+    for (let frame = 0; frame < 72; frame++) {
+      position = advanceStrip(driftOrigin(position, strip.scrollLeft), dt, 48, span)
+      strip.scrollLeft = position
+    }
+    expect(strip.scrollLeft).toBe(524)
   })
 })
 
