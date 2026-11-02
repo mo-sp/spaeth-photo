@@ -18,6 +18,15 @@ describe('advanceStrip', () => {
     expect(advanceStrip(998, 50, 48, 1000)).toBeCloseTo(0.4)
   })
 
+  it('drifts left with a negative speed', () => {
+    expect(advanceStrip(500, 50, -48, 1000)).toBeCloseTo(497.6)
+  })
+
+  it('wraps below zero onto the second copy, so the row is endless to the left too', () => {
+    expect(advanceStrip(1, 50, -48, 1000)).toBeCloseTo(998.6)
+    expect(advanceStrip(0, 50, -48, 1000)).toBeCloseTo(997.6)
+  })
+
   it('clamps a long frame gap: a backgrounded tab must not resume with a jump', () => {
     expect(advanceStrip(0, 5000, 48, 1000)).toBe(advanceStrip(0, 100, 48, 1000))
   })
