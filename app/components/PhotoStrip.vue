@@ -6,6 +6,9 @@
     @pointerenter="onPointerEnter"
     @pointermove="onPointerMove"
     @pointerleave="onPointerLeave"
+    @pointerdown="onPointerDown"
+    @pointerup="onPointerUp"
+    @pointercancel="onPointerUp"
     @wheel="onWheel"
   >
     <ul ref="track" class="track">
@@ -65,10 +68,15 @@ const { locale, path } = useI18n()
 
 const strip = useTemplateRef<HTMLElement>('strip')
 const track = useTemplateRef<HTMLElement>('track')
-const { animated, onPointerEnter, onPointerMove, onPointerLeave, onWheel } = usePhotoStrip(
-  strip,
-  track,
-)
+const {
+  animated,
+  onPointerEnter,
+  onPointerMove,
+  onPointerLeave,
+  onPointerDown,
+  onPointerUp,
+  onWheel,
+} = usePhotoStrip(strip, track)
 
 /** Tile height in CSS px; mirrors `--curated-h` in `tokens.css`, which JS cannot read. Change both together. */
 const TILE_H = 124

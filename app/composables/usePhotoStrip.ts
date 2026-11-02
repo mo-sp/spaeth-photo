@@ -218,22 +218,43 @@ export function usePhotoStrip(
   }
 
   /** Touch has no hover to steer with; its scrolling is the row's own. */
+  function steers(event: PointerEvent) {
+    return animated.value && event.pointerType !== 'touch'
+  }
+
+  /**
+   * A pointer already resting on the strip before hydration sends no enter, so the
+   * box is measured on its first move instead. A pressed button holds the drift.
+   */
   function steer(event: PointerEvent) {
-    if (!animated.value || event.pointerType === 'touch' || bounds === null) return
+    const element = strip.value
+    if (!steers(event) || event.buttons !== 0 || element === null) return
+    bounds ??= measureBounds(element)
     target = driftVelocity(event.clientX - bounds.left, bounds.width)
     start()
   }
 
   function onPointerEnter(event: PointerEvent) {
     const element = strip.value
-    if (!animated.value || event.pointerType === 'touch' || element === null) return
+    if (!steers(event) || element === null) return
     bounds = measureBounds(element)
     steer(event)
   }
 
-  function onPointerLeave() {
+  function onPointerLeave(event: PointerEvent) {
+    if (!steers(event)) return
     bounds = null
     target = 0
+  }
+
+  /**
+   * Stops dead rather than easing out: at full speed the row travels tens of pixels
+   * during a click, and a press and release on different tiles is no click at all.
+   */
+  function onPointerDown(event: PointerEvent) {
+    if (!steers(event)) return
+    target = 0
+    velocity = 0
   }
 
   /**
@@ -257,5 +278,13 @@ export function usePhotoStrip(
     window.removeEventListener('resize', forget)
   })
 
-  return { animated, onPointerEnter, onPointerMove: steer, onPointerLeave, onWheel }
+  return {
+    animated,
+    onPointerEnter,
+    onPointerMove: steer,
+    onPointerLeave,
+    onPointerDown,
+    onPointerUp: steer,
+    onWheel,
+  }
 }
