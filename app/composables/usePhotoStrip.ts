@@ -15,6 +15,12 @@ export const DRIFT_MAX_SPEED = 320
 /** Exponent of the ramp from the still zone to the edge: 2 keeps the inner part slow. */
 export const DRIFT_CURVE = 2
 
+/** Time constant in ms in which the drift closes about two thirds of the gap to its target speed. */
+export const DRIFT_SMOOTHING_MS = 250
+
+/** Below this speed in px/s, with nothing steering, the drift has stopped and the loop ends. */
+export const DRIFT_REST_SPEED = 2
+
 /**
  * How far `scrollLeft` may sit from the drift's own position before it counts as
  * the reader's scroll. Browsers round the written offset (Chromium to whole
@@ -56,6 +62,20 @@ export function driftVelocity(
   const still = deadZone * width
   const ramp = Math.min(1, Math.max(0, (Math.abs(fromCentre) - still) / (width / 2 - still)))
   return ramp === 0 ? 0 : Math.sign(fromCentre) * maxSpeed * ramp ** curve
+}
+
+/**
+ * The drift's speed after `dtMs` on its way from `current` to `target`. Exponential,
+ * so that the result depends on the time passed and not on how many frames it took.
+ */
+export function approachVelocity(
+  current: number,
+  target: number,
+  dtMs: number,
+  smoothingMs = DRIFT_SMOOTHING_MS,
+): number {
+  const dt = Math.min(Math.max(dtMs, 0), MAX_FRAME_MS)
+  return target + (current - target) * Math.exp(-dt / smoothingMs)
 }
 
 /**
@@ -114,6 +134,8 @@ export function usePhotoStrip(
    */
   let position = 0
   let velocity = 0
+  /** The speed the pointer asks for; `velocity` eases towards it. */
+  let target = 0
   /** Left edge and width of the strip, measured on entry and on resize rather than per event. */
   let bounds: { left: number; width: number } | null = null
   let metrics: { span: number; max: number } | null = null
@@ -155,9 +177,18 @@ export function usePhotoStrip(
     return { left: rect.left, width: rect.width }
   }
 
+  function resting() {
+    return target === 0 && Math.abs(velocity) < DRIFT_REST_SPEED
+  }
+
   function step(now: number) {
     const element = strip.value
-    if (element === null) return
+    velocity = approachVelocity(velocity, target, now - last)
+    if (element === null || resting()) {
+      velocity = 0
+      frame = 0
+      return
+    }
     position = advanceStrip(
       driftOrigin(position, element.scrollLeft),
       now - last,
@@ -169,9 +200,10 @@ export function usePhotoStrip(
     frame = requestAnimationFrame(step)
   }
 
+  /** The loop runs only while the drift moves: in the still zone and after leaving it eases out and ends. */
   function start() {
     const element = strip.value
-    if (frame !== 0 || element === null) return
+    if (frame !== 0 || element === null || resting()) return
     position = element.scrollLeft
     last = performance.now()
     frame = requestAnimationFrame(step)
@@ -186,7 +218,8 @@ export function usePhotoStrip(
   /** Touch has no hover to steer with; its scrolling is the row's own. */
   function steer(event: PointerEvent) {
     if (!animated.value || event.pointerType === 'touch' || bounds === null) return
-    velocity = driftVelocity(event.clientX - bounds.left, bounds.width)
+    target = driftVelocity(event.clientX - bounds.left, bounds.width)
+    start()
   }
 
   function onPointerEnter(event: PointerEvent) {
@@ -194,13 +227,11 @@ export function usePhotoStrip(
     if (!animated.value || event.pointerType === 'touch' || element === null) return
     bounds = measureBounds(element)
     steer(event)
-    start()
   }
 
   function onPointerLeave() {
     bounds = null
-    velocity = 0
-    stop()
+    target = 0
   }
 
   /**
