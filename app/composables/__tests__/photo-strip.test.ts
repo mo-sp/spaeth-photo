@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { advanceStrip, driftOrigin, nextStripScroll, stripSpan } from '../usePhotoStrip.ts'
+import {
+  advanceStrip,
+  DRIFT_MAX_SPEED,
+  driftOrigin,
+  driftVelocity,
+  nextStripScroll,
+  stripSpan,
+} from '../usePhotoStrip.ts'
 
 describe('advanceStrip', () => {
   it('advances by speed times the elapsed time', () => {
@@ -20,6 +27,43 @@ describe('advanceStrip', () => {
 
   it('ignores a negative frame gap', () => {
     expect(advanceStrip(120, -16, 48, 1000)).toBe(120)
+  })
+})
+
+describe('driftVelocity', () => {
+  // A 1000 px strip: the still zone runs from 400 to 600, the ramp from there to either edge.
+  it('stands still around the centre', () => {
+    expect(driftVelocity(500, 1000)).toBe(0)
+    expect(driftVelocity(420, 1000)).toBe(0)
+    expect(driftVelocity(600, 1000)).toBe(0)
+  })
+
+  it('drifts towards the side the pointer is on', () => {
+    expect(driftVelocity(200, 1000)).toBeLessThan(0)
+    expect(driftVelocity(800, 1000)).toBeGreaterThan(0)
+    expect(driftVelocity(200, 1000)).toBe(-driftVelocity(800, 1000))
+  })
+
+  it('reaches the top speed at either edge', () => {
+    expect(driftVelocity(0, 1000)).toBe(-DRIFT_MAX_SPEED)
+    expect(driftVelocity(1000, 1000)).toBe(DRIFT_MAX_SPEED)
+  })
+
+  it('gets steeper towards the edge', () => {
+    // Halfway along the ramp a quadratic gives a quarter of the top speed.
+    expect(driftVelocity(800, 1000, 0.1, 320, 2)).toBeCloseTo(80)
+    const inner = driftVelocity(700, 1000) - driftVelocity(650, 1000)
+    const outer = driftVelocity(950, 1000) - driftVelocity(900, 1000)
+    expect(outer).toBeGreaterThan(inner)
+  })
+
+  it('holds the top speed for a pointer just outside the measured box', () => {
+    expect(driftVelocity(-20, 1000)).toBe(-DRIFT_MAX_SPEED)
+    expect(driftVelocity(1020, 1000)).toBe(DRIFT_MAX_SPEED)
+  })
+
+  it('stays still while the width is unknown', () => {
+    expect(driftVelocity(100, 0)).toBe(0)
   })
 })
 

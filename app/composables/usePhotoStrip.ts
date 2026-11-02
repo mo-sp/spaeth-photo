@@ -6,8 +6,14 @@ import type { ShallowRef } from 'vue'
  */
 const MAX_FRAME_MS = 100
 
-/** Scroll speed of the strip in CSS pixels per second. */
-export const STRIP_SPEED = 48
+/** Half-width of the still zone around the strip's centre, as a fraction of its width. */
+export const DRIFT_DEAD_ZONE = 0.1
+
+/** Drift speed with the pointer at either edge, in CSS pixels per second. */
+export const DRIFT_MAX_SPEED = 320
+
+/** Exponent of the ramp from the still zone to the edge: 2 keeps the inner part slow. */
+export const DRIFT_CURVE = 2
 
 /**
  * How far `scrollLeft` may sit from the drift's own position before it counts as
@@ -31,6 +37,25 @@ export function advanceStrip(offset: number, dtMs: number, speed: number, span: 
   const dt = Math.min(Math.max(dtMs, 0), MAX_FRAME_MS)
   const next = offset + (speed * dt) / 1000
   return ((next % span) + span) % span
+}
+
+/**
+ * The drift's velocity in px/s for a pointer `x` px from the strip's left edge:
+ * negative left of the centre (the offset falls, the view travels left), positive
+ * right of it, zero in the still zone, and steeper towards the edges.
+ */
+export function driftVelocity(
+  x: number,
+  width: number,
+  deadZone = DRIFT_DEAD_ZONE,
+  maxSpeed = DRIFT_MAX_SPEED,
+  curve = DRIFT_CURVE,
+): number {
+  if (!(width > 0)) return 0
+  const fromCentre = x - width / 2
+  const still = deadZone * width
+  const ramp = Math.min(1, Math.max(0, (Math.abs(fromCentre) - still) / (width / 2 - still)))
+  return ramp === 0 ? 0 : Math.sign(fromCentre) * maxSpeed * ramp ** curve
 }
 
 /**
@@ -63,9 +88,10 @@ export function stripSpan(scrollWidth: number, gap: number): number {
 /**
  * The gallery strip's motion. Two things move the same position: the reader —
  * by touch, trackpad or wheel, which is the row's own native scrolling — and,
- * where a fine pointer can hover, a slow drift while the pointer rests on it.
- * Both write `scrollLeft`, so they compose instead of fighting, and the drift's
- * wrap makes the row endless in the direction it travels.
+ * where a fine pointer can hover, a drift steered by the pointer: towards the
+ * side it is on, faster towards the edge, still around the centre. Both write
+ * `scrollLeft`, so they compose instead of fighting, and the drift's wrap makes
+ * the row endless in both directions.
  *
  * `animated` stays false where the drift must not run: a coarse pointer has no
  * hover to leave, reduced motion is a request rather than a preference, and a
@@ -87,6 +113,9 @@ export function usePhotoStrip(
    * from there is lost every frame and the row stands still.
    */
   let position = 0
+  let velocity = 0
+  /** Left edge and width of the strip, measured on entry and on resize rather than per event. */
+  let bounds: { left: number; width: number } | null = null
   let metrics: { span: number; max: number } | null = null
 
   onMounted(() => {
@@ -118,6 +147,12 @@ export function usePhotoStrip(
 
   function forget() {
     metrics = null
+    if (bounds !== null && strip.value !== null) bounds = measureBounds(strip.value)
+  }
+
+  function measureBounds(element: HTMLElement) {
+    const rect = element.getBoundingClientRect()
+    return { left: rect.left, width: rect.width }
   }
 
   function step(now: number) {
@@ -126,7 +161,7 @@ export function usePhotoStrip(
     position = advanceStrip(
       driftOrigin(position, element.scrollLeft),
       now - last,
-      STRIP_SPEED,
+      velocity,
       measure(element).span,
     )
     element.scrollLeft = position
@@ -136,7 +171,7 @@ export function usePhotoStrip(
 
   function start() {
     const element = strip.value
-    if (!animated.value || frame !== 0 || element === null) return
+    if (frame !== 0 || element === null) return
     position = element.scrollLeft
     last = performance.now()
     frame = requestAnimationFrame(step)
@@ -146,6 +181,26 @@ export function usePhotoStrip(
     if (frame === 0) return
     cancelAnimationFrame(frame)
     frame = 0
+  }
+
+  /** Touch has no hover to steer with; its scrolling is the row's own. */
+  function steer(event: PointerEvent) {
+    if (!animated.value || event.pointerType === 'touch' || bounds === null) return
+    velocity = driftVelocity(event.clientX - bounds.left, bounds.width)
+  }
+
+  function onPointerEnter(event: PointerEvent) {
+    const element = strip.value
+    if (!animated.value || event.pointerType === 'touch' || element === null) return
+    bounds = measureBounds(element)
+    steer(event)
+    start()
+  }
+
+  function onPointerLeave() {
+    bounds = null
+    velocity = 0
+    stop()
   }
 
   /**
@@ -169,5 +224,5 @@ export function usePhotoStrip(
     window.removeEventListener('resize', forget)
   })
 
-  return { animated, start, stop, onWheel }
+  return { animated, onPointerEnter, onPointerMove: steer, onPointerLeave, onWheel }
 }
