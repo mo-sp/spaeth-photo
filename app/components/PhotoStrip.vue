@@ -3,8 +3,9 @@
     ref="strip"
     class="strip"
     :class="{ 'strip--animated': animated }"
-    @mouseenter="start"
-    @mouseleave="stop"
+    @pointerenter="onPointerEnter"
+    @pointermove="onPointerMove"
+    @pointerleave="onPointerLeave"
     @wheel="onWheel"
   >
     <ul ref="track" class="track">
@@ -56,15 +57,18 @@ import type { PhotoIndexEntry } from '#shared/types/photo'
 
 /**
  * Every photo in gallery order as one horizontal row, scrolled freely by touch,
- * trackpad or wheel. Where a fine pointer can hover, the row also drifts by
- * itself while the pointer rests on it.
+ * trackpad or wheel. Where a fine pointer can hover, the row also drifts
+ * towards the side the pointer is on, faster towards the edge.
  */
 const { photos } = usePhotos()
 const { locale, path } = useI18n()
 
 const strip = useTemplateRef<HTMLElement>('strip')
 const track = useTemplateRef<HTMLElement>('track')
-const { animated, start, stop, onWheel } = usePhotoStrip(strip, track)
+const { animated, onPointerEnter, onPointerMove, onPointerLeave, onWheel } = usePhotoStrip(
+  strip,
+  track,
+)
 
 /** Tile height in CSS px; mirrors `--curated-h` in `tokens.css`, which JS cannot read. Change both together. */
 const TILE_H = 124
