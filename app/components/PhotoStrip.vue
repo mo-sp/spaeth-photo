@@ -27,8 +27,8 @@
       </li>
 
       <!-- The second copy exists only where the strip moves: the offset wraps
-           once the first copy has scrolled out, and the copy is then standing
-           exactly where the first one started. Hidden from assistive technology
+           by one copy at either end, and the other copy is then standing
+           exactly where the first one was. Hidden from assistive technology
            and from the tab order — the same links a second time are noise. -->
       <template v-if="animated">
         <li

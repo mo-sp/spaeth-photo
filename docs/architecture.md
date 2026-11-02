@@ -513,6 +513,32 @@ does not. `featured` and `order` stay in the schema and `curated()` stays in
 `shared/utils/photos.ts` — the hero still comes from the YAML, and phase 2 may want a
 selection again.
 
+**The pointer steers the drift** (deviation from the constant 48 px per second above, at the
+owner's request). Where the pointer stands over the strip sets direction and speed: left of the
+centre the view travels left (the offset falls), right of it to the right, and in a still zone
+of ±10 % of the width around the centre the row does not move. Beyond that zone the speed rises
+along a quadratic ramp to 320 px/s at either edge, so the inner part is a slow pan and only the
+edges hurry (`driftVelocity`). The speed never jumps to its target: it eases there
+exponentially with a time constant of 250 ms (`approachVelocity`) — on entry, on every move of
+the pointer, and on leaving, where the row brakes to rest and the loop ends. Exponential in
+elapsed time means a 60 Hz and a 144 Hz display reach the same speed after the same time. No
+frame runs while the pointer rests in the still zone. The wrap works in both directions: a
+leftward drift past offset 0 lands one copy further on, which is the same picture. The pointer
+position is taken from `pointermove` against the strip's box, measured on entry and on resize
+rather than per event. Every starting value is a named constant at the top of
+`app/composables/usePhotoStrip.ts`, to be tuned by eye.
+
+**The drift keeps its own position, because `scrollLeft` is rounded.** Chromium stores
+`scrollLeft` in whole pixels: 0.4 becomes 0, 0.8 becomes 1. The first drift read the offset back
+every frame and added speed × frame time. At 48 px/s that is 0.8 px per frame at 60 Hz — rounded
+up, so the row ran at 60 instead of 48 px/s — and 0.4 or 0.33 px at 120 or 144 Hz, rounded down
+to nothing: on a fast display the strip did not move at all. The drift now carries its offset as
+a float and only ever writes it. The reader's own scrolling — wheel, trackpad, keyboard,
+scrollbar — still composes with it: it shows as `scrollLeft` sitting a pixel or more away from
+the last written value, which rounding alone never produces, and the drift then continues from
+the reader's offset (`driftOrigin`). The unit tests run the drift against a simulated container
+that rounds the way Chromium does, at 144 Hz.
+
 **On mobile the hero is width-driven — and `sizes` says 100vw, not 66vw.** The handoff sets
 `--hero-h: 60vh` below 768 px. But a height in viewport heights couples the display width to
 the viewport under `object-fit: cover`, and that width is the only thing `sizes` can
