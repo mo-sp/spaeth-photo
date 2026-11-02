@@ -142,7 +142,7 @@ describe('the drift in a browser that rounds scrollLeft', () => {
 
   // The regression: reading the step back from scrollLeft loses it every frame
   // once it is under half a pixel, which at 144 Hz and 48 px/s it is.
-  it('stands still at 144 Hz when the offset is read back from scrollLeft', () => {
+  it('the bug F3 fixes: reading the offset back from scrollLeft stands still at 144 Hz', () => {
     const strip = roundingStrip()
     for (let frame = 0; frame < 144; frame++) {
       strip.scrollLeft = advanceStrip(strip.scrollLeft, dt, 48, span)
