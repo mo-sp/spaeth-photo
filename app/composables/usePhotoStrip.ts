@@ -29,14 +29,16 @@ export const DRIFT_REST_SPEED = 2
 export const RESYNC_PX = 1
 
 /**
- * The strip's offset after `dtMs`, wrapped into `[0, span)`. `span` is the width
- * of one copy of the list including its trailing gap, so wrapping there puts the
- * second copy exactly where the first one stood — the seam is never visible.
+ * The strip's offset after `dtMs` at `speed` (negative drifts left), wrapped into
+ * `[0, span)`. `span` is the width of one copy of the list including its trailing
+ * gap, so wrapping there puts one copy exactly where the other stood — the seam is
+ * never visible, in either direction.
  *
  * The wrap is a jump of one whole copy in `scrollLeft`, and it is invisible for
  * that reason alone: at offset `span` the pixels under the viewport are the
  * second copy, at offset 0 they are the first, and the two are the same list at
- * the same widths. Nothing on screen moves; only the number does.
+ * the same widths. Drifting right past `span` lands near 0, drifting left past 0
+ * lands near `span`. Nothing on screen moves; only the number does.
  */
 export function advanceStrip(offset: number, dtMs: number, speed: number, span: number): number {
   if (!(span > 0)) return 0
