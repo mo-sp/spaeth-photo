@@ -10,6 +10,13 @@ const MAX_FRAME_MS = 100
 export const STRIP_SPEED = 48
 
 /**
+ * How far `scrollLeft` may sit from the drift's own position before it counts as
+ * the reader's scroll. Browsers round the written offset (Chromium to whole
+ * pixels), which moves it by less than this; a wheel notch or a drag moves it by more.
+ */
+export const RESYNC_PX = 1
+
+/**
  * The strip's offset after `dtMs`, wrapped into `[0, span)`. `span` is the width
  * of one copy of the list including its trailing gap, so wrapping there puts the
  * second copy exactly where the first one stood — the seam is never visible.
@@ -24,6 +31,15 @@ export function advanceStrip(offset: number, dtMs: number, speed: number, span: 
   const dt = Math.min(Math.max(dtMs, 0), MAX_FRAME_MS)
   const next = offset + (speed * dt) / 1000
   return ((next % span) + span) % span
+}
+
+/**
+ * Where the drift continues from: its own position, unless `scrollLeft` has moved
+ * away from it by a pixel or more — then the reader has scrolled, and the drift
+ * takes over the reader's offset instead of pulling the row back.
+ */
+export function driftOrigin(position: number, scrollLeft: number): number {
+  return Math.abs(scrollLeft - position) >= RESYNC_PX ? scrollLeft : position
 }
 
 /**
@@ -65,6 +81,12 @@ export function usePhotoStrip(
 
   let frame = 0
   let last = 0
+  /**
+   * The drift's offset as a float. `scrollLeft` cannot carry it: Chromium rounds
+   * it to whole pixels, so a sub-pixel step per frame (0.4 px at 120 Hz) read back
+   * from there is lost every frame and the row stands still.
+   */
+  let position = 0
   let metrics: { span: number; max: number } | null = null
 
   onMounted(() => {
@@ -101,12 +123,13 @@ export function usePhotoStrip(
   function step(now: number) {
     const element = strip.value
     if (element === null) return
-    element.scrollLeft = advanceStrip(
-      element.scrollLeft,
+    position = advanceStrip(
+      driftOrigin(position, element.scrollLeft),
       now - last,
       STRIP_SPEED,
       measure(element).span,
     )
+    element.scrollLeft = position
     last = now
     frame = requestAnimationFrame(step)
   }
@@ -114,6 +137,7 @@ export function usePhotoStrip(
   function start() {
     const element = strip.value
     if (!animated.value || frame !== 0 || element === null) return
+    position = element.scrollLeft
     last = performance.now()
     frame = requestAnimationFrame(step)
   }
