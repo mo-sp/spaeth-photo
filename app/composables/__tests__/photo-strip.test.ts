@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   advanceStrip,
+  approachVelocity,
   DRIFT_MAX_SPEED,
   driftOrigin,
   driftVelocity,
@@ -64,6 +65,40 @@ describe('driftVelocity', () => {
 
   it('stays still while the width is unknown', () => {
     expect(driftVelocity(100, 0)).toBe(0)
+  })
+})
+
+describe('approachVelocity', () => {
+  /** The speed after `ms` of frames at `hz`, starting at `from`, aiming at `to`. */
+  function settle(from: number, to: number, ms: number, hz: number) {
+    let speed = from
+    for (let frame = 0; frame < (ms * hz) / 1000; frame++) {
+      speed = approachVelocity(speed, to, 1000 / hz)
+    }
+    return speed
+  }
+
+  it('closes about two thirds of the gap in one time constant', () => {
+    expect(approachVelocity(0, 300, 80, 80)).toBeCloseTo(300 * (1 - Math.exp(-1)))
+  })
+
+  it('arrives at the same speed at 60 and at 144 Hz', () => {
+    expect(settle(0, 320, 500, 144)).toBeCloseTo(settle(0, 320, 500, 60), 6)
+    expect(settle(-320, 80, 250, 144)).toBeCloseTo(settle(-320, 80, 250, 60), 6)
+  })
+
+  it('brakes towards rest once nothing steers', () => {
+    const braking = settle(320, 0, 1500, 144)
+    expect(braking).toBeGreaterThan(0)
+    expect(braking).toBeLessThan(2)
+  })
+
+  it('clamps a long frame gap like the offset does', () => {
+    expect(approachVelocity(0, 320, 5000)).toBe(approachVelocity(0, 320, 100))
+  })
+
+  it('ignores a negative frame gap', () => {
+    expect(approachVelocity(40, 320, -16)).toBe(40)
   })
 })
 
