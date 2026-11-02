@@ -480,7 +480,8 @@ the owner's request** (second deviation from the plan, which asked for six to ni
 images, and from the handoff's five-column grid). The row now holds all photos in the
 gallery's order, each at the height the grid tiles had (`--curated-h`) and in its own aspect
 ratio, and it moves: while the pointer is on it, it scrolls to the left at 48 px per second
-and stops when the pointer leaves. It loops by rendering the list twice and wrapping the
+and stops when the pointer leaves (superseded: the pointer now steers direction and speed, see
+below). It loops by rendering the list twice and wrapping the
 offset once the first copy has scrolled out — the arithmetic is one pure function
 (`advanceStrip` in `app/composables/usePhotoStrip.ts`, with tests). The second copy is
 `aria-hidden` and out of the tab order; the same 26 links twice would be noise. Where the

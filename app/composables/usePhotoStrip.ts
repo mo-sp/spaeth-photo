@@ -6,7 +6,10 @@ import type { ShallowRef } from 'vue'
  */
 const MAX_FRAME_MS = 100
 
-/** Half-width of the still zone around the strip's centre, as a fraction of its width. */
+/**
+ * Half-width of the still zone around the strip's centre, as a fraction of its width.
+ * Must stay below 0.5 — the ramp divides by the remaining half-width.
+ */
 export const DRIFT_DEAD_ZONE = 0.1
 
 /** Drift speed with the pointer at either edge, in CSS pixels per second. */
